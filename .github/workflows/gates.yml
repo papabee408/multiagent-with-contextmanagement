@@ -1,0 +1,47 @@
+name: Gates
+
+on:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      feature_id:
+        description: "Feature packet id (optional)"
+        required: false
+        type: string
+
+jobs:
+  gates:
+    name: Gates
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Resolve feature id
+        id: feature
+        env:
+          FEATURE_ID_INPUT: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.feature_id || '' }}
+        run: |
+          set -euo pipefail
+
+          if [[ -n "$FEATURE_ID_INPUT" ]]; then
+            FEATURE_ID="$(scripts/ci/detect-feature.sh "$FEATURE_ID_INPUT")"
+          else
+            FEATURE_ID="$(scripts/ci/detect-feature.sh)"
+          fi
+
+          echo "feature_id=$FEATURE_ID" >> "$GITHUB_OUTPUT"
+          echo "Resolved feature-id: $FEATURE_ID"
+
+      - name: Run gates
+        run: scripts/gates/run.sh "${{ steps.feature.outputs.feature_id }}"
