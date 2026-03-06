@@ -3,6 +3,15 @@
 이 저장소에서 자주 쓰는 명령을 한 곳에 모아둔 운영용 메모다.
 명령이 기억 안 나면 여기부터 보면 된다.
 
+## 문서 용도
+
+- `README.md`
+  - 현재 이 템플릿 레포를 운영할 때 보는 문서
+  - 자주 쓰는 명령, heartbeat 확인, gate 실행 흐름 안내
+- `UPGRADE_PROMPT.md`
+  - 이 템플릿을 다른 기존 레포에 업그레이드 이식할 때 AI에게 주는 재사용 프롬프트
+  - 운영 문서가 아니라 마이그레이션 실행 문서
+
 ## 가장 자주 쓰는 흐름
 
 ### 1. 새 요청 시작
@@ -109,3 +118,4 @@ bash scripts/gates/check-tests.sh
 - Feature packet 구조: `docs/features/README.md`
 - Gate 정책: `docs/context/GATES.md`
 - 에이전트 역할 계약: `docs/agents/README.md`
+- 기존 레포 업그레이드용 프롬프트: `UPGRADE_PROMPT.md`
