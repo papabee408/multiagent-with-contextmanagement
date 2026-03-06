@@ -11,4 +11,10 @@ node --test tests/unit/*.test.mjs
 echo "[INFO] running context-log tests"
 bash tests/context-log.test.sh
 
+echo "[INFO] running gate script tests"
+bash tests/gates.test.sh
+
+echo "[INFO] running dispatch heartbeat tests"
+bash tests/dispatch-heartbeat.test.sh
+
 echo "[PASS] tests"

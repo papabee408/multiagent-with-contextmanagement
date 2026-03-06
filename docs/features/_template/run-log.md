@@ -4,6 +4,18 @@
 - feature-id:
 - overall: `IN_PROGRESS | BLOCKED | DONE`
 
+## Dispatch Monitor
+- current-role:
+- current-status: `QUEUED | RUNNING | AT_RISK | BLOCKED | DONE`
+- started-at-utc:
+- last-progress-at-utc:
+- interrupt-after-utc:
+- last-progress:
+
+## Evidence Rule
+- `evidence` must name concrete files, commands, diffs, or raw outputs.
+- Generic phrases like "investigated", "checked", or "worked on it" are invalid.
+
 ## Role Outputs
 ### orchestrator
 - agent-id: (required, unique runtime id)

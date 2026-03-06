@@ -20,6 +20,7 @@ fi
 checks=(
   "packet:scripts/gates/check-packet.sh"
   "role-chain:scripts/gates/check-role-chain.sh"
+  "test-matrix:scripts/gates/check-test-matrix.sh"
   "scope:scripts/gates/check-scope.sh"
   "file-size:scripts/gates/check-file-size.sh"
   "tests:scripts/gates/check-tests.sh"

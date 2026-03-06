@@ -2,6 +2,7 @@
 
 ## Scope
 - target files:
+  - Use one repo-relative, backtick-wrapped path per bullet. `scripts/gates/check-scope.sh` parses this section literally.
   - `builder/src/example.mjs`
   - `tests/unit/example.test.mjs`
 - out-of-scope files:

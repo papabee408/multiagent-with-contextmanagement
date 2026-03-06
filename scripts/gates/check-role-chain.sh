@@ -29,6 +29,29 @@ section_exists() {
   ' "$RUN_LOG"
 }
 
+monitor_field_value() {
+  local field="$1"
+
+  awk -v field="$field" '
+    $0 == "## Dispatch Monitor" { in_monitor = 1; next }
+    in_monitor && /^## / { in_monitor = 0 }
+    in_monitor {
+      prefix = "- " field ":"
+      if (index($0, prefix) == 1) {
+        line = substr($0, length(prefix) + 1)
+        gsub(/`/, "", line)
+        gsub(/^[[:space:]]+|[[:space:]]+$/, "", line)
+        print line
+        found = 1
+        exit
+      }
+    }
+    END {
+      if (!found) print ""
+    }
+  ' "$RUN_LOG"
+}
+
 field_value() {
   local role="$1"
   local field="$2"
@@ -75,6 +98,11 @@ is_placeholder_value() {
   fi
 
   return 1
+}
+
+is_valid_utc_timestamp() {
+  local value="$1"
+  [[ "$value" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}\ [0-9]{2}:[0-9]{2}:[0-9]{2}Z$ ]]
 }
 
 failures=()
@@ -152,6 +180,60 @@ planner_result=""
 implementer_result=""
 planner_scope=""
 orchestrator_scope=""
+monitor_role="$(monitor_field_value "current-role")"
+monitor_status="$(monitor_field_value "current-status")"
+monitor_started_at="$(monitor_field_value "started-at-utc")"
+monitor_last_progress_at="$(monitor_field_value "last-progress-at-utc")"
+monitor_interrupt_after="$(monitor_field_value "interrupt-after-utc")"
+monitor_last_progress="$(monitor_field_value "last-progress")"
+
+if is_placeholder_value "$monitor_role"; then
+  failures+=("dispatch-monitor:missing-current-role")
+else
+  case "$monitor_role" in
+    orchestrator|planner|implementer|tester|gate-checker|reviewer|security)
+      ;;
+    *)
+      failures+=("dispatch-monitor:invalid-current-role($monitor_role)")
+      ;;
+  esac
+fi
+
+if is_placeholder_value "$monitor_status"; then
+  failures+=("dispatch-monitor:missing-current-status")
+else
+  monitor_status_uc="$(printf '%s' "$monitor_status" | tr '[:lower:]' '[:upper:]')"
+  case "$monitor_status_uc" in
+    QUEUED|RUNNING|AT_RISK|BLOCKED|DONE)
+      ;;
+    *)
+      failures+=("dispatch-monitor:invalid-current-status($monitor_status)")
+      ;;
+  esac
+fi
+
+if is_placeholder_value "$monitor_started_at"; then
+  failures+=("dispatch-monitor:missing-started-at-utc")
+elif ! is_valid_utc_timestamp "$monitor_started_at"; then
+  failures+=("dispatch-monitor:invalid-started-at-utc($monitor_started_at)")
+fi
+
+if is_placeholder_value "$monitor_last_progress_at"; then
+  failures+=("dispatch-monitor:missing-last-progress-at-utc")
+elif ! is_valid_utc_timestamp "$monitor_last_progress_at"; then
+  failures+=("dispatch-monitor:invalid-last-progress-at-utc($monitor_last_progress_at)")
+fi
+
+if is_placeholder_value "$monitor_interrupt_after"; then
+  failures+=("dispatch-monitor:missing-interrupt-after-utc")
+elif ! is_valid_utc_timestamp "$monitor_interrupt_after"; then
+  failures+=("dispatch-monitor:invalid-interrupt-after-utc($monitor_interrupt_after)")
+fi
+
+if is_placeholder_value "$monitor_last_progress"; then
+  failures+=("dispatch-monitor:missing-last-progress")
+fi
+
 for item in "${role_results[@]}"; do
   role="${item%%:*}"
   result="${item#*:}"
@@ -179,6 +261,20 @@ for item in "${role_scopes[@]}"; do
     orchestrator_scope="$scope"
   fi
 done
+
+if [[ -n "${monitor_started_at:-}" && -n "${monitor_last_progress_at:-}" ]] \
+  && is_valid_utc_timestamp "$monitor_started_at" \
+  && is_valid_utc_timestamp "$monitor_last_progress_at" \
+  && [[ "$monitor_last_progress_at" < "$monitor_started_at" ]]; then
+  failures+=("dispatch-monitor:last-progress-before-start")
+fi
+
+if [[ -n "${monitor_started_at:-}" && -n "${monitor_interrupt_after:-}" ]] \
+  && is_valid_utc_timestamp "$monitor_started_at" \
+  && is_valid_utc_timestamp "$monitor_interrupt_after" \
+  && [[ "$monitor_interrupt_after" < "$monitor_started_at" ]]; then
+  failures+=("dispatch-monitor:interrupt-before-start")
+fi
 
 if [[ "$reviewer_result" == "FAIL" && "$security_result" != "BLOCKED" ]]; then
   failures+=("state-machine:security-must-be-BLOCKED-when-reviewer-FAIL")

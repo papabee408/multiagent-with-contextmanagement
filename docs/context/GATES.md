@@ -21,12 +21,14 @@ scripts/gates/run.sh <feature-id>
 
 ## Gate 항목
 1. `packet`: feature packet 필수 파일 존재 여부
-2. `role-chain`: run-log에 7개 역할(`orchestrator..security`)의 필수 필드(`agent-id/scope/result/evidence`)가 모두 채워졌는지 + `agent-id` 중복 여부 + 상태전이 규칙 준수 여부 + `plan.md` 소유권 규칙 준수 여부
-3. `scope`: 변경 파일이 `plan.md` target files 범위를 벗어나는지
-4. `file-size`: 신규 파일/수정 파일의 라인 수 정책 위반 여부
-5. `unit-tests`: `node --test tests/unit/*.test.mjs`
-6. `context-log-tests`: `bash tests/context-log.test.sh`
-7. `secrets`: 하드코딩된 비밀 패턴 탐지
+2. `role-chain`: run-log에 7개 역할(`orchestrator..security`)의 필수 필드(`agent-id/scope/result/evidence`)가 모두 채워졌는지 + `Dispatch Monitor` 필드가 채워졌는지 + `agent-id` 중복 여부 + 상태전이 규칙 준수 여부 + `plan.md` 소유권 규칙 준수 여부
+3. `test-matrix`: `test-matrix.md`가 `VERIFIED` 상태인지 + 모든 RQ row가 테스트 파일/normal/error/boundary/status를 채웠는지
+4. `scope`: 변경 파일이 `plan.md` target files 범위를 벗어나는지
+5. `file-size`: 신규 파일/수정 파일의 라인 수 정책 위반 여부
+6. `unit-tests`: `node --test tests/unit/*.test.mjs`
+7. `context-log-tests`: `bash tests/context-log.test.sh`
+8. `gate-script-tests`: `bash tests/gates.test.sh`
+9. `secrets`: 하드코딩된 비밀 패턴 탐지
 
 ## Legacy 예외 정책
 - 기존 대형 파일은 `scripts/gates/size-exceptions.txt`에 상한선을 명시한다.

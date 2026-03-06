@@ -1,5 +1,9 @@
 # Feature Packets
 
+Quick operator guide:
+
+[`README.md`](../../README.md)
+
 Feature packets keep context scoped per request.
 Create one directory per feature:
 
@@ -45,6 +49,14 @@ Complete feature:
 
 ```bash
 scripts/complete-feature.sh <feature-id> "<summary>" "<next-step>"
+```
+
+View or update dispatch monitor:
+
+```bash
+scripts/dispatch-heartbeat.sh show
+scripts/dispatch-heartbeat.sh start <role> "<message>"
+scripts/dispatch-heartbeat.sh progress <role> "<message>"
 ```
 
 ## Baseline Snapshot
