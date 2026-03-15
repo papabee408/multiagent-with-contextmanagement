@@ -5,6 +5,8 @@
 - owner-verify: `tester`
 - status: `VERIFIED`
 - last-updated-utc: 2026-03-06 20:09:58Z
+- source-brief-sha: 44b248b149b58e1daa807c2bcd399c98953209afc0ee003f4f92dc483fe2b992
+- source-plan-sha: e399a69c0ad3cf6a38350364e14274cd6ed854f903d6a6a538445094572baa17
 
 ## Coverage
 | RQ | Normal | Error | Boundary | Test File | Status |
@@ -14,7 +16,5 @@
 | RQ-003 | `tests/dispatch-heartbeat.test.sh` shows the active feature and updates queue/start/risk/done states | `tests/dispatch-heartbeat.test.sh` rejects an invalid role | `tests/dispatch-heartbeat.test.sh` keeps showing the active feature after multiple state transitions | `tests/dispatch-heartbeat.test.sh` | VERIFIED |
 
 ## Notes
-- Planner creates one row per RQ before implementation starts.
-- Tester fills the executed test file(s) and sets each covered row to `VERIFIED` before returning `PASS`.
-- Gate requires top-level status `VERIFIED` and non-empty normal/error/boundary/test-file/status cells for every RQ row.
-- Include security/permission/rate-limit tests when applicable.
+- Generated and refreshed by `scripts/sync-handoffs.sh` from `brief.md`.
+- Planner owns RQ row shape. Tester owns concrete coverage and final `VERIFIED` transition.

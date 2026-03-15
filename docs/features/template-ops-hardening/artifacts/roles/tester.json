@@ -1,0 +1,18 @@
+{
+  "kind": "role-result",
+  "role": "tester",
+  "agent_id": "test-template-20260306",
+  "scope": "tests/gates.test.sh, tests/dispatch-heartbeat.test.sh, docs/features/template-ops-hardening/test-matrix.md",
+  "rq_covered": "[RQ-001, RQ-002, RQ-003]",
+  "rq_missing": "[]",
+  "result": "PASS",
+  "evidence": "passed bash scripts/gates/check-tests.sh and updated test-matrix.md to VERIFIED",
+  "next_action": "gate-checker",
+  "touched_files": [
+    "tests/gates.test.sh",
+    "tests/dispatch-heartbeat.test.sh",
+    "docs/features/template-ops-hardening/test-matrix.md"
+  ],
+  "input_digest": "23a7124e7c95100002c09498cded87004fcf9967a8e821dce6bd4ccff9f35791",
+  "updated_at_utc": "2026-03-15 19:59:49Z"
+}

@@ -5,6 +5,8 @@
 - owner-verify: `tester`
 - status: `DRAFT | VERIFIED`
 - last-updated-utc:
+- source-brief-sha:
+- source-plan-sha:
 
 ## Coverage
 | RQ | Normal | Error | Boundary | Test File | Status |

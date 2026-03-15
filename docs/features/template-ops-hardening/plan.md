@@ -2,67 +2,208 @@
 
 ## Scope
 - target files:
+  - `.gitignore`
+  - `UPGRADE_PROMPT.md`
   - `README.md`
   - `AGENTS.md`
+  - `docs/agents/README.md`
+  - `docs/agents/implementer.md`
   - `docs/agents/orchestrator.md`
   - `docs/agents/planner.md`
+  - `docs/agents/reviewer.md`
+  - `docs/agents/security.md`
   - `docs/agents/tester.md`
+  - `docs/context/ARCHITECTURE.md`
+  - `docs/context/CODEX_RESUME.md`
+  - `docs/context/CODEX_WORKFLOW.md`
+  - `docs/context/CONVENTIONS.md`
+  - `docs/context/DECISIONS.md`
+  - `docs/context/DECISIONS_ARCHIVE.md`
   - `docs/context/GATES.md`
+  - `docs/context/HANDOFF.md`
+  - `docs/context/MAINTENANCE.md`
+  - `docs/context/MULTI_AGENT_PROCESS.md`
+  - `docs/context/PROJECT.md`
+  - `docs/context/README.md`
+  - `docs/context/RULES.md`
   - `docs/features/README.md`
+  - `docs/features/_template/brief.md`
+  - `docs/features/_template/implementer-handoff.md`
   - `docs/features/_template/plan.md`
+  - `docs/features/_template/reviewer-handoff.md`
   - `docs/features/_template/run-log.md`
+  - `docs/features/_template/security-handoff.md`
   - `docs/features/_template/test-matrix.md`
+  - `docs/features/_template/tester-handoff.md`
+  - `docs/features/template-ops-hardening/brief.md`
+  - `docs/features/template-ops-hardening/implementer-handoff.md`
+  - `docs/features/template-ops-hardening/plan.md`
+  - `docs/features/template-ops-hardening/reviewer-handoff.md`
+  - `docs/features/template-ops-hardening/run-log.md`
+  - `docs/features/template-ops-hardening/security-handoff.md`
+  - `docs/features/template-ops-hardening/test-matrix.md`
+  - `docs/features/template-ops-hardening/tester-handoff.md`
+  - `scripts/_role_receipt_helpers.sh`
+  - `scripts/_run_log_helpers.sh`
+  - `scripts/check-project-setup.sh`
+  - `scripts/complete-feature.sh`
+  - `scripts/context-log.sh`
   - `scripts/dispatch-heartbeat.sh`
+  - `scripts/dispatch-role.sh`
+  - `scripts/export-template.sh`
+  - `scripts/feature-packet.sh`
+  - `scripts/finish-role.sh`
+  - `scripts/gates/_helpers.sh`
+  - `scripts/gates/_validation_cache.sh`
+  - `scripts/gates/check-brief.sh`
+  - `scripts/gates/check-file-size.sh`
+  - `scripts/gates/check-handoffs.sh`
+  - `scripts/gates/check-packet.sh`
+  - `scripts/gates/check-plan.sh`
+  - `scripts/gates/check-project-context.sh`
   - `scripts/gates/check-role-chain.sh`
   - `scripts/gates/check-test-matrix.sh`
   - `scripts/gates/check-tests.sh`
   - `scripts/gates/run.sh`
+  - `scripts/gates/size-exceptions.txt`
+  - `scripts/implementer-subtasks.sh`
+  - `scripts/record-role-result.sh`
+  - `scripts/start-feature.sh`
+  - `scripts/sync-handoffs.sh`
+  - `scripts/workflow-mode.sh`
+  - `tests/check-tests-modes.test.sh`
+  - `tests/context-log.test.sh`
   - `tests/dispatch-heartbeat.test.sh`
+  - `tests/gate-cache.test.sh`
   - `tests/gates.test.sh`
+  - `tests/implementer-subtasks.test.sh`
+  - `tests/run-log-ops.test.sh`
+  - `tests/sync-handoffs.test.sh`
+  - `tests/workflow-mode.test.sh`
 - out-of-scope files:
-  - `builder/**`
   - production code outside template operations/docs
 
 ## RQ -> Task Mapping
-- `RQ-001` -> Task 1
-- `RQ-002` -> Task 2
-- `RQ-003` -> Task 3
+- `RQ-001` -> Task 1, Task 2, Task 4
+- `RQ-002` -> Task 2, Task 4
+- `RQ-003` -> Task 3, Task 4
+
+## Architecture Notes
+- target layer / owning module: template docs stay under `docs/**`, bootstrap/export/orchestration helpers stay under `scripts/**`, gate enforcement stays under `scripts/gates/**`, and regression coverage stays under `tests/**`
+- dependency constraints / forbidden imports: gate validation logic should stay in shell scripts and must not introduce product-runtime coupling
+- shared logic or component placement: reusable parsing and gate helpers should remain in `scripts/gates/_helpers.sh`, `scripts/_run_log_helpers.sh`, or adjacent helper scripts instead of being duplicated across tests/docs
+
+## Reuse and Config Plan
+- existing abstractions to reuse: current gate runner, feature packet templates, role contracts, dispatch heartbeat script
+- extraction candidates for shared component/helper/module: keep new validation logic inside existing gate helpers/scripts and reuse run-log or role-receipt helpers before adding new one-off flows
+- constants/config/env to centralize: gate names, role names, monitor field names, status enums
+- hardcoded values explicitly allowed: markdown section titles required by the template format
+
+## Execution Strategy
+- implementer mode: `serial`
+- merge owner: `implementer`
+- shared files reserved for parent:
+  - none
 
 ## Task Cards
 ### Task 1
 - files:
   - `AGENTS.md`
+  - `docs/agents/README.md`
+  - `docs/agents/implementer.md`
   - `docs/agents/orchestrator.md`
   - `docs/agents/planner.md`
+  - `docs/agents/reviewer.md`
+  - `docs/agents/security.md`
   - `docs/agents/tester.md`
+  - `docs/context/ARCHITECTURE.md`
+  - `docs/context/CODEX_RESUME.md`
+  - `docs/context/CODEX_WORKFLOW.md`
+  - `docs/context/CONVENTIONS.md`
+  - `docs/context/DECISIONS.md`
+  - `docs/context/DECISIONS_ARCHIVE.md`
   - `docs/context/GATES.md`
+  - `docs/context/HANDOFF.md`
+  - `docs/context/MAINTENANCE.md`
+  - `docs/context/MULTI_AGENT_PROCESS.md`
+  - `docs/context/PROJECT.md`
+  - `docs/context/README.md`
+  - `docs/context/RULES.md`
+  - `docs/features/README.md`
+  - `docs/features/_template/brief.md`
+  - `docs/features/_template/implementer-handoff.md`
   - `docs/features/_template/plan.md`
+  - `docs/features/_template/reviewer-handoff.md`
   - `docs/features/_template/run-log.md`
+  - `docs/features/_template/security-handoff.md`
   - `docs/features/_template/test-matrix.md`
+  - `docs/features/_template/tester-handoff.md`
+  - `docs/features/template-ops-hardening/brief.md`
+  - `docs/features/template-ops-hardening/plan.md`
+  - `docs/features/template-ops-hardening/run-log.md`
+  - `docs/features/template-ops-hardening/test-matrix.md`
 - change:
-  - Expose the full command flow, visibility rules, and test-matrix ownership in the template docs.
-- done when:
-  - Operators and role agents can see which command to use for queue/start/progress/gates without inferring it from scripts.
+  - Refresh role contracts, project context docs, and feature packet templates so downstream agents consume generated handoffs instead of reloading the full plan.
+- done when: Each downstream role has a dedicated packet file, shared project context docs are customized, and the feature packet reflects the upgraded template flow.
 
 ### Task 2
 - files:
+  - `scripts/_role_receipt_helpers.sh`
+  - `scripts/_run_log_helpers.sh`
+  - `scripts/feature-packet.sh`
+  - `scripts/dispatch-role.sh`
+  - `scripts/finish-role.sh`
+  - `scripts/gates/_helpers.sh`
+  - `scripts/gates/_validation_cache.sh`
+  - `scripts/gates/check-brief.sh`
+  - `scripts/gates/check-file-size.sh`
+  - `scripts/gates/check-handoffs.sh`
+  - `scripts/gates/check-packet.sh`
+  - `scripts/gates/check-plan.sh`
+  - `scripts/gates/check-project-context.sh`
   - `scripts/gates/check-role-chain.sh`
   - `scripts/gates/check-test-matrix.sh`
   - `scripts/gates/check-tests.sh`
   - `scripts/gates/run.sh`
+  - `scripts/gates/size-exceptions.txt`
+  - `scripts/record-role-result.sh`
+  - `scripts/sync-handoffs.sh`
+  - `scripts/workflow-mode.sh`
   - `tests/gates.test.sh`
+  - `tests/check-tests-modes.test.sh`
+  - `tests/gate-cache.test.sh`
+  - `tests/implementer-subtasks.test.sh`
+  - `tests/run-log-ops.test.sh`
+  - `tests/sync-handoffs.test.sh`
+  - `tests/workflow-mode.test.sh`
 - change:
-  - Enforce `Dispatch Monitor` and `test-matrix` completeness in gates and cover the failure modes with regression tests.
-- done when:
-  - Missing monitor fields or unverified/incomplete test matrix rows cause gate failures locally and in CI.
+  - Enforce role-specific handoff files, role receipts, workflow modes, and gate cache/project-context validation in packet creation and gate scripts, then cover the failure modes with regression tests.
+- done when: Missing or incomplete handoff files, stale digests, absent role receipts, or invalid gate/test metadata cause local and CI gate failures.
 
 ### Task 3
 - files:
+  - `.gitignore`
   - `README.md`
-  - `docs/features/README.md`
+  - `UPGRADE_PROMPT.md`
+  - `scripts/check-project-setup.sh`
+  - `scripts/complete-feature.sh`
   - `scripts/dispatch-heartbeat.sh`
+  - `scripts/export-template.sh`
+  - `scripts/start-feature.sh`
   - `tests/dispatch-heartbeat.test.sh`
 - change:
-  - Add an operator quick guide and a terminal-first heartbeat command for status visibility.
-- done when:
-  - An operator can inspect the active feature state with `scripts/dispatch-heartbeat.sh show` and find the common commands in one README.
+  - Keep the operator flow visible while shifting downstream roles to handoff-file dispatch and exposing the upgraded migration/export commands.
+- done when: An operator can inspect the active feature state with `scripts/dispatch-heartbeat.sh show` and regenerate the migration bundle from the quick guide without reopening deep docs.
+
+### Task 4
+- files:
+  - `scripts/check-project-setup.sh`
+  - `scripts/complete-feature.sh`
+  - `scripts/context-log.sh`
+  - `scripts/export-template.sh`
+  - `scripts/implementer-subtasks.sh`
+  - `scripts/start-feature.sh`
+  - `tests/context-log.test.sh`
+- change:
+  - Extend bootstrap, context logging, export, and implementer orchestration helpers so the upgraded template can be resumed, validated, and redistributed from terminal-first scripts.
+- done when: Resume/bootstrap commands, context-log helpers, implementer workflow helpers, and template export flow all operate under the upgraded process and are regression-tested.

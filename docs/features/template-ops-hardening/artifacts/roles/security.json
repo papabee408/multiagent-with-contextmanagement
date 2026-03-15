@@ -1,0 +1,14 @@
+{
+  "kind": "role-result",
+  "role": "security",
+  "agent_id": "sec-template-20260306",
+  "scope": "scripts/dispatch-heartbeat.sh, scripts/gates/check-test-matrix.sh, scripts/gates/check-role-chain.sh",
+  "rq_covered": "[RQ-001, RQ-002, RQ-003]",
+  "rq_missing": "[]",
+  "result": "PASS",
+  "evidence": "checked shell scripts for credential leakage paths and ensured new failure modes stay in repo-local metadata/tests",
+  "next_action": "complete",
+  "touched_files": [],
+  "input_digest": "23a7124e7c95100002c09498cded87004fcf9967a8e821dce6bd4ccff9f35791",
+  "updated_at_utc": "2026-03-15 19:59:50Z"
+}

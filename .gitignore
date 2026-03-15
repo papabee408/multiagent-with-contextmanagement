@@ -2,6 +2,7 @@
 
 # Local workflow state
 .context/
+codex-template-multi-agent-process/
 
 # Local environment overrides
 .env

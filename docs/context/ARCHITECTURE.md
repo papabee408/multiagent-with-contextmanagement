@@ -1,50 +1,60 @@
-# Architecture Boundaries v1
+# Architecture Boundaries v2
 
 ## 목적
+- 이 문서는 "어디에 넣고 어떻게 의존해야 하는가"를 정의한다.
 - 컨텍스트 리셋 이후에도 모듈 책임과 의존 방향을 빠르게 파악한다.
 - 기능 추가 시 어디에 코드를 넣어야 하는지 일관된 기준을 제공한다.
 
-## 현재 시스템 개요
-- UI shell: `builder/index.html`, `builder/styles.css`
-- 런타임 엔트리: `builder/src/app.mjs`
-- 상태/순수 로직: `builder/src/app-state.mjs`, `builder/src/data.mjs`
-- 렌더/뷰 유틸: `builder/src/app-view.mjs`
-- 상세 프리뷰: `builder/src/design-preview*.mjs`, `builder/src/ia-preview*.mjs`
-- LLM 계층: `builder/src/llm-design-space.mjs`, `builder/src/llm-recommendation.mjs`
-- 품질 계층: `builder/src/quality-gate.mjs`
-- 코드 내보내기: `builder/src/swiftui-export.mjs`
+## System Map
+- Entry/Application layer:
+  - 요청 흐름 시작점, 이벤트 연결, orchestration
+- Feature/Domain layer:
+  - 비즈니스 규칙, 상태 전이, 유스케이스
+- UI/Presentation layer:
+  - 렌더링, 입력 수집, 화면 조합
+- Infrastructure/Integration layer:
+  - 외부 API, DB, 파일, 모델, 네트워크, 런타임 어댑터
+- Shared layer:
+  - 공용 컴포넌트, 헬퍼, schema, constants, test support
 
-## 레이어 규칙
-1. `app.mjs`는 오케스트레이션 레이어다.
-   - 상태 전이 트리거, 이벤트 바인딩, 모듈 호출 조합만 담당
-2. `app-state.mjs`는 pure state helper 레이어다.
-   - DOM 접근 금지
-3. `app-view.mjs`는 렌더 포맷 레이어다.
-   - 네트워크 호출 금지
-4. `llm-*` 모듈은 외부 모델 통신/정규화 레이어다.
-   - DOM 직접 접근 금지
-5. `quality-gate.mjs`는 품질 판정 레이어다.
-   - UI 문자열 결합 로직 최소화
+## Layers
+1. Entry/Application 레이어는 orchestration만 담당한다.
+   - 상태 전이 트리거, 모듈 호출 조합, 흐름 제어
+2. Feature/Domain 레이어는 핵심 규칙을 가진다.
+   - 가능하면 pure 하게 유지하고 UI/IO 세부사항을 모르게 한다.
+3. UI/Presentation 레이어는 사용자 표시와 상호작용만 담당한다.
+   - 비즈니스 규칙과 외부 호출 로직을 직접 소유하지 않는다.
+4. Infrastructure/Integration 레이어는 외부 시스템과의 경계다.
+   - 입력/출력을 정규화해서 상위 레이어로 전달한다.
+5. Shared 레이어는 중복 제거를 위한 공용 기반이다.
+   - 특정 화면/기능에 강하게 결합된 코드를 shared로 올리지 않는다.
 
-## 의존 방향
-- 허용: `app.mjs -> state/view/llm/preview/quality/export`
-- 허용: `preview -> ia/*`, `preview -> shared util`
-- 금지: `state -> app.mjs`
-- 금지: `view -> llm`
-- 금지: `llm -> DOM`
+## Dependency Direction
+- 허용: `entry/application -> feature/domain -> infrastructure`
+- 허용: `entry/application -> ui/presentation`
+- 허용: `feature/domain -> shared`
+- 허용: `ui/presentation -> shared`
+- 금지: `feature/domain -> ui/presentation`
+- 금지: `infrastructure -> ui/presentation`
+- 금지: 하위 레이어가 상위 orchestration 레이어를 import 하는 구조
 
-## 변경 지침
-1. 새 기능이 UI 상호작용이면:
-   - `app.mjs` 이벤트 훅 + 필요한 모듈 함수 추가
-2. 새 계산 규칙이면:
-   - `app-state.mjs` 또는 별도 pure helper 모듈 추가
-3. LLM 스키마/정규화 변경이면:
-   - `llm-design-space.mjs`와 대응 테스트 함께 갱신
-4. 품질 기준 변경이면:
-   - `quality-gate.mjs`와 `quality-gate.test.mjs` 동시 갱신
+## Placement Guide
+1. 새 기능이 사용자 흐름 추가라면:
+   - entry/application에 연결하고, 핵심 규칙은 feature/domain에 둔다.
+2. 새 계산 규칙이나 상태 전이라면:
+   - feature/domain 또는 하위 pure helper에 둔다.
+3. 새 외부 연동이나 응답 정규화라면:
+   - infrastructure/integration 모듈에 둔다.
+4. 반복되는 UI 패턴이라면:
+   - shared UI primitive 또는 feature-composed component로 분리한다.
 
-## 대형 파일 대응 원칙
-현재 대형 파일(`app.mjs`, `design-preview.mjs`, `llm-design-space.mjs`)은 레거시로 간주한다.
-1. 신규 로직은 대형 파일 내부에 추가하기보다 `src/<domain>/` 하위 모듈로 분리한다.
-2. 대형 파일 수정 PR에서는 최소 1개 이상의 helper 추출을 권장한다.
-3. 장기적으로 화면/도메인 단위 모듈화(예: `src/workflows/`, `src/preview/`, `src/llm/`)를 목표로 한다.
+## Shared Abstractions
+1. 둘 이상의 feature에서 쓰이는 UI/로직/상수만 shared로 올린다.
+2. shared abstraction은 구체적인 feature 이름을 품지 않게 한다.
+3. 재사용 후보가 보이면 먼저 기존 shared 레이어를 확인하고 없을 때만 새 abstraction을 만든다.
+
+## Legacy and Large Files
+현재 큰 파일은 레거시 후보로 본다.
+1. 신규 로직은 대형 파일 내부에 계속 추가하기보다 하위 모듈로 분리한다.
+2. 대형 파일 수정 PR에서는 최소 1개 이상의 helper 또는 shared abstraction 추출을 권장한다.
+3. 장기적으로는 화면/도메인/연동 경계를 기준으로 더 작은 모듈로 나눈다.

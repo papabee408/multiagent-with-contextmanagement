@@ -81,6 +81,8 @@
 - next_action: (required)
 
 ## State-Machine Notes
+- `lite` mode requires `orchestrator -> planner -> implementer -> tester -> gate-checker`.
+- `full` mode additionally requires `reviewer -> security`.
 - If reviewer is `FAIL`, security must be `BLOCKED`.
 - Security `PASS` is allowed only when reviewer is `PASS`.
 - All `agent-id` values must be unique across roles (single-agent reuse is not allowed).

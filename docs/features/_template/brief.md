@@ -18,3 +18,12 @@
 
 ## Acceptance
 - 
+
+## Workflow Mode
+- mode: `full`
+- rationale:
+
+## Requirement Notes
+- External dependencies:
+- Existing modules/components/constants to reuse:
+- Values/config that must not be hardcoded:

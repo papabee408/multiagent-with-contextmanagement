@@ -5,7 +5,16 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 FEATURE_ID="${1:-}"
 FEATURE_DIR="$ROOT_DIR/docs/features/$FEATURE_ID"
 
-required=(brief.md plan.md test-matrix.md run-log.md)
+required=(
+  brief.md
+  plan.md
+  implementer-handoff.md
+  tester-handoff.md
+  reviewer-handoff.md
+  security-handoff.md
+  test-matrix.md
+  run-log.md
+)
 
 if [[ -z "$FEATURE_ID" ]]; then
   echo "[FAIL] packet: feature-id is required"

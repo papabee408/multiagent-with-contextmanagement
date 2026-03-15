@@ -8,7 +8,7 @@
 
 ## Non-goals
 - No product feature work outside the template itself
-- No UI changes in `builder/`
+- No unrelated application code changes outside the template operations/docs scope
 
 ## Requirements (RQ)
 - `RQ-001`: Agents must see the full gate, test, and visibility workflow early enough that CI is not the first place failures appear.
@@ -24,3 +24,12 @@
 - `bash scripts/gates/check-tests.sh` passes.
 - `GATE_DIFF_RANGE=origin/main scripts/gates/run.sh template-ops-hardening` passes locally.
 - `scripts/dispatch-heartbeat.sh show` can display the active feature monitor without opening `run-log.md`.
+
+## Workflow Mode
+- mode: `full`
+- rationale: This change alters gate policy and operator workflow, so reviewer and security passes should remain mandatory.
+
+## Requirement Notes
+- External dependencies: none
+- Existing modules/components/constants to reuse: existing gate scripts, feature packet templates, dispatch heartbeat workflow
+- Values/config that must not be hardcoded: role names, gate names, monitor statuses, RQ/test-matrix metadata semantics

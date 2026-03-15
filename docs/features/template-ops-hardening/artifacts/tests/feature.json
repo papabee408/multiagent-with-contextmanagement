@@ -1,0 +1,11 @@
+{
+  "kind": "feature-tests",
+  "feature_id": "template-ops-hardening",
+  "mode": "feature",
+  "fingerprint": "862894875e832630ed5ec0f8a87fc446185c86996ccbd55384b8adc5766b4b32",
+  "result": "PASS",
+  "command": "bash scripts/gates/check-tests.sh --feature --feature-id template-ops-hardening",
+  "executed_at_utc": "2026-03-15 20:00:57Z",
+  "script_sha": "77a7d0fd96248d114fd3c573d56ae9817f4285c3808cb384ac924b1c8a76ddaf",
+  "node_version": "v22.20.0"
+}

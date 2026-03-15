@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT_DIR"
+
 readonly CONTEXT_DIR="docs/context"
 readonly SESSIONS_DIR="$CONTEXT_DIR/sessions"
 readonly STATE_DIR=".context"
@@ -10,6 +13,7 @@ readonly HANDOFF_FILE="$CONTEXT_DIR/HANDOFF.md"
 readonly DECISIONS_FILE="$CONTEXT_DIR/DECISIONS.md"
 readonly DECISIONS_ARCHIVE_FILE="$CONTEXT_DIR/DECISIONS_ARCHIVE.md"
 readonly PROJECT_FILE="$CONTEXT_DIR/PROJECT.md"
+readonly CONVENTIONS_FILE="$CONTEXT_DIR/CONVENTIONS.md"
 readonly WORKFLOW_FILE="$CONTEXT_DIR/CODEX_WORKFLOW.md"
 readonly MAINTENANCE_FILE="$CONTEXT_DIR/MAINTENANCE.md"
 readonly MAINTENANCE_STATUS_FILE="$CONTEXT_DIR/MAINTENANCE_STATUS.md"
@@ -91,6 +95,7 @@ This folder keeps durable project memory so development can continue after any c
 ## File Roles
 
 - `PROJECT.md`: Stable project brief (goal, stack, conventions).
+- `CONVENTIONS.md`: Reuse, hardcoding, naming, and review conventions.
 - `HANDOFF.md`: Latest checkpoint for next session.
 - `DECISIONS.md`: Active architecture and policy decisions.
 - `DECISIONS_ARCHIVE.md`: Archived historical decisions.
@@ -123,27 +128,53 @@ EOF
   fi
 
   if [[ ! -f "$PROJECT_FILE" ]]; then
-    cat > "$PROJECT_FILE" <<'EOF'
+    cat > "$PROJECT_FILE" <<EOF
 # Project Brief
 
+## Identity
+- project-name: $(basename "$ROOT_DIR")
+- repo-slug: $(basename "$ROOT_DIR")
+- product-type: software project
+
 ## Product
-- Name: Discord Bot (working title)
-- Goal: Build and maintain a scalable Discord bot with long-term iteration.
+- Primary goal:
+- Primary users:
+- Success signals:
 
-## Core Principles
-- Keep architecture simple and modular.
-- Log key development context every session.
-- Preserve decision history to avoid repeated discussion.
+## Stack
+- Runtime:
+- Framework:
+- Data layer:
 
-## Current Stack
-- Runtime: TBD
-- Bot framework: TBD
-- Data layer: TBD
+## Constraints
+- Keep architecture and coding rules documented before implementation.
+- Keep reusable logic/components/config centralized.
 
-## Conventions
-- Record active decisions in `DECISIONS.md` and archive old ones via `archive-decisions`.
-- End each session with `finish` command.
-- Keep `HANDOFF.md` actionable for the next contributor.
+## Working Agreements
+- Record active decisions in DECISIONS.md and archive old ones via the archive-decisions command.
+- End each session with the finish command.
+- Keep HANDOFF.md actionable for the next contributor.
+EOF
+  fi
+
+  if [[ ! -f "$CONVENTIONS_FILE" ]]; then
+    cat > "$CONVENTIONS_FILE" <<'EOF'
+# Coding Conventions
+
+## Reuse First
+- Repeated UI/logic/config should be extracted into shared modules instead of copied.
+
+## Configuration and Constants
+- Keep meaningful limits, labels, state values, and endpoints out of inline literals.
+
+## Components and Modules
+- Separate UI composition, domain logic, and external integration responsibilities.
+
+## Naming and Data Shapes
+- Prefer stable domain terms and normalized internal shapes.
+
+## Tests and Change Hygiene
+- Update tests with every behavior change and remove temporary debug code before merge.
 EOF
   fi
 

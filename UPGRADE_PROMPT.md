@@ -206,6 +206,9 @@ Your final summary must include:
 3. Which parts are still shadow mode / non-required
 4. Exact verification commands you ran
 5. Residual risks or follow-up items
+6. Cleanup guidance for the copied template source bundle:
+   - If `codex-template-multi-agent-process/` was only used as a temporary import source and the merge plus verification are complete, explicitly tell the user they can delete that folder now.
+   - If it should be kept temporarily for comparison or follow-up migration work, say that explicitly instead of implying deletion.
 
 ## Things You Must Not Say
 

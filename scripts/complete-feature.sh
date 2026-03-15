@@ -30,7 +30,7 @@ if [[ ! -d "$ROOT_DIR/docs/features/$FEATURE_ID" ]]; then
 fi
 
 "$ROOT_DIR/scripts/set-active-feature.sh" "$FEATURE_ID"
-"$ROOT_DIR/scripts/gates/run.sh" "$FEATURE_ID"
+"$ROOT_DIR/scripts/gates/run.sh" --reuse-if-valid "$FEATURE_ID"
 
 if [[ ! -s "$ACTIVE_SESSION_FILE" ]]; then
   "$ROOT_DIR/scripts/context-log.sh" start "complete-$FEATURE_ID"

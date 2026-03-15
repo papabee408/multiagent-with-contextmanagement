@@ -1,6 +1,5 @@
 # path max_lines
-builder/src/app.mjs 1913
-builder/src/design-preview.mjs 3048
-builder/src/llm-design-space.mjs 1619
-builder/styles.css 3234
-builder/src/ia/ia-preview-v2.html 705
+# Add repo-relative file paths here only when an existing legacy file needs a higher cap.
+# Example:
+# src/legacy/big-file.ts 1200
+scripts/context-log.sh 900

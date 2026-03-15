@@ -5,6 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/_helpers.sh" "${1:-}"
 
 BRIEF_FILE="$FEATURE_DIR/brief.md"
+PLAN_FILE="$FEATURE_DIR/plan.md"
 TEST_MATRIX_FILE="$FEATURE_DIR/test-matrix.md"
 
 trim() {
@@ -32,6 +33,22 @@ matrix_last_updated_value() {
     in_status && /^## / { in_status = 0 }
     in_status && index($0, "- last-updated-utc:") == 1 {
       line = substr($0, length("- last-updated-utc:") + 1)
+      gsub(/`/, "", line)
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", line)
+      print line
+      exit
+    }
+  ' "$TEST_MATRIX_FILE"
+}
+
+matrix_source_digest_value() {
+  local key="$1"
+
+  awk -v key="$key" '
+    $0 == "## Status" { in_status = 1; next }
+    in_status && /^## / { in_status = 0 }
+    in_status && index($0, "- " key ":") == 1 {
+      line = substr($0, length("- " key ":") + 1)
       gsub(/`/, "", line)
       gsub(/^[[:space:]]+|[[:space:]]+$/, "", line)
       print line
@@ -69,6 +86,22 @@ if [[ -z "$last_updated_value" ]]; then
   failures+=("missing-last-updated-utc")
 elif ! is_valid_utc_timestamp "$last_updated_value"; then
   failures+=("invalid-last-updated-utc($last_updated_value)")
+fi
+
+brief_sha_value="$(trim "$(matrix_source_digest_value "source-brief-sha")")"
+expected_brief_sha="$(file_digest_or_missing "$BRIEF_FILE")"
+if [[ -z "$brief_sha_value" ]]; then
+  failures+=("missing-source-brief-sha")
+elif [[ "$brief_sha_value" != "$expected_brief_sha" ]]; then
+  failures+=("stale-source-brief-sha")
+fi
+
+plan_sha_value="$(trim "$(matrix_source_digest_value "source-plan-sha")")"
+expected_plan_sha="$(file_digest_or_missing "$PLAN_FILE")"
+if [[ -z "$plan_sha_value" ]]; then
+  failures+=("missing-source-plan-sha")
+elif [[ "$plan_sha_value" != "$expected_plan_sha" ]]; then
+  failures+=("stale-source-plan-sha")
 fi
 
 brief_rq_tmp="$(mktemp)"

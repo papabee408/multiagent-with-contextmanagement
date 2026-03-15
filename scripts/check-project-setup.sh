@@ -73,6 +73,12 @@ else
   say_alert "Missing .github/workflows/gates.yml. CI enforcement cannot run."
 fi
 
+if [[ -x "scripts/gates/check-project-context.sh" ]] && scripts/gates/check-project-context.sh >/dev/null 2>&1; then
+  say_ok "Project context docs are customized"
+else
+  say_alert "Project context docs are missing or still contain template defaults. Run scripts/gates/check-project-context.sh."
+fi
+
 default_branch="$(detect_default_branch)"
 
 if ! command -v gh >/dev/null 2>&1; then

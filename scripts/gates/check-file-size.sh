@@ -33,7 +33,7 @@ for path in "${changed[@]}"; do
   [[ -f "$abs" ]] || continue
 
   case "$path" in
-    builder/src/*.mjs|builder/*.html|builder/styles.css|scripts/*.sh|scripts/gates/*.sh|tests/*.sh|tests/unit/*.mjs)
+    *.sh|*.mjs|*.cjs|*.js|*.jsx|*.ts|*.tsx|*.py|*.rb|*.go|*.java|*.kt|*.swift|*.html|*.css|*.scss)
       ;;
     *)
       continue

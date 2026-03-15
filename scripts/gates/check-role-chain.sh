@@ -3,6 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/_helpers.sh" "${1:-}"
+source "$SCRIPT_DIR/../_role_receipt_helpers.sh"
 
 RUN_LOG="$FEATURE_DIR/run-log.md"
 
@@ -11,7 +12,7 @@ if [[ ! -f "$RUN_LOG" ]]; then
   exit 1
 fi
 
-roles=(
+all_roles=(
   "orchestrator"
   "planner"
   "implementer"
@@ -20,6 +21,26 @@ roles=(
   "reviewer"
   "security"
 )
+
+workflow_mode="$(workflow_mode_from_brief)"
+required_roles=()
+while IFS= read -r role; do
+  [[ -n "$role" ]] || continue
+  required_roles+=("$role")
+done < <(workflow_roles_for_mode "$workflow_mode")
+
+role_is_required() {
+  local role="$1"
+  local required_role
+
+  for required_role in "${required_roles[@]}"; do
+    if [[ "$required_role" == "$role" ]]; then
+      return 0
+    fi
+  done
+
+  return 1
+}
 
 section_exists() {
   local role="$1"
@@ -105,14 +126,163 @@ is_valid_utc_timestamp() {
   [[ "$value" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}\ [0-9]{2}:[0-9]{2}:[0-9]{2}Z$ ]]
 }
 
+validate_role_receipt() {
+  local role="$1"
+  local expected_agent_id="$2"
+  local expected_scope="$3"
+  local expected_rq_covered="$4"
+  local expected_rq_missing="$5"
+  local expected_result="$6"
+  local expected_evidence="$7"
+  local expected_next_action="$8"
+  local receipt_file
+  local receipt_role
+  local receipt_agent_id
+  local receipt_scope
+  local receipt_rq_covered
+  local receipt_rq_missing
+  local receipt_result
+  local receipt_evidence
+  local receipt_next_action
+  local receipt_touched_files_exists
+  local receipt_input_digest
+  local receipt_updated_at
+
+  receipt_file="$(role_receipt_file "$ROOT_DIR" "$FEATURE_ID" "$role")"
+  if [[ ! -f "$receipt_file" ]]; then
+    failures+=("$role:missing-role-receipt")
+    return
+  fi
+
+  receipt_role="$(json_field_value_role "$receipt_file" "role")"
+  receipt_agent_id="$(json_field_value_role "$receipt_file" "agent_id")"
+  receipt_scope="$(json_field_value_role "$receipt_file" "scope")"
+  receipt_rq_covered="$(json_field_value_role "$receipt_file" "rq_covered")"
+  receipt_rq_missing="$(json_field_value_role "$receipt_file" "rq_missing")"
+  receipt_result="$(printf '%s' "$(json_field_value_role "$receipt_file" "result")" | tr '[:lower:]' '[:upper:]')"
+  receipt_evidence="$(json_field_value_role "$receipt_file" "evidence")"
+  receipt_next_action="$(json_field_value_role "$receipt_file" "next_action")"
+  receipt_touched_files_exists="$(json_field_exists_role "$receipt_file" "touched_files")"
+  receipt_input_digest="$(json_field_value_role "$receipt_file" "input_digest")"
+  receipt_updated_at="$(json_field_value_role "$receipt_file" "updated_at_utc")"
+
+  if [[ "$receipt_role" != "$role" ]]; then
+    failures+=("$role:receipt-role-mismatch($receipt_role)")
+  fi
+  if [[ "$receipt_agent_id" != "$expected_agent_id" ]]; then
+    failures+=("$role:receipt-agent-id-mismatch")
+  fi
+  if [[ "$receipt_scope" != "$expected_scope" ]]; then
+    failures+=("$role:receipt-scope-mismatch")
+  fi
+  if [[ "$receipt_rq_covered" != "$expected_rq_covered" ]]; then
+    failures+=("$role:receipt-rq-covered-mismatch")
+  fi
+  if [[ "$receipt_rq_missing" != "$expected_rq_missing" ]]; then
+    failures+=("$role:receipt-rq-missing-mismatch")
+  fi
+  if [[ "$receipt_result" != "$expected_result" ]]; then
+    failures+=("$role:receipt-result-mismatch")
+  fi
+  if [[ "$receipt_evidence" != "$expected_evidence" ]]; then
+    failures+=("$role:receipt-evidence-mismatch")
+  fi
+  if [[ "$receipt_next_action" != "$expected_next_action" ]]; then
+    failures+=("$role:receipt-next-action-mismatch")
+  fi
+  if [[ "$receipt_touched_files_exists" != "true" ]]; then
+    failures+=("$role:missing-receipt-touched-files")
+  fi
+  if is_placeholder_value "$receipt_input_digest"; then
+    failures+=("$role:missing-receipt-input-digest")
+  fi
+  if is_placeholder_value "$receipt_updated_at"; then
+    failures+=("$role:missing-receipt-updated-at-utc")
+  elif ! is_valid_utc_timestamp "$receipt_updated_at"; then
+    failures+=("$role:invalid-receipt-updated-at-utc($receipt_updated_at)")
+  fi
+}
+
+validate_touched_file_policy() {
+  local role="$1"
+  local receipt_file
+  local touched_file
+
+  receipt_file="$(role_receipt_file "$ROOT_DIR" "$FEATURE_ID" "$role")"
+  if [[ ! -f "$receipt_file" ]]; then
+    return
+  fi
+
+  while IFS= read -r touched_file; do
+    touched_file="$(printf '%s' "$touched_file" | sed -E 's/^[[:space:]]+|[[:space:]]+$//g')"
+    [[ -n "$touched_file" ]] || continue
+
+    if is_placeholder_value "$touched_file"; then
+      failures+=("$role:invalid-touched-file($touched_file)")
+      continue
+    fi
+
+    case "$role" in
+      orchestrator)
+        if [[ "$touched_file" == "docs/features/$FEATURE_ID/"*.md ]]; then
+          continue
+        fi
+        if [[ "$touched_file" == docs/context/*.md || "$touched_file" == docs/context/sessions/* ]]; then
+          continue
+        fi
+        failures+=("orchestrator:touched-file-outside-policy($touched_file)")
+        ;;
+      planner)
+        if [[ "$touched_file" == "docs/features/$FEATURE_ID/"*.md ]]; then
+          continue
+        fi
+        failures+=("planner:touched-file-outside-policy($touched_file)")
+        ;;
+      implementer)
+        if grep -Fxq "$touched_file" "$plan_targets_tmp"; then
+          continue
+        fi
+        failures+=("implementer:touched-file-outside-plan-targets($touched_file)")
+        ;;
+      tester)
+        if [[ "$touched_file" == "docs/features/$FEATURE_ID/test-matrix.md" ]]; then
+          continue
+        fi
+
+        if [[ "$workflow_mode" == "full" && "$touched_file" == tests/* ]]; then
+          continue
+        fi
+
+        failures+=("tester:touched-file-outside-policy($touched_file)")
+        ;;
+      gate-checker|reviewer|security)
+        failures+=("$role:touched-files-must-be-empty($touched_file)")
+        ;;
+    esac
+  done < <(json_array_lines_role "$receipt_file" "touched_files")
+}
+
 failures=()
 declare -a role_results=()
 declare -a role_agents=()
 declare -a role_scopes=()
+plan_targets_tmp="$(mktemp)"
+trap 'rm -f "$plan_targets_tmp"' EXIT
+allowed_files_from_plan > "$plan_targets_tmp"
 
-for role in "${roles[@]}"; do
+case "$workflow_mode" in
+  lite|full)
+    ;;
+  *)
+    failures+=("workflow-mode:invalid($workflow_mode)")
+    ;;
+esac
+
+for role in "${all_roles[@]}"; do
   if ! section_exists "$role"; then
-    failures+=("$role:missing-section")
+    if role_is_required "$role"; then
+      failures+=("$role:missing-section")
+    fi
     continue
   fi
 
@@ -152,10 +322,36 @@ for role in "${roles[@]}"; do
   fi
   role_scopes+=("$role:$scope_value")
 
+  rq_covered_value="$(field_value "$role" "rq_covered")"
+  if is_placeholder_value "$rq_covered_value"; then
+    failures+=("$role:missing-rq-covered")
+  fi
+
+  rq_missing_value="$(field_value "$role" "rq_missing")"
+  if is_placeholder_value "$rq_missing_value"; then
+    failures+=("$role:missing-rq-missing")
+  fi
+
   evidence_value="$(field_value "$role" "evidence")"
   if is_placeholder_value "$evidence_value"; then
     failures+=("$role:missing-evidence")
   fi
+
+  next_action_value="$(field_value "$role" "next_action")"
+  if is_placeholder_value "$next_action_value"; then
+    failures+=("$role:missing-next-action")
+  fi
+
+  validate_role_receipt \
+    "$role" \
+    "$agent_id" \
+    "$scope_value" \
+    "$rq_covered_value" \
+    "$rq_missing_value" \
+    "$result_value" \
+    "$evidence_value" \
+    "$next_action_value"
+  validate_touched_file_policy "$role"
 done
 
 declare -a seen_agents=()
