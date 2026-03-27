@@ -16,6 +16,7 @@
 
 ## Notes
 - Planner creates one row per RQ before implementation starts.
-- Tester fills the executed test file(s) and sets each covered row to `VERIFIED` before returning `PASS`.
+- In `trivial` mode, implementer fills the executed test file(s) and sets each covered row to `VERIFIED` before gate-checker.
+- In `lite` and `full` mode, tester fills the executed test file(s) and sets each covered row to `VERIFIED` before returning `PASS`.
 - Gate requires top-level status `VERIFIED` and non-empty normal/error/boundary/test-file/status cells for every RQ row.
 - Include security/permission/rate-limit tests when applicable.

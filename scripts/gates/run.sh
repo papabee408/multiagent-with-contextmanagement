@@ -5,17 +5,22 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 ACTIVE_FEATURE_FILE="$ROOT_DIR/.context/active_feature"
 FEATURE_ID=""
 REUSE_IF_VALID=0
+GATE_MODE="full"
 
 usage() {
   cat <<'EOF'
 Usage:
-  scripts/gates/run.sh [--reuse-if-valid] <feature-id>
-  scripts/gates/run.sh [--reuse-if-valid]
+  scripts/gates/run.sh [--fast] [--reuse-if-valid] <feature-id>
+  scripts/gates/run.sh [--fast] [--reuse-if-valid]
 EOF
 }
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --fast)
+      GATE_MODE="fast"
+      shift
+      ;;
     --reuse-if-valid)
       REUSE_IF_VALID=1
       shift
@@ -44,7 +49,7 @@ fi
 source "$ROOT_DIR/scripts/gates/_helpers.sh" "$FEATURE_ID"
 source "$ROOT_DIR/scripts/gates/_validation_cache.sh"
 
-checks=(
+full_checks=(
   "project-context:scripts/gates/check-project-context.sh"
   "packet:scripts/gates/check-packet.sh"
   "brief:scripts/gates/check-brief.sh"
@@ -58,8 +63,28 @@ checks=(
   "secrets:scripts/gates/check-secrets.sh"
 )
 
+fast_checks=(
+  "project-context:scripts/gates/check-project-context.sh"
+  "packet:scripts/gates/check-packet.sh"
+  "brief:scripts/gates/check-brief.sh"
+  "plan:scripts/gates/check-plan.sh"
+  "handoffs:scripts/gates/check-handoffs.sh"
+  "scope:scripts/gates/check-scope.sh"
+  "file-size:scripts/gates/check-file-size.sh"
+  "tests:internal"
+  "secrets:scripts/gates/check-secrets.sh"
+)
+
+checks=("${full_checks[@]}")
+if [[ "$GATE_MODE" == "fast" ]]; then
+  checks=("${fast_checks[@]}")
+fi
+
 current_feature_tests_fingerprint="$(feature_tests_fingerprint "$FEATURE_ID")"
-current_full_gate_fingerprint="$(full_gate_fingerprint "$FEATURE_ID")"
+current_full_gate_fingerprint=""
+if [[ "$GATE_MODE" == "full" ]]; then
+  current_full_gate_fingerprint="$(full_gate_fingerprint "$FEATURE_ID")"
+fi
 
 reusable_feature_receipt() {
   local receipt_file
@@ -96,10 +121,14 @@ run_tests_gate() {
     bash "$ROOT_DIR/scripts/gates/check-tests.sh" --feature --feature-id "$FEATURE_ID"
   fi
 
+  if [[ "$GATE_MODE" == "fast" ]]; then
+    return 0
+  fi
+
   bash "$ROOT_DIR/scripts/gates/check-tests.sh" --infra
 }
 
-if [[ "$REUSE_IF_VALID" == "1" ]] && reuse_full_gate_receipt_if_current; then
+if [[ "$GATE_MODE" == "full" && "$REUSE_IF_VALID" == "1" ]] && reuse_full_gate_receipt_if_current; then
   exit 0
 fi
 
@@ -131,22 +160,26 @@ done
 
 echo ""
 if [[ ${#fails[@]} -gt 0 ]]; then
-  write_full_gate_receipt \
-    "$FEATURE_ID" \
-    "$current_full_gate_fingerprint" \
-    "FAIL" \
-    "$current_feature_tests_fingerprint" \
-    "scripts/gates/run.sh $FEATURE_ID"
+  if [[ "$GATE_MODE" == "full" ]]; then
+    write_full_gate_receipt \
+      "$FEATURE_ID" \
+      "$current_full_gate_fingerprint" \
+      "FAIL" \
+      "$current_feature_tests_fingerprint" \
+      "scripts/gates/run.sh $FEATURE_ID"
+  fi
   echo "Gate Summary: FAIL"
   printf ' - %s\n' "${fails[@]}"
   exit 1
 fi
 
-write_full_gate_receipt \
-  "$FEATURE_ID" \
-  "$current_full_gate_fingerprint" \
-  "PASS" \
-  "$current_feature_tests_fingerprint" \
-  "scripts/gates/run.sh $FEATURE_ID"
+if [[ "$GATE_MODE" == "full" ]]; then
+  write_full_gate_receipt \
+    "$FEATURE_ID" \
+    "$current_full_gate_fingerprint" \
+    "PASS" \
+    "$current_feature_tests_fingerprint" \
+    "scripts/gates/run.sh $FEATURE_ID"
+fi
 
 echo "Gate Summary: PASS"

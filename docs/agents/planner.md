@@ -24,7 +24,9 @@
   - `## Execution Strategy`
   - `## Task Cards`
 - Every target file path in `## Scope` must be a repo-relative, backtick-wrapped path on its own bullet so the scope gate can parse it.
-- `brief.md` must declare `## Workflow Mode` with `lite` or `full` before implementation dispatch.
+- `brief.md` must declare `## Workflow Mode` and `## Execution Mode` before implementation dispatch.
+- `## Workflow Mode` must use `trivial`, `lite`, or `full`.
+- `## Execution Mode` must use `single` or `multi-agent`.
 - Task list with file paths.
 - `## Architecture Notes` section with:
   - target layer/module placement

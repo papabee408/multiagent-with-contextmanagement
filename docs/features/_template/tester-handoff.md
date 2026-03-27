@@ -21,6 +21,7 @@
 
 ## Acceptance
 - matrix expectations:
+- trivial-mode note:
 
 ## Manual Notes
 - Add role-specific notes here when generated defaults are insufficient.

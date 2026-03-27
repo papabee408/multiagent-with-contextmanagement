@@ -104,11 +104,23 @@ run_infra_tests() {
   echo "[INFO] running run-log wrapper tests"
   bash tests/run-log-ops.test.sh
 
+  echo "[INFO] running closeout staging tests"
+  bash tests/stage-closeout.test.sh
+
   echo "[INFO] running sync handoff tests"
   bash tests/sync-handoffs.test.sh
 
   echo "[INFO] running workflow mode tests"
   bash tests/workflow-mode.test.sh
+
+  echo "[INFO] running execution mode tests"
+  bash tests/execution-mode.test.sh
+
+  echo "[INFO] running promote workflow tests"
+  bash tests/promote-workflow.test.sh
+
+  echo "[INFO] running start feature tests"
+  bash tests/start-feature.test.sh
 
   echo "[INFO] running implementer subtask tests"
   bash tests/implementer-subtasks.test.sh

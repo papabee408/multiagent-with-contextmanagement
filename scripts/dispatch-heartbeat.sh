@@ -148,6 +148,8 @@ update_monitor() {
   local now
   local deadline
   local started_at
+  local interrupt_after
+  local readiness_output
 
   validate_role "$role"
   run_log="$(ensure_run_log "$feature_id")"
@@ -155,17 +157,46 @@ update_monitor() {
   deadline="$(interrupt_deadline_utc)"
   message="$(normalize_line "$message")"
 
+  if [[ "$role" == "implementer" && ( "$command" == "queue" || "$command" == "start" ) ]]; then
+    if ! readiness_output="$(bash "$ROOT_DIR/scripts/gates/check-implementer-ready.sh" --feature "$feature_id" 2>&1)"; then
+      if [[ -n "$readiness_output" ]]; then
+        printf '%s\n' "$readiness_output" >&2
+      fi
+      echo "[ERROR] implementer dispatch blocked: brief, plan, and synced handoffs must pass before code edits" >&2
+      exit 1
+    fi
+  fi
+
   case "$command" in
     queue)
       status="QUEUED"
-      started_at="$now"
+      started_at=""
+      interrupt_after=""
       ;;
-    start|progress)
+    start)
       status="RUNNING"
       started_at="$(monitor_field_value "$run_log" "started-at-utc")"
       started_at="$(trim "$started_at")"
       if [[ -z "$started_at" ]]; then
         started_at="$now"
+      fi
+      interrupt_after="$(monitor_field_value "$run_log" "interrupt-after-utc")"
+      interrupt_after="$(trim "$interrupt_after")"
+      if [[ -z "$interrupt_after" ]]; then
+        interrupt_after="$deadline"
+      fi
+      ;;
+    progress)
+      status="RUNNING"
+      started_at="$(monitor_field_value "$run_log" "started-at-utc")"
+      started_at="$(trim "$started_at")"
+      if [[ -z "$started_at" ]]; then
+        started_at="$now"
+      fi
+      interrupt_after="$(monitor_field_value "$run_log" "interrupt-after-utc")"
+      interrupt_after="$(trim "$interrupt_after")"
+      if [[ -z "$interrupt_after" ]]; then
+        interrupt_after="$deadline"
       fi
       ;;
     risk)
@@ -175,6 +206,11 @@ update_monitor() {
       if [[ -z "$started_at" ]]; then
         started_at="$now"
       fi
+      interrupt_after="$(monitor_field_value "$run_log" "interrupt-after-utc")"
+      interrupt_after="$(trim "$interrupt_after")"
+      if [[ -z "$interrupt_after" ]]; then
+        interrupt_after="$deadline"
+      fi
       ;;
     blocked)
       status="BLOCKED"
@@ -183,6 +219,11 @@ update_monitor() {
       if [[ -z "$started_at" ]]; then
         started_at="$now"
       fi
+      interrupt_after="$(monitor_field_value "$run_log" "interrupt-after-utc")"
+      interrupt_after="$(trim "$interrupt_after")"
+      if [[ -z "$interrupt_after" ]]; then
+        interrupt_after="$deadline"
+      fi
       ;;
     done)
       status="DONE"
@@ -190,6 +231,11 @@ update_monitor() {
       started_at="$(trim "$started_at")"
       if [[ -z "$started_at" ]]; then
         started_at="$now"
+      fi
+      interrupt_after="$(monitor_field_value "$run_log" "interrupt-after-utc")"
+      interrupt_after="$(trim "$interrupt_after")"
+      if [[ -z "$interrupt_after" ]]; then
+        interrupt_after="$deadline"
       fi
       ;;
     *)
@@ -202,7 +248,7 @@ update_monitor() {
   update_monitor_field "$run_log" "current-status" "\`$status\`"
   update_monitor_field "$run_log" "started-at-utc" "$started_at"
   update_monitor_field "$run_log" "last-progress-at-utc" "$now"
-  update_monitor_field "$run_log" "interrupt-after-utc" "$deadline"
+  update_monitor_field "$run_log" "interrupt-after-utc" "$interrupt_after"
   update_monitor_field "$run_log" "last-progress" "$message"
 
   show_monitor "$feature_id"

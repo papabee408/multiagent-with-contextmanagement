@@ -130,6 +130,9 @@ require_section "$RULES_FILE" "## Testing" "RULES.md"
 project_name="$(field_value "$PROJECT_FILE" "## Identity" "project-name")"
 repo_slug="$(field_value "$PROJECT_FILE" "## Identity" "repo-slug")"
 product_type="$(field_value "$PROJECT_FILE" "## Identity" "product-type")"
+repo_slug_lc="$(lower "$repo_slug")"
+root_basename_lc="$(lower "$(basename "$ROOT_DIR")")"
+default_template_slug_lc="$(lower "$DEFAULT_TEMPLATE_SLUG")"
 
 if is_placeholder_text "$project_name"; then
   failures+=("PROJECT.md:missing-project-name")
@@ -137,7 +140,7 @@ fi
 
 if is_placeholder_text "$repo_slug"; then
   failures+=("PROJECT.md:missing-repo-slug")
-elif [[ "$repo_slug" == "$DEFAULT_TEMPLATE_SLUG" && "$(basename "$ROOT_DIR")" != "$DEFAULT_TEMPLATE_SLUG" ]]; then
+elif [[ "$repo_slug_lc" == "$default_template_slug_lc" && "$root_basename_lc" != "$default_template_slug_lc" ]]; then
   failures+=("PROJECT.md:stale-template-repo-slug($repo_slug)")
 fi
 

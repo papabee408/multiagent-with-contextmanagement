@@ -141,6 +141,7 @@ if require_file "$IMPLEMENTER_FILE" "implementer-handoff.md"; then
     "$EXPECTED_GATES_SHA"
   validate_keys "$IMPLEMENTER_FILE" "## Scope" "implementer-handoff" \
     "rq_covered" \
+    "execution mode" \
     "target files" \
     "task order" \
     "out-of-scope reminders"
@@ -160,6 +161,7 @@ if require_file "$TESTER_FILE" "tester-handoff.md"; then
     "$EXPECTED_ARCHITECTURE_SHA" \
     "$EXPECTED_GATES_SHA"
   validate_keys "$TESTER_FILE" "## Coverage" "tester-handoff" \
+    "execution mode" \
     "rq coverage" \
     "required scenarios" \
     "priority risks"
@@ -168,7 +170,8 @@ if require_file "$TESTER_FILE" "tester-handoff.md"; then
     "test edit policy" \
     "execution notes / commands"
   validate_keys "$TESTER_FILE" "## Acceptance" "tester-handoff" \
-    "matrix expectations"
+    "matrix expectations" \
+    "trivial-mode note"
 fi
 
 if require_file "$REVIEWER_FILE" "reviewer-handoff.md"; then
@@ -179,7 +182,9 @@ if require_file "$REVIEWER_FILE" "reviewer-handoff.md"; then
     "$EXPECTED_ARCHITECTURE_SHA" \
     "$EXPECTED_GATES_SHA"
   validate_keys "$REVIEWER_FILE" "## Focus" "reviewer-handoff" \
+    "execution mode" \
     "regression hotspots" \
+    "approval target" \
     "architecture / reuse focus" \
     "scope drift watchpoints"
   validate_keys "$REVIEWER_FILE" "## Quality Checklist" "reviewer-handoff" \
@@ -187,7 +192,8 @@ if require_file "$REVIEWER_FILE" "reviewer-handoff.md"; then
     "hardcoding / config centralization" \
     "performance / waste watchpoints"
   validate_keys "$REVIEWER_FILE" "## Acceptance" "reviewer-handoff" \
-    "fail conditions"
+    "fail conditions" \
+    "approval binding"
 fi
 
 if require_file "$SECURITY_FILE" "security-handoff.md"; then
@@ -198,11 +204,14 @@ if require_file "$SECURITY_FILE" "security-handoff.md"; then
     "$EXPECTED_ARCHITECTURE_SHA" \
     "$EXPECTED_GATES_SHA"
   validate_keys "$SECURITY_FILE" "## Focus" "security-handoff" \
+    "execution mode" \
     "validation / auth focus" \
+    "approval target" \
     "secrets / config touchpoints" \
     "abuse / failure paths"
   validate_keys "$SECURITY_FILE" "## Acceptance" "security-handoff" \
-    "fail conditions"
+    "fail conditions" \
+    "approval binding"
 fi
 
 if [[ ${#failures[@]} -gt 0 ]]; then

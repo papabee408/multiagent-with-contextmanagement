@@ -5,6 +5,7 @@
 - Do not reinterpret requirements or reopen scope discussion.
 - Own all production/config edits for the feature.
 - Own the initial test updates needed to keep the feature working.
+- Start only after `bash scripts/gates/check-implementer-ready.sh --feature <feature-id>` has passed for the current packet.
 
 ## Must Read
 - `docs/features/<feature-id>/implementer-handoff.md`
@@ -23,10 +24,11 @@ Re-open `plan.md` or `ARCHITECTURE.md` only if the handoff is insufficient, cont
 5. If `plan.md` sets `implementer mode: parallel`, only the parent implementer may fan out subworkers.
 6. Parallel subworkers must stay inside disjoint task-card file sets, and the parent implementer remains the merge owner for shared files.
 7. In `full` mode, tester may strengthen `tests/**` coverage after implementer finishes, but implementer still owns any behavior fixes required by tester findings.
+8. If the current packet fails the implementer-ready preflight, do not start code edits and return `BLOCKED`.
 
 ## Must Output (max 8 lines)
 1. `agent: implementer`
-2. `agent-id: <unique runtime id>`
+2. `agent-id: <runtime id; unique across roles only in multi-agent execution mode>`
 3. `scope: <files>`
 4. `rq_covered: [...]`
 5. `rq_missing: [...]`

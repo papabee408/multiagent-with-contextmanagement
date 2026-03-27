@@ -13,13 +13,15 @@
 1. Gate 결과는 `PASS` 또는 `FAIL`만 허용한다.
 2. FAIL 항목이 하나라도 있으면 구현 완료로 간주하지 않는다.
 3. gate-checker는 결과를 해석하지 않고 원시 결과를 전달한다.
-4. `brief.md`의 workflow mode와 `plan.md`의 implementer mode는 gate가 읽는 실행 계약이다.
+4. `brief.md`의 workflow mode, execution mode와 `plan.md`의 implementer mode는 gate가 읽는 실행 계약이다.
 5. `full` mode의 reviewer는 기능 승인뿐 아니라 코드 품질 승인도 담당한다.
 
 ## 실행 커맨드
 레포 루트에서 실행:
 
 ```bash
+bash scripts/gates/check-implementer-ready.sh --feature <feature-id>
+scripts/gates/run.sh --fast <feature-id>
 scripts/gates/run.sh <feature-id>
 scripts/gates/run.sh --reuse-if-valid <feature-id>
 ```
@@ -28,17 +30,19 @@ scripts/gates/run.sh --reuse-if-valid <feature-id>
 인자를 생략하면 `.context/active_feature` 값을 사용한다.
 
 재사용 정책:
+- `check-implementer-ready.sh`는 구현 전 preflight다. `brief`, `plan`, `handoffs`가 모두 PASS일 때만 `implementer`를 dispatch할 수 있다.
 - `check-tests.sh --feature`는 feature-test receipt를 기록할 수 있다.
 - `run.sh`는 현재 feature-test receipt를 재사용해 feature 테스트 중복을 줄일 수 있다.
 - `run.sh --reuse-if-valid`는 current fingerprint와 일치하는 full-gate PASS receipt가 있을 때 gate 전체를 재사용한다.
+- `run.sh --fast`는 local iteration용이며, final completion과 CI 판정은 계속 full gate를 사용한다.
 
 ## Gate 항목
 1. `project-context`: `PROJECT.md`, `CONVENTIONS.md`, `ARCHITECTURE.md`, `RULES.md`가 존재하고 placeholder/이전 프로젝트 잔재 없이 채워졌는지
 2. `packet`: feature packet 필수 파일 존재 여부
-3. `brief`: `brief.md`의 feature-id, Goal, Constraints, Acceptance, Workflow Mode, Requirement Notes, RQ 설명이 비어 있지 않은지
+3. `brief`: `brief.md`의 feature-id, Goal, Constraints, Acceptance, Workflow Mode, Execution Mode, Requirement Notes, RQ 설명이 비어 있지 않은지
 4. `plan`: `plan.md`의 target files, `RQ -> Task Mapping`, `Architecture Notes`, `Reuse and Config Plan`, `Execution Strategy`, task cards가 비어 있지 않은지 + parallel implementer mode면 task cards가 file-disjoint worker package인지
 5. `handoffs`: `implementer/tester/reviewer/security-handoff.md`가 존재하고 각 역할에 필요한 handoff 필드가 비어 있지 않은지 + `brief/plan/project/architecture/gates` source digest가 최신인지
-6. `role-chain`: workflow mode에 맞는 역할 체인(`lite` 또는 `full`)의 필수 필드(`agent-id/scope/result/evidence`)가 채워졌는지 + `Dispatch Monitor` 필드가 채워졌는지 + `agent-id` 중복 여부 + 상태전이 규칙 준수 여부 + `plan.md` 소유권 규칙 준수 여부 + role receipt의 `touched_files` 존재 여부 및 역할별 수정 범위 정책 준수 여부
+6. `role-chain`: workflow mode에 맞는 역할 체인(`trivial`, `lite`, `full`)의 필수 필드(`agent-id/scope/result/evidence`)가 채워졌는지 + 현재 mode에서 허용되지 않는 extra role section/receipt가 없는지 + `Dispatch Monitor` 필드가 채워졌는지 + `multi-agent` execution mode에서만 `agent-id` 중복이 없는지 + 상태전이 규칙 준수 여부 + `plan.md` 소유권 규칙 준수 여부 + role receipt의 `touched_files` 존재 여부 및 역할별 수정 범위 정책 준수 여부 + `full` mode reviewer/security receipt의 current approval-target hash 일치 여부
 7. `test-matrix`: `test-matrix.md`가 `VERIFIED` 상태인지 + 모든 RQ row가 테스트 파일/normal/error/boundary/status를 채웠는지
 8. `scope`: 변경 파일이 `plan.md` target files 범위를 벗어나는지
 9. `file-size`: 신규 파일/수정 파일의 라인 수 정책 위반 여부
@@ -64,22 +68,27 @@ scripts/gates/run.sh --reuse-if-valid <feature-id>
 5. reviewer의 품질 FAIL도 동일하게 구현 수정 후 재검증 대상으로 본다.
 
 ## 상태전이 규칙 (role-chain에서 강제)
-0. `lite` mode는 `gate-checker`에서 종료할 수 있다.
-1. `full` mode는 `reviewer`, `security`를 반드시 포함한다.
-2. `reviewer = FAIL`이면 `security = BLOCKED`여야 한다.
-3. `security = PASS`는 `reviewer = PASS`일 때만 허용된다.
-4. `implementer = PASS`는 `planner = PASS`일 때만 허용된다.
+0. `trivial` mode는 `gate-checker`에서 종료하고 `tester`를 요구하지 않는다.
+1. `lite` mode는 `gate-checker`에서 종료할 수 있다.
+2. `full` mode는 `reviewer`, `security`를 반드시 포함한다.
+3. `reviewer = FAIL`이면 `security = BLOCKED`여야 한다.
+4. `security = PASS`는 `reviewer = PASS`일 때만 허용된다.
+5. `implementer = PASS`는 `planner = PASS`일 때만 허용된다.
 
 ## plan 소유권 규칙 (role-chain에서 강제)
 1. `planner.scope`는 반드시 `plan.md`를 포함해야 한다.
 2. `orchestrator.scope`는 `plan.md`를 포함하면 안 된다.
 3. `Execution Strategy.merge owner`는 `implementer`여야 한다.
 
-## 멀티 에이전트 무결성 규칙 (role-chain에서 강제)
-1. 7개 역할은 각각 고유한 `agent-id`를 가져야 한다.
-2. 동일 `agent-id`가 두 역할 이상에 재사용되면 FAIL이다.
-3. `agent-id`가 역할명 자체(`planner`, `implementer` 등)면 FAIL이다.
+## 실행 모드 무결성 규칙 (role-chain에서 강제)
+1. 모든 역할 출력은 `agent-id`를 가져야 한다.
+2. `multi-agent` execution mode에서는 동일 `agent-id`가 두 역할 이상에 재사용되면 FAIL이다.
+3. `single` execution mode에서는 같은 lead `agent-id`가 여러 역할에 재사용될 수 있다.
+4. `agent-id`가 역할명 자체(`planner`, `implementer` 등)면 FAIL이다.
 
 ## 완료 선언 규칙
 - 완료 보고는 `scripts/complete-feature.sh`로만 수행한다.
 - 수동 완료 선언(게이트/role-chain 검증 없이)은 허용하지 않는다.
+- 최종 `git status` 확인, commit, PR 생성 전에는 `scripts/complete-feature.sh`를 먼저 실행해야 한다.
+- `complete-feature.sh`는 `run-log.md`, active feature artifacts, `HANDOFF/CODEX_RESUME/MAINTENANCE_STATUS`, 현재 completion 세션 로그 같은 closeout 파일을 기본으로 stage한다.
+- closeout staging을 생략하려면 명시적으로 `--no-stage-closeout`를 사용해야 한다.

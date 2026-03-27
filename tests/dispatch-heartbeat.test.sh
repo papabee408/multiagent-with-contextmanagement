@@ -42,6 +42,8 @@ queue_output="$(bash scripts/dispatch-heartbeat.sh queue orchestrator "dispatchi
 printf '%s\n' "$queue_output" | grep -Fq "feature-id: feature-1"
 printf '%s\n' "$queue_output" | grep -Fq 'current-role: orchestrator'
 printf '%s\n' "$queue_output" | grep -Fq 'current-status: `QUEUED`'
+printf '%s\n' "$queue_output" | grep -Eq '^started-at-utc:[[:space:]]*$'
+printf '%s\n' "$queue_output" | grep -Eq '^interrupt-after-utc:[[:space:]]*$'
 
 start_output="$(bash scripts/dispatch-heartbeat.sh start planner "reading docs/features/feature-1/brief.md" )"
 printf '%s\n' "$start_output" | grep -Fq 'current-role: planner'

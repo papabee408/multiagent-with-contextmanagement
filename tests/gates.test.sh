@@ -12,6 +12,7 @@ mkdir -p \
   "$TMP_DIR/docs/features/feature-1"
 
 cp "$ROOT_DIR/scripts/_role_receipt_helpers.sh" "$TMP_DIR/scripts/_role_receipt_helpers.sh"
+cp "$ROOT_DIR/scripts/_git_change_helpers.sh" "$TMP_DIR/scripts/_git_change_helpers.sh"
 cp "$ROOT_DIR/scripts/sync-handoffs.sh" "$TMP_DIR/scripts/sync-handoffs.sh"
 cp "$ROOT_DIR/scripts/gates/_helpers.sh" "$TMP_DIR/scripts/gates/_helpers.sh"
 cp "$ROOT_DIR/scripts/gates/check-project-context.sh" "$TMP_DIR/scripts/gates/check-project-context.sh"
@@ -133,6 +134,10 @@ cat > "$TMP_DIR/docs/features/feature-1/brief.md" <<'EOF'
 ## Workflow Mode
 - mode: `full`
 - rationale: reviewer and security stay required for the default gate fixture.
+
+## Execution Mode
+- mode: `multi-agent`
+- rationale: gate fixture keeps per-role ownership distinct by default
 
 ## Requirement Notes
 - External dependencies: none
@@ -268,6 +273,11 @@ cat > "$TMP_DIR/docs/features/feature-1/run-log.md" <<'EOF'
 - next_action: complete
 EOF
 
+cd "$TMP_DIR"
+git init -q
+git config user.name "Codex Test"
+git config user.email "codex-test@example.com"
+
 mkdir -p "$TMP_DIR/docs/features/feature-1/artifacts/roles"
 
 write_role_receipt() {
@@ -280,6 +290,7 @@ write_role_receipt() {
   local evidence="$7"
   local next_action="$8"
   local touched_files="$9"
+  local approval_target_hash="${10:-}"
 
   FILE="$TMP_DIR/docs/features/feature-1/artifacts/roles/${role}.json" \
   ROLE_VALUE="$role" \
@@ -291,6 +302,7 @@ write_role_receipt() {
   EVIDENCE_VALUE="$evidence" \
   NEXT_ACTION_VALUE="$next_action" \
   TOUCHED_FILES_VALUE="$touched_files" \
+  APPROVAL_TARGET_HASH_VALUE="$approval_target_hash" \
   node <<'EOF'
 const fs = require("fs");
 
@@ -305,7 +317,7 @@ const parseTouchedFiles = (value) => {
     .filter(Boolean);
 };
 
-fs.writeFileSync(process.env.FILE, JSON.stringify({
+const payload = {
   role: process.env.ROLE_VALUE,
   agent_id: process.env.AGENT_ID_VALUE,
   scope: process.env.SCOPE_VALUE,
@@ -317,7 +329,13 @@ fs.writeFileSync(process.env.FILE, JSON.stringify({
   touched_files: parseTouchedFiles(process.env.TOUCHED_FILES_VALUE),
   input_digest: `digest-${process.env.ROLE_VALUE}`,
   updated_at_utc: "2026-03-06 10:01:00Z"
-}, null, 2) + "\n");
+};
+
+if (String(process.env.APPROVAL_TARGET_HASH_VALUE || "").trim()) {
+  payload.approval_target_hash = process.env.APPROVAL_TARGET_HASH_VALUE.trim();
+}
+
+fs.writeFileSync(process.env.FILE, JSON.stringify(payload, null, 2) + "\n");
 EOF
 }
 
@@ -326,8 +344,6 @@ write_role_receipt "planner" "plan-101" "docs/features/feature-1/plan.md, docs/f
 write_role_receipt "implementer" "impl-101" "src/example-module.mjs, tests/example-module.test.mjs" "[RQ-001, RQ-002]" "[]" "PASS" "changed src/example-module.mjs and tests/example-module.test.mjs" "tester" "src/example-module.mjs, tests/example-module.test.mjs"
 write_role_receipt "tester" "test-101" "docs/features/feature-1/test-matrix.md" "[RQ-001, RQ-002]" "[]" "PASS" "ran scripts/gates/check-tests.sh and updated test-matrix" "gate-checker" "docs/features/feature-1/test-matrix.md"
 write_role_receipt "gate-checker" "gate-101" "scripts/gates/run.sh" "[RQ-001, RQ-002]" "[]" "PASS" "ran scripts/gates/run.sh feature-1" "reviewer" "[]"
-write_role_receipt "reviewer" "review-101" "src/example-module.mjs" "[RQ-001, RQ-002]" "[]" "PASS" "reviewed diff and gate output" "security" "[]"
-write_role_receipt "security" "sec-101" "src/example-module.mjs" "[RQ-001, RQ-002]" "[]" "PASS" "checked validation and secrets paths" "complete" "[]"
 
 cat > "$TMP_DIR/docs/features/feature-1/test-matrix.md" <<'EOF'
 # Test Matrix
@@ -354,10 +370,41 @@ replace_in_file() {
   SEARCH_TEXT="$search" REPLACE_TEXT="$replace" perl -0pi -e 's/\Q$ENV{SEARCH_TEXT}\E/$ENV{REPLACE_TEXT}/g' "$path"
 }
 
-cd "$TMP_DIR"
-
 replace_in_file "docs/features/feature-1/test-matrix.md" '__BRIEF_SHA__' "$brief_sha"
 replace_in_file "docs/features/feature-1/test-matrix.md" '__PLAN_SHA__' "$plan_sha"
+approval_target_hash_value="$(
+  source "$TMP_DIR/scripts/gates/_helpers.sh" feature-1
+  approval_target_hash
+)"
+write_role_receipt "reviewer" "review-101" "src/example-module.mjs" "[RQ-001, RQ-002]" "[]" "PASS" "reviewed diff and gate output" "security" "[]" "$approval_target_hash_value"
+write_role_receipt "security" "sec-101" "src/example-module.mjs" "[RQ-001, RQ-002]" "[]" "PASS" "checked validation and secrets paths" "complete" "[]" "$approval_target_hash_value"
+
+git add .
+git commit -qm "fixture"
+
+clean_changed_files="$(
+  source "$TMP_DIR/scripts/gates/_helpers.sh" feature-1
+  changed_files
+)"
+if [[ -n "$(printf '%s\n' "$clean_changed_files" | sed '/^$/d')" ]]; then
+  echo "[FAIL] expected clean worktree to report no changed files"
+  exit 1
+fi
+
+approval_target_hash_value="$(
+  source "$TMP_DIR/scripts/gates/_helpers.sh" feature-1
+  approval_target_hash
+)"
+write_role_receipt "reviewer" "review-101" "src/example-module.mjs" "[RQ-001, RQ-002]" "[]" "PASS" "reviewed diff and gate output" "security" "[]" "$approval_target_hash_value"
+write_role_receipt "security" "sec-101" "src/example-module.mjs" "[RQ-001, RQ-002]" "[]" "PASS" "checked validation and secrets paths" "complete" "[]" "$approval_target_hash_value"
+
+replace_in_file "docs/features/feature-1/run-log.md" '- current-status: `DONE`' '- current-status: `QUEUED`'
+replace_in_file "docs/features/feature-1/run-log.md" '- started-at-utc: 2026-03-06 10:00:00Z' '- started-at-utc:'
+replace_in_file "docs/features/feature-1/run-log.md" '- interrupt-after-utc: 2026-03-06 10:02:00Z' '- interrupt-after-utc:'
+bash scripts/gates/check-role-chain.sh feature-1 >/dev/null
+replace_in_file "docs/features/feature-1/run-log.md" '- current-status: `QUEUED`' '- current-status: `DONE`'
+replace_in_file "docs/features/feature-1/run-log.md" '- started-at-utc:' '- started-at-utc: 2026-03-06 10:00:00Z'
+replace_in_file "docs/features/feature-1/run-log.md" '- interrupt-after-utc:' '- interrupt-after-utc: 2026-03-06 10:02:00Z'
 
 bash scripts/gates/check-project-context.sh >/dev/null
 bash scripts/gates/check-packet.sh feature-1 >/dev/null
@@ -366,6 +413,15 @@ bash scripts/gates/check-plan.sh feature-1 >/dev/null
 bash scripts/gates/check-handoffs.sh feature-1 >/dev/null
 bash scripts/gates/check-role-chain.sh feature-1 >/dev/null
 bash scripts/gates/check-test-matrix.sh feature-1 >/dev/null
+
+replace_in_file "docs/features/feature-1/run-log.md" '- agent-id: gate-101' '- agent-id: impl-101'
+write_role_receipt "gate-checker" "impl-101" "scripts/gates/run.sh" "[RQ-001, RQ-002]" "[]" "PASS" "ran scripts/gates/run.sh feature-1" "reviewer" "[]"
+if bash scripts/gates/check-role-chain.sh feature-1 >/dev/null 2>&1; then
+  echo "[FAIL] expected duplicate agent-id in multi-agent mode to fail role-chain"
+  exit 1
+fi
+replace_in_file "docs/features/feature-1/run-log.md" '- agent-id: impl-101' '- agent-id: gate-101'
+write_role_receipt "gate-checker" "gate-101" "scripts/gates/run.sh" "[RQ-001, RQ-002]" "[]" "PASS" "ran scripts/gates/run.sh feature-1" "reviewer" "[]"
 
 replace_in_file "docs/context/PROJECT.md" "$repo_slug" 'context+MultiAgentDev'
 if bash scripts/gates/check-project-context.sh >/dev/null 2>&1; then
@@ -401,7 +457,30 @@ if bash scripts/gates/check-handoffs.sh feature-1 >/dev/null 2>&1; then
   exit 1
 fi
 replace_in_file "docs/features/feature-1/tester-handoff.md" '- execution notes / commands:' '- execution notes / commands: Run `scripts/gates/check-tests.sh`, then update `test-matrix.md` with the concrete test files you executed.'
-
+replace_in_file "docs/features/feature-1/implementer-handoff.md" '- execution mode: multi-agent' '- execution mode:'
+if bash scripts/gates/check-handoffs.sh feature-1 >/dev/null 2>&1; then
+  echo "[FAIL] expected implementer execution mode handoff field to be required"
+  exit 1
+fi
+replace_in_file "docs/features/feature-1/implementer-handoff.md" '- execution mode:' '- execution mode: multi-agent'
+replace_in_file "docs/features/feature-1/tester-handoff.md" '- trivial-mode note: tester role remains active for this workflow mode' '- trivial-mode note:'
+if bash scripts/gates/check-handoffs.sh feature-1 >/dev/null 2>&1; then
+  echo "[FAIL] expected tester trivial-mode note to be required"
+  exit 1
+fi
+replace_in_file "docs/features/feature-1/tester-handoff.md" '- trivial-mode note:' '- trivial-mode note: tester role remains active for this workflow mode'
+replace_in_file "docs/features/feature-1/reviewer-handoff.md" '- approval target: current final diff plus the current approval-target hash; reviewer `PASS` must match the final state that reaches gate completion' '- approval target:'
+if bash scripts/gates/check-handoffs.sh feature-1 >/dev/null 2>&1; then
+  echo "[FAIL] expected reviewer approval target to be required"
+  exit 1
+fi
+replace_in_file "docs/features/feature-1/reviewer-handoff.md" '- approval target:' '- approval target: current final diff plus the current approval-target hash; reviewer `PASS` must match the final state that reaches gate completion'
+replace_in_file "docs/features/feature-1/security-handoff.md" '- approval binding: security receipt must record the current approval-target hash; any later approval-target change invalidates the security approval automatically' '- approval binding:'
+if bash scripts/gates/check-handoffs.sh feature-1 >/dev/null 2>&1; then
+  echo "[FAIL] expected security approval binding to be required"
+  exit 1
+fi
+replace_in_file "docs/features/feature-1/security-handoff.md" '- approval binding:' '- approval binding: security receipt must record the current approval-target hash; any later approval-target change invalidates the security approval automatically'
 replace_in_file "docs/features/feature-1/plan.md" 'shell gate checks must not depend on app runtime modules' 'stale dependency constraint for digest failure'
 if bash scripts/gates/check-handoffs.sh feature-1 >/dev/null 2>&1; then
   echo "[FAIL] expected stale handoff digest to fail"
@@ -433,7 +512,7 @@ if bash scripts/gates/check-role-chain.sh feature-1 >/dev/null 2>&1; then
   echo "[FAIL] expected missing reviewer receipt to fail role-chain"
   exit 1
 fi
-write_role_receipt "reviewer" "review-101" "src/example-module.mjs" "[RQ-001, RQ-002]" "[]" "PASS" "reviewed diff and gate output" "security" "[]"
+write_role_receipt "reviewer" "review-101" "src/example-module.mjs" "[RQ-001, RQ-002]" "[]" "PASS" "reviewed diff and gate output" "security" "[]" "$approval_target_hash_value"
 
 write_role_receipt "orchestrator" "orch-101" "docs/features/feature-1/run-log.md" "[RQ-001, RQ-002]" "[]" "PASS" "updated run-log and final summary" "planner" "src/example-module.mjs"
 if bash scripts/gates/check-role-chain.sh feature-1 >/dev/null 2>&1; then
@@ -456,40 +535,159 @@ if bash scripts/gates/check-role-chain.sh feature-1 >/dev/null 2>&1; then
 fi
 write_role_receipt "tester" "test-101" "docs/features/feature-1/test-matrix.md" "[RQ-001, RQ-002]" "[]" "PASS" "ran scripts/gates/check-tests.sh and updated test-matrix" "gate-checker" "docs/features/feature-1/test-matrix.md"
 
-write_role_receipt "reviewer" "review-101" "src/example-module.mjs" "[RQ-001, RQ-002]" "[]" "PASS" "reviewed diff and gate output" "security" "src/example-module.mjs"
+write_role_receipt "reviewer" "review-101" "src/example-module.mjs" "[RQ-001, RQ-002]" "[]" "PASS" "reviewed diff and gate output" "security" "src/example-module.mjs" "$approval_target_hash_value"
 if bash scripts/gates/check-role-chain.sh feature-1 >/dev/null 2>&1; then
   echo "[FAIL] expected reviewer touched-files to fail role-chain"
   exit 1
 fi
-write_role_receipt "reviewer" "review-101" "src/example-module.mjs" "[RQ-001, RQ-002]" "[]" "PASS" "reviewed diff and gate output" "security" "[]"
+write_role_receipt "reviewer" "review-101" "src/example-module.mjs" "[RQ-001, RQ-002]" "[]" "PASS" "reviewed diff and gate output" "security" "[]" "$approval_target_hash_value"
+
+replace_in_file "docs/features/feature-1/plan.md" 'shell gate checks must not depend on app runtime modules' 'shell gate checks must not depend on app runtime modules or stale approval targets'
+if bash scripts/gates/check-role-chain.sh feature-1 >/dev/null 2>&1; then
+  echo "[FAIL] expected stale reviewer/security approval hash to fail role-chain"
+  exit 1
+fi
+replace_in_file "docs/features/feature-1/plan.md" 'shell gate checks must not depend on app runtime modules or stale approval targets' 'shell gate checks must not depend on app runtime modules'
+approval_target_hash_value="$(
+  source "$TMP_DIR/scripts/gates/_helpers.sh" feature-1
+  approval_target_hash
+)"
+write_role_receipt "reviewer" "review-101" "src/example-module.mjs" "[RQ-001, RQ-002]" "[]" "PASS" "reviewed diff and gate output" "security" "[]" "$approval_target_hash_value"
+write_role_receipt "security" "sec-101" "src/example-module.mjs" "[RQ-001, RQ-002]" "[]" "PASS" "checked validation and secrets paths" "complete" "[]" "$approval_target_hash_value"
 
 replace_in_file "docs/features/feature-1/brief.md" '- mode: `full`' '- mode: `lite`'
 replace_in_file "docs/features/feature-1/brief.md" '- rationale: reviewer and security stay required for the default gate fixture.' '- rationale: docs-only fixture stops after gate-checker.'
-replace_in_file "docs/features/feature-1/run-log.md" '- current-role: security' '- current-role: gate-checker'
-replace_in_file "docs/features/feature-1/run-log.md" '- next_action: reviewer' '- next_action: complete'
-replace_in_file "docs/features/feature-1/run-log.md" '### reviewer
-- agent-id: review-101
-- scope: src/example-module.mjs
-- rq_covered: [RQ-001, RQ-002]
-- rq_missing: []
-- result: PASS
-- evidence: reviewed diff and gate output
-- next_action: security
+cat > "docs/features/feature-1/run-log.md" <<'EOF'
+# Run Log
 
-### security
-- agent-id: sec-101
-- scope: src/example-module.mjs
+## Status
+- feature-id: feature-1
+- overall: `DONE`
+
+## Dispatch Monitor
+- current-role: gate-checker
+- current-status: `DONE`
+- started-at-utc: 2026-03-06 10:00:00Z
+- last-progress-at-utc: 2026-03-06 10:01:00Z
+- interrupt-after-utc: 2026-03-06 10:02:00Z
+- last-progress: ran `scripts/gates/run.sh feature-1`
+
+## Role Outputs
+### orchestrator
+- agent-id: orch-101
+- scope: docs/features/feature-1/run-log.md
 - rq_covered: [RQ-001, RQ-002]
 - rq_missing: []
 - result: PASS
-- evidence: checked validation and secrets paths
+- evidence: updated run-log and final summary
+- next_action: planner
+
+### planner
+- agent-id: plan-101
+- scope: docs/features/feature-1/plan.md, docs/features/feature-1/implementer-handoff.md, docs/features/feature-1/tester-handoff.md, docs/features/feature-1/reviewer-handoff.md, docs/features/feature-1/security-handoff.md, docs/features/feature-1/test-matrix.md
+- rq_covered: [RQ-001, RQ-002]
+- rq_missing: []
+- result: PASS
+- evidence: wrote plan.md, handoff files, and seeded test-matrix rows
+- next_action: implementer
+
+### implementer
+- agent-id: impl-101
+- scope: src/example-module.mjs, tests/example-module.test.mjs
+- rq_covered: [RQ-001, RQ-002]
+- rq_missing: []
+- result: PASS
+- evidence: changed src/example-module.mjs and tests/example-module.test.mjs
+- next_action: tester
+
+### tester
+- agent-id: test-101
+- scope: docs/features/feature-1/test-matrix.md
+- rq_covered: [RQ-001, RQ-002]
+- rq_missing: []
+- result: PASS
+- evidence: ran scripts/gates/check-tests.sh and updated test-matrix
+- next_action: gate-checker
+
+### gate-checker
+- agent-id: gate-101
+- scope: scripts/gates/run.sh
+- rq_covered: [RQ-001, RQ-002]
+- rq_missing: []
+- result: PASS
+- evidence: ran scripts/gates/run.sh feature-1
 - next_action: complete
-' ''
+EOF
 write_role_receipt "gate-checker" "gate-101" "scripts/gates/run.sh" "[RQ-001, RQ-002]" "[]" "PASS" "ran scripts/gates/run.sh feature-1" "complete" "[]"
 rm "docs/features/feature-1/artifacts/roles/reviewer.json"
 rm "docs/features/feature-1/artifacts/roles/security.json"
 if ! bash scripts/gates/check-role-chain.sh feature-1 >/dev/null 2>&1; then
   echo "[FAIL] expected lite workflow without reviewer/security to pass role-chain"
+  exit 1
+fi
+
+replace_in_file "docs/features/feature-1/brief.md" '- mode: `lite`' '- mode: `trivial`'
+replace_in_file "docs/features/feature-1/brief.md" '- rationale: docs-only fixture stops after gate-checker.' '- rationale: tiny request skips tester and review while keeping planner-owned scope.'
+if bash scripts/gates/check-role-chain.sh feature-1 >/dev/null 2>&1; then
+  echo "[FAIL] expected trivial workflow with stale tester/reviewer/security outputs to fail role-chain"
+  exit 1
+fi
+cat > "docs/features/feature-1/run-log.md" <<'EOF'
+# Run Log
+
+## Status
+- feature-id: feature-1
+- overall: `DONE`
+
+## Dispatch Monitor
+- current-role: gate-checker
+- current-status: `DONE`
+- started-at-utc: 2026-03-06 10:00:00Z
+- last-progress-at-utc: 2026-03-06 10:01:00Z
+- interrupt-after-utc: 2026-03-06 10:02:00Z
+- last-progress: ran `scripts/gates/run.sh feature-1`
+
+## Role Outputs
+### orchestrator
+- agent-id: orch-101
+- scope: docs/features/feature-1/run-log.md
+- rq_covered: [RQ-001, RQ-002]
+- rq_missing: []
+- result: PASS
+- evidence: updated run-log and final summary
+- next_action: planner
+
+### planner
+- agent-id: plan-101
+- scope: docs/features/feature-1/plan.md, docs/features/feature-1/implementer-handoff.md, docs/features/feature-1/tester-handoff.md, docs/features/feature-1/reviewer-handoff.md, docs/features/feature-1/security-handoff.md, docs/features/feature-1/test-matrix.md
+- rq_covered: [RQ-001, RQ-002]
+- rq_missing: []
+- result: PASS
+- evidence: wrote plan.md, handoff files, and seeded test-matrix rows
+- next_action: implementer
+
+### implementer
+- agent-id: impl-101
+- scope: src/example-module.mjs, tests/example-module.test.mjs, docs/features/feature-1/test-matrix.md
+- rq_covered: [RQ-001, RQ-002]
+- rq_missing: []
+- result: PASS
+- evidence: changed src/example-module.mjs, tests/example-module.test.mjs, and finalized test-matrix
+- next_action: gate-checker
+
+### gate-checker
+- agent-id: gate-101
+- scope: scripts/gates/run.sh
+- rq_covered: [RQ-001, RQ-002]
+- rq_missing: []
+- result: PASS
+- evidence: ran scripts/gates/run.sh feature-1
+- next_action: complete
+EOF
+write_role_receipt "implementer" "impl-101" "src/example-module.mjs, tests/example-module.test.mjs, docs/features/feature-1/test-matrix.md" "[RQ-001, RQ-002]" "[]" "PASS" "changed src/example-module.mjs, tests/example-module.test.mjs, and finalized test-matrix" "gate-checker" "src/example-module.mjs, tests/example-module.test.mjs, docs/features/feature-1/test-matrix.md"
+rm "docs/features/feature-1/artifacts/roles/tester.json"
+if ! bash scripts/gates/check-role-chain.sh feature-1 >/dev/null 2>&1; then
+  echo "[FAIL] expected trivial workflow without tester/reviewer/security to pass role-chain"
   exit 1
 fi
 

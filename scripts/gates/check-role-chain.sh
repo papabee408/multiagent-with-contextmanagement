@@ -23,6 +23,7 @@ all_roles=(
 )
 
 workflow_mode="$(workflow_mode_from_brief)"
+execution_mode="$(execution_mode_from_brief)"
 required_roles=()
 while IFS= read -r role; do
   [[ -n "$role" ]] || continue
@@ -40,6 +41,14 @@ role_is_required() {
   done
 
   return 1
+}
+
+role_receipt_exists() {
+  local role="$1"
+  local receipt_file
+
+  receipt_file="$(role_receipt_file "$ROOT_DIR" "$FEATURE_ID" "$role")"
+  [[ -f "$receipt_file" ]]
 }
 
 section_exists() {
@@ -147,6 +156,7 @@ validate_role_receipt() {
   local receipt_touched_files_exists
   local receipt_input_digest
   local receipt_updated_at
+  local receipt_approval_target_hash
 
   receipt_file="$(role_receipt_file "$ROOT_DIR" "$FEATURE_ID" "$role")"
   if [[ ! -f "$receipt_file" ]]; then
@@ -165,6 +175,7 @@ validate_role_receipt() {
   receipt_touched_files_exists="$(json_field_exists_role "$receipt_file" "touched_files")"
   receipt_input_digest="$(json_field_value_role "$receipt_file" "input_digest")"
   receipt_updated_at="$(json_field_value_role "$receipt_file" "updated_at_utc")"
+  receipt_approval_target_hash="$(json_field_value_role "$receipt_file" "approval_target_hash")"
 
   if [[ "$receipt_role" != "$role" ]]; then
     failures+=("$role:receipt-role-mismatch($receipt_role)")
@@ -201,6 +212,16 @@ validate_role_receipt() {
   elif ! is_valid_utc_timestamp "$receipt_updated_at"; then
     failures+=("$role:invalid-receipt-updated-at-utc($receipt_updated_at)")
   fi
+
+  case "$role" in
+    reviewer|security)
+      if [[ "$expected_result" == "PASS" ]]; then
+        if ! is_sha256 "$receipt_approval_target_hash"; then
+          failures+=("$role:missing-receipt-approval-target-hash")
+        fi
+      fi
+      ;;
+  esac
 }
 
 validate_touched_file_policy() {
@@ -239,12 +260,19 @@ validate_touched_file_policy() {
         failures+=("planner:touched-file-outside-policy($touched_file)")
         ;;
       implementer)
+        if [[ "$workflow_mode" == "trivial" && "$touched_file" == "docs/features/$FEATURE_ID/test-matrix.md" ]]; then
+          continue
+        fi
         if grep -Fxq "$touched_file" "$plan_targets_tmp"; then
           continue
         fi
         failures+=("implementer:touched-file-outside-plan-targets($touched_file)")
         ;;
       tester)
+        if [[ "$workflow_mode" == "trivial" ]]; then
+          failures+=("tester:must-not-run-in-trivial-mode($touched_file)")
+          continue
+        fi
         if [[ "$touched_file" == "docs/features/$FEATURE_ID/test-matrix.md" ]]; then
           continue
         fi
@@ -271,18 +299,44 @@ trap 'rm -f "$plan_targets_tmp"' EXIT
 allowed_files_from_plan > "$plan_targets_tmp"
 
 case "$workflow_mode" in
-  lite|full)
+  trivial|lite|full)
     ;;
   *)
     failures+=("workflow-mode:invalid($workflow_mode)")
     ;;
 esac
 
+case "$execution_mode" in
+  single|multi-agent)
+    ;;
+  *)
+    failures+=("execution-mode:invalid($execution_mode)")
+    ;;
+esac
+
 for role in "${all_roles[@]}"; do
-  if ! section_exists "$role"; then
-    if role_is_required "$role"; then
-      failures+=("$role:missing-section")
+  role_required=0
+  if role_is_required "$role"; then
+    role_required=1
+  fi
+
+  role_section_exists=0
+  if section_exists "$role"; then
+    role_section_exists=1
+  fi
+
+  if [[ "$role_required" != "1" ]]; then
+    if [[ "$role_section_exists" == "1" ]]; then
+      failures+=("$role:must-not-run-in-$workflow_mode-mode")
     fi
+    if role_receipt_exists "$role"; then
+      failures+=("$role:unexpected-role-receipt-in-$workflow_mode-mode")
+    fi
+    continue
+  fi
+
+  if [[ "$role_section_exists" != "1" ]]; then
+    failures+=("$role:missing-section")
     continue
   fi
 
@@ -354,21 +408,23 @@ for role in "${all_roles[@]}"; do
   validate_touched_file_policy "$role"
 done
 
-declare -a seen_agents=()
-for role_agent in "${role_agents[@]-}"; do
-  role="${role_agent%%:*}"
-  agent_id="${role_agent#*:}"
+if [[ "$execution_mode" == "multi-agent" ]]; then
+  declare -a seen_agents=()
+  for role_agent in "${role_agents[@]-}"; do
+    role="${role_agent%%:*}"
+    agent_id="${role_agent#*:}"
 
-  for seen in "${seen_agents[@]-}"; do
-    seen_role="${seen%%:*}"
-    seen_id="${seen#*:}"
-    if [[ "$agent_id" == "$seen_id" ]]; then
-      failures+=("multi-agent:duplicate-agent-id($agent_id:$seen_role,$role)")
-    fi
+    for seen in "${seen_agents[@]-}"; do
+      seen_role="${seen%%:*}"
+      seen_id="${seen#*:}"
+      if [[ "$agent_id" == "$seen_id" ]]; then
+        failures+=("multi-agent:duplicate-agent-id($agent_id:$seen_role,$role)")
+      fi
+    done
+
+    seen_agents+=("$role:$agent_id")
   done
-
-  seen_agents+=("$role:$agent_id")
-done
+fi
 
 reviewer_result=""
 security_result=""
@@ -408,22 +464,31 @@ else
   esac
 fi
 
-if is_placeholder_value "$monitor_started_at"; then
-  failures+=("dispatch-monitor:missing-started-at-utc")
-elif ! is_valid_utc_timestamp "$monitor_started_at"; then
-  failures+=("dispatch-monitor:invalid-started-at-utc($monitor_started_at)")
-fi
-
 if is_placeholder_value "$monitor_last_progress_at"; then
   failures+=("dispatch-monitor:missing-last-progress-at-utc")
 elif ! is_valid_utc_timestamp "$monitor_last_progress_at"; then
   failures+=("dispatch-monitor:invalid-last-progress-at-utc($monitor_last_progress_at)")
 fi
 
-if is_placeholder_value "$monitor_interrupt_after"; then
-  failures+=("dispatch-monitor:missing-interrupt-after-utc")
-elif ! is_valid_utc_timestamp "$monitor_interrupt_after"; then
-  failures+=("dispatch-monitor:invalid-interrupt-after-utc($monitor_interrupt_after)")
+if [[ "${monitor_status_uc:-}" == "QUEUED" ]]; then
+  if ! is_placeholder_value "$monitor_started_at" && ! is_valid_utc_timestamp "$monitor_started_at"; then
+    failures+=("dispatch-monitor:invalid-started-at-utc($monitor_started_at)")
+  fi
+  if ! is_placeholder_value "$monitor_interrupt_after" && ! is_valid_utc_timestamp "$monitor_interrupt_after"; then
+    failures+=("dispatch-monitor:invalid-interrupt-after-utc($monitor_interrupt_after)")
+  fi
+else
+  if is_placeholder_value "$monitor_started_at"; then
+    failures+=("dispatch-monitor:missing-started-at-utc")
+  elif ! is_valid_utc_timestamp "$monitor_started_at"; then
+    failures+=("dispatch-monitor:invalid-started-at-utc($monitor_started_at)")
+  fi
+
+  if is_placeholder_value "$monitor_interrupt_after"; then
+    failures+=("dispatch-monitor:missing-interrupt-after-utc")
+  elif ! is_valid_utc_timestamp "$monitor_interrupt_after"; then
+    failures+=("dispatch-monitor:invalid-interrupt-after-utc($monitor_interrupt_after)")
+  fi
 fi
 
 if is_placeholder_value "$monitor_last_progress"; then
@@ -478,6 +543,26 @@ fi
 
 if [[ "$reviewer_result" != "PASS" && "$security_result" == "PASS" ]]; then
   failures+=("state-machine:security-PASS-requires-reviewer-PASS")
+fi
+
+current_approval_target_hash="$(approval_target_hash)"
+reviewer_receipt_file="$(role_receipt_file "$ROOT_DIR" "$FEATURE_ID" "reviewer")"
+security_receipt_file="$(role_receipt_file "$ROOT_DIR" "$FEATURE_ID" "security")"
+
+if [[ "$workflow_mode" == "full" ]]; then
+  if [[ -f "$reviewer_receipt_file" && "$reviewer_result" == "PASS" ]]; then
+    reviewer_approval_target_hash="$(json_field_value_role "$reviewer_receipt_file" "approval_target_hash")"
+    if [[ "$reviewer_approval_target_hash" != "$current_approval_target_hash" ]]; then
+      failures+=("approval-binding:reviewer-stale")
+    fi
+  fi
+
+  if [[ -f "$security_receipt_file" && "$security_result" == "PASS" ]]; then
+    security_approval_target_hash="$(json_field_value_role "$security_receipt_file" "approval_target_hash")"
+    if [[ "$security_approval_target_hash" != "$current_approval_target_hash" ]]; then
+      failures+=("approval-binding:security-stale")
+    fi
+  fi
 fi
 
 planner_scope_lc="$(printf '%s' "$planner_scope" | tr '[:upper:]' '[:lower:]')"

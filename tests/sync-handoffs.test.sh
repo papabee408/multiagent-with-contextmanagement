@@ -13,6 +13,7 @@ mkdir -p \
   "$TMP_DIR/.context"
 
 cp "$ROOT_DIR/scripts/sync-handoffs.sh" "$TMP_DIR/scripts/sync-handoffs.sh"
+cp "$ROOT_DIR/scripts/_git_change_helpers.sh" "$TMP_DIR/scripts/_git_change_helpers.sh"
 cp "$ROOT_DIR/scripts/gates/_helpers.sh" "$TMP_DIR/scripts/gates/_helpers.sh"
 chmod +x "$TMP_DIR/scripts/sync-handoffs.sh"
 
@@ -57,6 +58,10 @@ cat > "$TMP_DIR/docs/features/feature-sync/brief.md" <<'EOF'
 ## Workflow Mode
 - mode: `full`
 - rationale: sync should include reviewer/security handoffs for the default fixture.
+
+## Execution Mode
+- mode: `single`
+- rationale: one lead agent owns the fixture while helper sub-agents stay optional
 
 ## Requirement Notes
 - External dependencies: none
@@ -113,9 +118,11 @@ bash scripts/sync-handoffs.sh feature-sync >/dev/null
 
 grep -Fq '## Source Digest' docs/features/feature-sync/implementer-handoff.md
 grep -Fq -- '- workflow mode: full' docs/features/feature-sync/implementer-handoff.md
+grep -Fq -- '- execution mode: single' docs/features/feature-sync/implementer-handoff.md
 grep -Fq -- '- implementer mode: parallel' docs/features/feature-sync/implementer-handoff.md
 grep -Fq -- '- brief-sha:' docs/features/feature-sync/tester-handoff.md
 grep -Fq -- '- test edit policy: implementer owns baseline test updates; tester may strengthen `tests/**` only when coverage gaps remain after implementation' docs/features/feature-sync/tester-handoff.md
+grep -Fq -- '- approval target:' docs/features/feature-sync/reviewer-handoff.md
 grep -Fq -- '- reuse / componentization:' docs/features/feature-sync/reviewer-handoff.md
 grep -Fq -- '- performance / waste watchpoints:' docs/features/feature-sync/reviewer-handoff.md
 grep -Fq '| RQ-001 |' docs/features/feature-sync/test-matrix.md

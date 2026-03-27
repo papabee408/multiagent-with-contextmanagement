@@ -1,0 +1,15 @@
+{
+  "kind": "role-result",
+  "role": "reviewer",
+  "agent_id": "lead-20260327",
+  "scope": "workflow/execution mode enforcement, approval binding, baseline handling, and gate coverage",
+  "rq_covered": "[RQ-001, RQ-002, RQ-003, RQ-004, RQ-005, RQ-006, RQ-007, RQ-008, RQ-009]",
+  "rq_missing": "[]",
+  "result": "PASS",
+  "evidence": "reviewed mode-lock enforcement, extra-role rejection, approval-target invalidation, baseline handling, and fast/full gate coverage against the final diff",
+  "next_action": "security",
+  "touched_files": [],
+  "input_digest": "f2fbeb911eb600b287258762e3aae050e8719f439fd88cdc6dada8894ff452b5",
+  "updated_at_utc": "2026-03-27 02:40:27Z",
+  "approval_target_hash": "6126be2f5cff94021c3a272c0124ae53ebc67744694664801eacb48de0c236bb"
+}

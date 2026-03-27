@@ -71,7 +71,7 @@ fi
 
 workflow_mode="$(workflow_mode_from_brief)"
 case "$workflow_mode" in
-  lite|full)
+  trivial|lite|full)
     ;;
   *)
     failures+=("invalid-workflow-mode($workflow_mode)")
@@ -83,7 +83,21 @@ if is_placeholder_text "$workflow_rationale"; then
   failures+=("missing-workflow-rationale")
 fi
 
-for section in "## Goal" "## Non-goals" "## Constraints" "## Acceptance" "## Workflow Mode" "## Requirement Notes"; do
+execution_mode="$(execution_mode_from_brief)"
+case "$execution_mode" in
+  single|multi-agent)
+    ;;
+  *)
+    failures+=("invalid-execution-mode($execution_mode)")
+    ;;
+esac
+
+execution_rationale="$(execution_rationale_from_brief)"
+if is_placeholder_text "$execution_rationale"; then
+  failures+=("missing-execution-rationale")
+fi
+
+for section in "## Goal" "## Non-goals" "## Constraints" "## Acceptance" "## Workflow Mode" "## Execution Mode" "## Requirement Notes"; do
   value="$(section_first_line "$section")"
   if is_placeholder_text "$value"; then
     failures+=("missing-content(${section#\#\# })")

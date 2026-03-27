@@ -14,6 +14,7 @@ RESULT=""
 EVIDENCE=""
 NEXT_ACTION=""
 TOUCHED_FILES=""
+APPROVAL_TARGET_HASH=""
 
 usage() {
   cat <<'EOF'
@@ -128,6 +129,7 @@ done
 
 FEATURE_ID="$(resolve_feature_id_or_exit "$FEATURE_ID")"
 validate_role_or_exit "$ROLE"
+source "$ROOT_DIR/scripts/gates/_helpers.sh" "$FEATURE_ID"
 
 RESULT="$(printf '%s' "$RESULT" | tr '[:lower:]' '[:upper:]')"
 case "$RESULT" in
@@ -145,6 +147,12 @@ for required_name in AGENT_ID SCOPE RQ_COVERED RQ_MISSING EVIDENCE NEXT_ACTION T
     exit 1
   fi
 done
+
+case "$ROLE" in
+  reviewer|security)
+    APPROVAL_TARGET_HASH="$(approval_target_hash)"
+    ;;
+esac
 
 RUN_LOG="$(ensure_run_log_or_exit "$FEATURE_ID")"
 BLOCK_FILE="$(mktemp)"
@@ -171,6 +179,7 @@ write_role_receipt \
   "$RESULT" \
   "$(normalize_line "$EVIDENCE")" \
   "$(normalize_line "$NEXT_ACTION")" \
-  "$(normalize_line "$TOUCHED_FILES")"
+  "$(normalize_line "$TOUCHED_FILES")" \
+  "$APPROVAL_TARGET_HASH"
 
 echo "[OK] role result recorded: $ROLE"

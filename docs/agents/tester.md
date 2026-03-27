@@ -2,6 +2,7 @@
 
 ## Responsibility
 - Validate the implementation from an adversarial perspective.
+- This role is skipped in `trivial` mode.
 - Before running tests, perform a **test execution preflight check** to ensure the environment can run tests.
 - If the test environment is not runnable (missing dependencies, broken setup, etc.), immediately report a **BLOCKER** instead of proceeding.
 - Finalize `test-matrix.md` with the tests actually executed before returning `PASS`.

@@ -20,7 +20,11 @@
 - 
 
 ## Workflow Mode
-- mode: `full`
+- mode:
+- rationale:
+
+## Execution Mode
+- mode:
 - rationale:
 
 ## Requirement Notes

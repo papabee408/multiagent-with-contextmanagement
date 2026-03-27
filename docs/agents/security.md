@@ -8,7 +8,8 @@
 - Execute only after reviewer result is `PASS`.
 
 ## Must Read
-- implementer diff
+- final diff
+- current approval-target hash
 - relevant config/env usage
 - `docs/features/<feature-id>/security-handoff.md`
 
@@ -19,6 +20,7 @@ Open `plan.md` or `RULES.md` only when the handoff is ambiguous, stale, or a sec
 - Vulnerability list with risk.
 - Exploit scenario.
 - Mitigation and recheck points.
+- Approval must bind to the current final-state approval-target hash.
 
 ## Must Not
 - Expand into generic style review.

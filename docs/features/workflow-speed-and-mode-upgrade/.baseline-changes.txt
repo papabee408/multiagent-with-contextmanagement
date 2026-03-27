@@ -1,0 +1,2 @@
+docs/context/CODEX_RESUME.md
+docs/context/sessions/20260326-235427-workflow-speed-and-mode-upgrade.md
