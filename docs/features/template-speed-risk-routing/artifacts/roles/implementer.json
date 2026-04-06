@@ -1,0 +1,30 @@
+{
+  "kind": "role-result",
+  "role": "implementer",
+  "agent_id": "codex-main-20260327",
+  "scope": "AGENTS.md, docs/agents/orchestrator.md, docs/agents/reviewer.md, docs/agents/security.md, docs/context/GATES.md, docs/features/_template/brief.md, scripts/feature-packet.sh, scripts/gates/_helpers.sh, scripts/gates/check-brief.sh, scripts/gates/check-handoffs.sh, scripts/gates/check-packet.sh, scripts/start-feature.sh, scripts/sync-handoffs.sh, tests/gates.test.sh, tests/start-feature.test.sh",
+  "rq_covered": "[RQ-001, RQ-002, RQ-003]",
+  "rq_missing": "[]",
+  "result": "PASS",
+  "evidence": "changed bootstrap docs/scripts for risk-based defaults, made handoff generation mode-aware, and passed bash tests/start-feature.test.sh, bash tests/gates.test.sh, and bash scripts/gates/check-tests.sh --infra",
+  "next_action": "tester",
+  "touched_files": [
+    "AGENTS.md",
+    "docs/agents/orchestrator.md",
+    "docs/agents/reviewer.md",
+    "docs/agents/security.md",
+    "docs/context/GATES.md",
+    "docs/features/_template/brief.md",
+    "scripts/feature-packet.sh",
+    "scripts/gates/_helpers.sh",
+    "scripts/gates/check-brief.sh",
+    "scripts/gates/check-handoffs.sh",
+    "scripts/gates/check-packet.sh",
+    "scripts/start-feature.sh",
+    "scripts/sync-handoffs.sh",
+    "tests/gates.test.sh",
+    "tests/start-feature.test.sh"
+  ],
+  "input_digest": "f2fbeb911eb600b287258762e3aae050e8719f439fd88cdc6dada8894ff452b5",
+  "updated_at_utc": "2026-03-27 04:06:57Z"
+}

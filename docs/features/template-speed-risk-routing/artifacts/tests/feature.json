@@ -1,0 +1,11 @@
+{
+  "kind": "feature-tests",
+  "feature_id": "template-speed-risk-routing",
+  "mode": "feature",
+  "fingerprint": "8f920ef8c48c2b74352192daf34548a3b89944e86477ae87e977fbec604974c1",
+  "result": "PASS",
+  "command": "bash scripts/gates/check-tests.sh --feature --feature-id template-speed-risk-routing",
+  "executed_at_utc": "2026-03-27 04:15:14Z",
+  "script_sha": "e36cadbc9b9e71428c3c3dc226a3b7f727f880ee35fa9f64bb636ddc4a10ffe3",
+  "node_version": "v22.20.0"
+}

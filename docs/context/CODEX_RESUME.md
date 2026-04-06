@@ -1,8 +1,8 @@
 # Codex Resume Snapshot
 
-- Generated At (UTC): 2026-03-27 02:42:02Z
-- Primary Next Task: Commit the completed workflow-speed-and-mode-upgrade changes.
-- Latest Session File: docs/context/sessions/20260326-235427-workflow-speed-and-mode-upgrade.md
+- Generated At (UTC): 2026-03-27 09:29:23Z
+- Primary Next Task: If you want to adopt it, copy the folder into a target repo, customize context docs, and dogfood it on one real feature before replacing the current workflow.
+- Latest Session File: docs/context/sessions/20260327-091450-template-v2-minimal-stable.md
 - Active Decision Log: docs/context/DECISIONS.md
 - Decision Archive: docs/context/DECISIONS_ARCHIVE.md
 
@@ -19,14 +19,14 @@
 
 # Current Handoff
 
-- Last Updated (UTC): 2026-03-27 02:42:02Z
-- Last Session File: docs/context/sessions/20260326-235427-workflow-speed-and-mode-upgrade.md
+- Last Updated (UTC): 2026-03-27 09:29:23Z
+- Last Session File: docs/context/sessions/20260327-091450-template-v2-minimal-stable.md
 
 ## What Was Done
-- Hardened workflow and execution mode enforcement, approval binding, baseline handling, and closeout staging with full regression coverage.
+- Added a new stable-ai-dev-template folder with one-task workflow docs, hash-based scope protection, verification receipts, and a passing template-local smoke test.
 
 ## Next Task
-- Commit the completed workflow-speed-and-mode-upgrade changes.
+- If you want to adopt it, copy the folder into a target repo, customize context docs, and dogfood it on one real feature before replacing the current workflow.
 
 ## Resume Checklist
 - Read `HANDOFF.md` first.
@@ -39,34 +39,31 @@
 
 ## Latest Session Excerpt
 
-Source: docs/context/sessions/20260326-235427-workflow-speed-and-mode-upgrade.md
+Source: docs/context/sessions/20260327-091450-template-v2-minimal-stable.md
 
 ```text
-# Session: workflow-speed-and-mode-upgrade
+# Session: template-v2-minimal-stable
 
-- Started At (UTC): 2026-03-26 23:54:27Z
+- Started At (UTC): 2026-03-27 09:14:50Z
 - Status: in_progress
 
 ## Goal
 - Define the concrete outcome for this session.
 
 ## Work Log
-- 2026-03-26 23:54:27Z | Session started.
-- 2026-03-27 01:14:07Z | Added closeout staging requirement to workflow docs and feature packet; syncing handoffs next.
-- 2026-03-27 01:16:24Z | Fixed closeout staging portability and updated plan scope for complete-feature/stage-closeout files; rerunning sync and fast gate.
-- 2026-03-27 01:17:00Z | Implemented closeout auto-staging for complete-feature and verified stage-closeout, check-tests --full, and fast gate.
-- 2026-03-27 01:23:18Z | Starting follow-up fixes for closeout staging scope, clean-worktree git fallback, and dispatch monitor start timing.
-- 2026-03-27 01:33:02Z | Updated packet/docs for scoped closeout staging, clean-worktree git semantics, and queued dispatch timestamps; syncing handoffs.
-- 2026-03-27 01:35:09Z | Completed follow-up fixes for scoped closeout staging, clean-worktree git semantics, and queued dispatch timestamps; tests and fast gate passed.
-- 2026-03-27 02:42:01Z | Feature workflow-speed-and-mode-upgrade completed. All gates passed.
+- 2026-03-27 09:14:50Z | Session started.
+- 2026-03-27 09:19:02Z | Planning stable-ai-dev-template scope, task model, and verification strategy before editing packet docs.
+- 2026-03-27 09:20:46Z | Updated template-v2-minimal-stable brief/plan for a smaller single-task template and reran handoff sync.
+- 2026-03-27 09:27:48Z | Added stable-ai-dev-template folder with single-task docs, hash-based baseline logic, verification receipts, and a local smoke test.
+- 2026-03-27 09:28:46Z | Ran stable-ai-dev-template/tests/smoke.sh successfully after fixing placeholder handling for explicit none values.
 
 ## Session Summary
-- Hardened workflow and execution mode enforcement, approval binding, baseline handling, and closeout staging with full regression coverage.
+- Added a new stable-ai-dev-template folder with one-task workflow docs, hash-based scope protection, verification receipts, and a passing template-local smoke test.
 
 ## Next Step
-- Commit the completed workflow-speed-and-mode-upgrade changes.
+- If you want to adopt it, copy the folder into a target repo, customize context docs, and dogfood it on one real feature before replacing the current workflow.
 
-- Finished At (UTC): 2026-03-27 02:42:01Z
+- Finished At (UTC): 2026-03-27 09:29:23Z
 - Status: completed
 ```
 

@@ -1,0 +1,14 @@
+{
+  "kind": "role-result",
+  "role": "gate-checker",
+  "agent_id": "lead-101",
+  "scope": "scripts/gates/run.sh",
+  "rq_covered": "[RQ-001, RQ-002]",
+  "rq_missing": "[]",
+  "result": "PASS",
+  "evidence": "ran scripts/gates/run.sh review-followups-fix",
+  "next_action": "complete",
+  "touched_files": [],
+  "input_digest": "f2fbeb911eb600b287258762e3aae050e8719f439fd88cdc6dada8894ff452b5",
+  "updated_at_utc": "2026-03-27 06:31:49Z"
+}

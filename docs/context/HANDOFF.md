@@ -1,13 +1,13 @@
 # Current Handoff
 
-- Last Updated (UTC): 2026-03-27 02:42:02Z
-- Last Session File: docs/context/sessions/20260326-235427-workflow-speed-and-mode-upgrade.md
+- Last Updated (UTC): 2026-03-27 09:29:23Z
+- Last Session File: docs/context/sessions/20260327-091450-template-v2-minimal-stable.md
 
 ## What Was Done
-- Hardened workflow and execution mode enforcement, approval binding, baseline handling, and closeout staging with full regression coverage.
+- Added a new stable-ai-dev-template folder with one-task workflow docs, hash-based scope protection, verification receipts, and a passing template-local smoke test.
 
 ## Next Task
-- Commit the completed workflow-speed-and-mode-upgrade changes.
+- If you want to adopt it, copy the folder into a target repo, customize context docs, and dogfood it on one real feature before replacing the current workflow.
 
 ## Resume Checklist
 - Read `HANDOFF.md` first.

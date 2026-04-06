@@ -1,0 +1,11 @@
+{
+  "kind": "feature-tests",
+  "feature_id": "template-stage2-enforcement",
+  "mode": "feature",
+  "fingerprint": "3b5b2c2b994097ffca3d13b022a1250c29712e761391ba369c8e7a7dd411aa13",
+  "result": "PASS",
+  "command": "bash scripts/gates/check-tests.sh --feature --feature-id template-stage2-enforcement",
+  "executed_at_utc": "2026-03-27 04:49:04Z",
+  "script_sha": "e36cadbc9b9e71428c3c3dc226a3b7f727f880ee35fa9f64bb636ddc4a10ffe3",
+  "node_version": "v22.20.0"
+}

@@ -1,0 +1,15 @@
+{
+  "kind": "role-result",
+  "role": "gate-checker",
+  "agent_id": "codex-main",
+  "scope": "scripts/gates/run.sh --fast template-core-trust-hardening",
+  "rq_covered": "[RQ-001, RQ-002, RQ-003, RQ-004]",
+  "rq_missing": "[]",
+  "result": "PASS",
+  "evidence": "passed bash scripts/gates/run.sh --fast template-core-trust-hardening against the refreshed tester/test-matrix state",
+  "next_action": "reviewer rebinds quality approval to the current target",
+  "touched_files": [],
+  "input_digest": "4fbc6f10f06d8147a54522f57de6412d58e3d2e11a49c3354e5fe501f617aa16",
+  "updated_at_utc": "2026-03-27 08:35:46Z",
+  "approval_target_hash": "ff6bd5f8b954c9114fb9d2910b319926753f5c20d02797f437f1a614f4224c02"
+}

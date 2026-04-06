@@ -1,0 +1,22 @@
+{
+  "kind": "role-result",
+  "role": "planner",
+  "agent_id": "lead-codex-20260327",
+  "scope": "docs/features/template-review-hardening-followup/brief.md, docs/features/template-review-hardening-followup/plan.md, docs/features/template-review-hardening-followup/implementer-handoff.md, docs/features/template-review-hardening-followup/tester-handoff.md, docs/features/template-review-hardening-followup/reviewer-handoff.md, docs/features/template-review-hardening-followup/security-handoff.md, docs/features/template-review-hardening-followup/test-matrix.md",
+  "rq_covered": "[RQ-001, RQ-002, RQ-003, RQ-004]",
+  "rq_missing": "[]",
+  "result": "PASS",
+  "evidence": "updated brief.md and plan.md, ran scripts/sync-handoffs.sh template-review-hardening-followup, and passed scripts/gates/check-implementer-ready.sh --feature template-review-hardening-followup",
+  "next_action": "implementer",
+  "touched_files": [
+    "docs/features/template-review-hardening-followup/brief.md",
+    "docs/features/template-review-hardening-followup/plan.md",
+    "docs/features/template-review-hardening-followup/implementer-handoff.md",
+    "docs/features/template-review-hardening-followup/tester-handoff.md",
+    "docs/features/template-review-hardening-followup/reviewer-handoff.md",
+    "docs/features/template-review-hardening-followup/security-handoff.md",
+    "docs/features/template-review-hardening-followup/test-matrix.md"
+  ],
+  "input_digest": "f2fbeb911eb600b287258762e3aae050e8719f439fd88cdc6dada8894ff452b5",
+  "updated_at_utc": "2026-03-27 07:44:49Z"
+}

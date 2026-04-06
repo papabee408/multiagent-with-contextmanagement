@@ -7,12 +7,13 @@
 - plan-sha: e399a69c0ad3cf6a38350364e14274cd6ed854f903d6a6a538445094572baa17
 - project-context-sha: ecca12d92cc35ce868121156749e28d9e88d062a0da9d755e5b9c498b7d845ac
 - architecture-sha: 1c26799c1924e637673f787dcdc39b9629ed412be609d7e917ce0b668dd92be1
-- gates-sha: 4a5c2a3c55503e74a45ae00292f2f4aae6e5f13ac000fdad3f43bfdfc28f7773
-- sync-script-sha: 4d96b37385fb134061205d91aac52c6b1dfd9d12cc74bee3ef897c442e532bdd
-- generated-at-utc: 2026-03-15 20:00:11Z
+- gates-sha: 33bb0866e23e5f2331bf12fcebe12ad7ab87cd050102bec017f0dda24b44b5e4
+- sync-script-sha: 5275e9cbf78d8d5aea2d37ea4057a0810d9225b8a4377ac81fee61a8cdaccbbd
+- generated-at-utc: 2026-03-27 02:47:04Z
 
 ## Coverage
 - workflow mode: full
+- execution mode: TBD
 - rq coverage: `RQ-001`: Agents must see the full gate, test, and visibility workflow early enough that CI is not the first place failures appear.; `RQ-002`: Local/CI gates must fail when `Dispatch Monitor` or `test-matrix.md` are incomplete.; `RQ-003`: Operators must have a single quick-reference document and a terminal-first status command instead of manually reading `run-log.md`.
 - required scenarios: RQ-001 normal/error/boundary coverage; RQ-002 normal/error/boundary coverage; RQ-003 normal/error/boundary coverage
 - priority risks: Keep the repo mapped to exactly one feature packet for this change.; gate validation logic should stay in shell scripts and must not introduce product-runtime coupling; production code outside template operations/docs
@@ -24,6 +25,7 @@
 
 ## Acceptance
 - matrix expectations: every brief RQ must have a `test-matrix.md` row with concrete normal/error/boundary coverage, test file, and `VERIFIED` status before tester returns `PASS`
+- trivial-mode note: tester role remains active for this workflow mode
 
 ## Manual Notes
 - Edit `brief.md` or `plan.md` and rerun `scripts/sync-handoffs.sh` if generated defaults need to change.

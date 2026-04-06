@@ -1,0 +1,11 @@
+{
+  "kind": "feature-tests",
+  "feature_id": "review-followups-fix",
+  "mode": "feature",
+  "fingerprint": "ccee4237ad31382a0dff4e8eedb8eedcb789cbde503885566f61994a64f960af",
+  "result": "PASS",
+  "command": "bash scripts/gates/check-tests.sh --feature --feature-id review-followups-fix",
+  "executed_at_utc": "2026-03-27 06:52:16Z",
+  "script_sha": "c20a485c6b060b886f3fd4ba1b9cb73595f8432f03610d867ca96c1bf0e67f1e",
+  "node_version": "v22.20.0"
+}

@@ -1,0 +1,22 @@
+{
+  "kind": "role-result",
+  "role": "planner",
+  "agent_id": "codex-main-20260327",
+  "scope": "docs/features/template-trust-hardening/plan.md, docs/features/template-trust-hardening/implementer-handoff.md, docs/features/template-trust-hardening/tester-handoff.md, docs/features/template-trust-hardening/reviewer-handoff.md, docs/features/template-trust-hardening/security-handoff.md, docs/features/template-trust-hardening/test-matrix.md",
+  "rq_covered": "[RQ-001, RQ-002, RQ-003]",
+  "rq_missing": "[]",
+  "result": "PASS",
+  "evidence": "updated brief.md/plan.md, ran scripts/sync-handoffs.sh template-trust-hardening, and passed bash scripts/gates/check-implementer-ready.sh --feature template-trust-hardening",
+  "next_action": "implementer",
+  "touched_files": [
+    "docs/features/template-trust-hardening/brief.md",
+    "docs/features/template-trust-hardening/plan.md",
+    "docs/features/template-trust-hardening/implementer-handoff.md",
+    "docs/features/template-trust-hardening/tester-handoff.md",
+    "docs/features/template-trust-hardening/reviewer-handoff.md",
+    "docs/features/template-trust-hardening/security-handoff.md",
+    "docs/features/template-trust-hardening/test-matrix.md"
+  ],
+  "input_digest": "f2fbeb911eb600b287258762e3aae050e8719f439fd88cdc6dada8894ff452b5",
+  "updated_at_utc": "2026-03-27 07:07:43Z"
+}

@@ -1,0 +1,22 @@
+{
+  "kind": "role-result",
+  "role": "planner",
+  "agent_id": "codex-main-20260327",
+  "scope": "docs/features/template-speed-risk-routing/plan.md, docs/features/template-speed-risk-routing/implementer-handoff.md, docs/features/template-speed-risk-routing/tester-handoff.md, docs/features/template-speed-risk-routing/reviewer-handoff.md, docs/features/template-speed-risk-routing/security-handoff.md, docs/features/template-speed-risk-routing/test-matrix.md",
+  "rq_covered": "[RQ-001, RQ-002, RQ-003]",
+  "rq_missing": "[]",
+  "result": "PASS",
+  "evidence": "updated brief.md and plan.md, then ran scripts/sync-handoffs.sh template-speed-risk-routing and scripts/gates/check-implementer-ready.sh --feature template-speed-risk-routing",
+  "next_action": "implementer",
+  "touched_files": [
+    "docs/features/template-speed-risk-routing/brief.md",
+    "docs/features/template-speed-risk-routing/plan.md",
+    "docs/features/template-speed-risk-routing/implementer-handoff.md",
+    "docs/features/template-speed-risk-routing/tester-handoff.md",
+    "docs/features/template-speed-risk-routing/reviewer-handoff.md",
+    "docs/features/template-speed-risk-routing/security-handoff.md",
+    "docs/features/template-speed-risk-routing/test-matrix.md"
+  ],
+  "input_digest": "f2fbeb911eb600b287258762e3aae050e8719f439fd88cdc6dada8894ff452b5",
+  "updated_at_utc": "2026-03-27 03:56:36Z"
+}
