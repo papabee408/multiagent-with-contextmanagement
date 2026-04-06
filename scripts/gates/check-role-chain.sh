@@ -119,7 +119,7 @@ is_placeholder_value() {
       ;;
   esac
 
-  if [[ "$lowered" == *"(required)"* ]]; then
+  if [[ "$lowered" == *"(required"* || "$lowered" == *"required runtime id"* ]]; then
     return 0
   fi
 
@@ -130,9 +130,56 @@ is_placeholder_value() {
   return 1
 }
 
+section_has_meaningful_output() {
+  local role="$1"
+  local field
+  local value
+
+  for field in agent-id scope rq_covered rq_missing result evidence next_action; do
+    value="$(field_value "$role" "$field")"
+    if ! is_placeholder_value "$value"; then
+      return 0
+    fi
+  done
+
+  return 1
+}
+
 is_valid_utc_timestamp() {
   local value="$1"
   [[ "$value" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}\ [0-9]{2}:[0-9]{2}:[0-9]{2}Z$ ]]
+}
+
+utc_to_epoch_role_chain() {
+  local value="${1:-}"
+  if [[ -z "$value" ]]; then
+    printf '%s' ""
+    return
+  fi
+
+  perl -MTime::Piece -e '
+    my $value = shift;
+    my $epoch = Time::Piece->strptime($value, "%Y-%m-%d %H:%M:%SZ")->epoch;
+    print $epoch;
+  ' "$value" 2>/dev/null || printf '%s' ""
+}
+
+interrupt_threshold_seconds_role_chain() {
+  printf '%s' "${DISPATCH_HEARTBEAT_INTERRUPT_SECONDS:-120}"
+}
+
+role_receipt_updated_at_for_role() {
+  local role="$1"
+  local entry
+
+  for entry in "${role_receipt_updates[@]-}"; do
+    if [[ "${entry%%:*}" == "$role" ]]; then
+      printf '%s' "${entry#*:}"
+      return
+    fi
+  done
+
+  printf '%s' ""
 }
 
 validate_role_receipt() {
@@ -211,17 +258,15 @@ validate_role_receipt() {
     failures+=("$role:missing-receipt-updated-at-utc")
   elif ! is_valid_utc_timestamp "$receipt_updated_at"; then
     failures+=("$role:invalid-receipt-updated-at-utc($receipt_updated_at)")
+  else
+    role_receipt_updates+=("$role:$receipt_updated_at")
   fi
 
-  case "$role" in
-    reviewer|security)
-      if [[ "$expected_result" == "PASS" ]]; then
-        if ! is_sha256 "$receipt_approval_target_hash"; then
-          failures+=("$role:missing-receipt-approval-target-hash")
-        fi
-      fi
-      ;;
-  esac
+  if role_requires_approval_binding "$role" && [[ "$expected_result" == "PASS" ]]; then
+    if ! is_sha256 "$receipt_approval_target_hash"; then
+      failures+=("$role:missing-receipt-approval-target-hash")
+    fi
+  fi
 }
 
 validate_touched_file_policy() {
@@ -294,6 +339,7 @@ failures=()
 declare -a role_results=()
 declare -a role_agents=()
 declare -a role_scopes=()
+declare -a role_receipt_updates=()
 plan_targets_tmp="$(mktemp)"
 trap 'rm -f "$plan_targets_tmp"' EXIT
 allowed_files_from_plan > "$plan_targets_tmp"
@@ -326,7 +372,7 @@ for role in "${all_roles[@]}"; do
   fi
 
   if [[ "$role_required" != "1" ]]; then
-    if [[ "$role_section_exists" == "1" ]]; then
+    if [[ "$role_section_exists" == "1" ]] && section_has_meaningful_output "$role"; then
       failures+=("$role:must-not-run-in-$workflow_mode-mode")
     fi
     if role_receipt_exists "$role"; then
@@ -430,6 +476,8 @@ reviewer_result=""
 security_result=""
 planner_result=""
 implementer_result=""
+tester_result=""
+gate_checker_result=""
 planner_scope=""
 orchestrator_scope=""
 monitor_role="$(monitor_field_value "current-role")"
@@ -449,6 +497,9 @@ else
       failures+=("dispatch-monitor:invalid-current-role($monitor_role)")
       ;;
   esac
+  if ! role_is_required "$monitor_role"; then
+    failures+=("dispatch-monitor:role-not-allowed-in-$workflow_mode-mode($monitor_role)")
+  fi
 fi
 
 if is_placeholder_value "$monitor_status"; then
@@ -504,6 +555,12 @@ for item in "${role_results[@]}"; do
   if [[ "$role" == "implementer" ]]; then
     implementer_result="$result"
   fi
+  if [[ "$role" == "tester" ]]; then
+    tester_result="$result"
+  fi
+  if [[ "$role" == "gate-checker" ]]; then
+    gate_checker_result="$result"
+  fi
   if [[ "$role" == "reviewer" ]]; then
     reviewer_result="$result"
   fi
@@ -537,6 +594,26 @@ if [[ -n "${monitor_started_at:-}" && -n "${monitor_interrupt_after:-}" ]] \
   failures+=("dispatch-monitor:interrupt-before-start")
 fi
 
+if [[ -n "${monitor_last_progress_at:-}" && -n "${monitor_interrupt_after:-}" ]] \
+  && is_valid_utc_timestamp "$monitor_last_progress_at" \
+  && is_valid_utc_timestamp "$monitor_interrupt_after" \
+  && [[ "$monitor_interrupt_after" < "$monitor_last_progress_at" ]]; then
+  failures+=("dispatch-monitor:interrupt-before-last-progress")
+fi
+
+if [[ -n "${monitor_last_progress_at:-}" && -n "${monitor_interrupt_after:-}" ]] \
+  && is_valid_utc_timestamp "$monitor_last_progress_at" \
+  && is_valid_utc_timestamp "$monitor_interrupt_after"; then
+  monitor_last_progress_epoch="$(utc_to_epoch_role_chain "$monitor_last_progress_at")"
+  monitor_interrupt_after_epoch="$(utc_to_epoch_role_chain "$monitor_interrupt_after")"
+  if [[ -n "$monitor_last_progress_epoch" && -n "$monitor_interrupt_after_epoch" ]]; then
+    monitor_idle_window_seconds="$(( monitor_interrupt_after_epoch - monitor_last_progress_epoch ))"
+    if (( monitor_idle_window_seconds > $(interrupt_threshold_seconds_role_chain) )); then
+      failures+=("dispatch-monitor:interrupt-window-exceeds-idle-threshold($monitor_idle_window_seconds)")
+    fi
+  fi
+fi
+
 if [[ "$reviewer_result" == "FAIL" && "$security_result" != "BLOCKED" ]]; then
   failures+=("state-machine:security-must-be-BLOCKED-when-reviewer-FAIL")
 fi
@@ -546,8 +623,24 @@ if [[ "$reviewer_result" != "PASS" && "$security_result" == "PASS" ]]; then
 fi
 
 current_approval_target_hash="$(approval_target_hash)"
+tester_receipt_file="$(role_receipt_file "$ROOT_DIR" "$FEATURE_ID" "tester")"
+gate_checker_receipt_file="$(role_receipt_file "$ROOT_DIR" "$FEATURE_ID" "gate-checker")"
 reviewer_receipt_file="$(role_receipt_file "$ROOT_DIR" "$FEATURE_ID" "reviewer")"
 security_receipt_file="$(role_receipt_file "$ROOT_DIR" "$FEATURE_ID" "security")"
+
+if [[ -f "$tester_receipt_file" && "$tester_result" == "PASS" ]]; then
+  tester_approval_target_hash="$(json_field_value_role "$tester_receipt_file" "approval_target_hash")"
+  if [[ "$tester_approval_target_hash" != "$current_approval_target_hash" ]]; then
+    failures+=("approval-binding:tester-stale")
+  fi
+fi
+
+if [[ -f "$gate_checker_receipt_file" && "$gate_checker_result" == "PASS" ]]; then
+  gate_checker_approval_target_hash="$(json_field_value_role "$gate_checker_receipt_file" "approval_target_hash")"
+  if [[ "$gate_checker_approval_target_hash" != "$current_approval_target_hash" ]]; then
+    failures+=("approval-binding:gate-checker-stale")
+  fi
+fi
 
 if [[ "$workflow_mode" == "full" ]]; then
   if [[ -f "$reviewer_receipt_file" && "$reviewer_result" == "PASS" ]]; then
@@ -579,6 +672,31 @@ fi
 if [[ "$planner_result" != "PASS" && "$implementer_result" == "PASS" ]]; then
   failures+=("state-machine:implementer-PASS-requires-planner-PASS")
 fi
+
+previous_required_role=""
+previous_required_updated_at=""
+for role in "${required_roles[@]}"; do
+  if [[ "$role" == "orchestrator" ]]; then
+    continue
+  fi
+
+  receipt_updated_at="$(role_receipt_updated_at_for_role "$role")"
+  if [[ -z "$receipt_updated_at" ]]; then
+    continue
+  fi
+
+  if [[ -n "$previous_required_updated_at" ]]; then
+    previous_required_epoch="$(utc_to_epoch_role_chain "$previous_required_updated_at")"
+    receipt_updated_epoch="$(utc_to_epoch_role_chain "$receipt_updated_at")"
+    if [[ -n "$previous_required_epoch" && -n "$receipt_updated_epoch" ]] \
+      && (( receipt_updated_epoch < previous_required_epoch )); then
+      failures+=("state-machine:role-receipt-out-of-order($previous_required_role->$role)")
+    fi
+  fi
+
+  previous_required_role="$role"
+  previous_required_updated_at="$receipt_updated_at"
+done
 
 if [[ ${#failures[@]} -gt 0 ]]; then
   echo "[FAIL] role-chain"

@@ -13,8 +13,9 @@
 1. Gate 결과는 `PASS` 또는 `FAIL`만 허용한다.
 2. FAIL 항목이 하나라도 있으면 구현 완료로 간주하지 않는다.
 3. gate-checker는 결과를 해석하지 않고 원시 결과를 전달한다.
-4. `brief.md`의 workflow mode, execution mode와 `plan.md`의 implementer mode는 gate가 읽는 실행 계약이다.
+4. `brief.md`의 risk class, workflow mode, execution mode와 `plan.md`의 implementer mode는 gate가 읽는 실행 계약이다.
 5. `full` mode의 reviewer는 기능 승인뿐 아니라 코드 품질 승인도 담당한다.
+6. 기본 부팅 경로는 `standard -> lite -> single`이며, `high-risk`는 `full`이 아니면 안 된다.
 
 ## 실행 커맨드
 레포 루트에서 실행:
@@ -39,10 +40,10 @@ scripts/gates/run.sh --reuse-if-valid <feature-id>
 ## Gate 항목
 1. `project-context`: `PROJECT.md`, `CONVENTIONS.md`, `ARCHITECTURE.md`, `RULES.md`가 존재하고 placeholder/이전 프로젝트 잔재 없이 채워졌는지
 2. `packet`: feature packet 필수 파일 존재 여부
-3. `brief`: `brief.md`의 feature-id, Goal, Constraints, Acceptance, Workflow Mode, Execution Mode, Requirement Notes, RQ 설명이 비어 있지 않은지
+3. `brief`: `brief.md`의 feature-id, Goal, Constraints, Acceptance, Risk Class, Workflow Mode, Execution Mode, Requirement Notes, RQ 설명이 비어 있지 않은지 + `high-risk`이면 workflow mode가 `full`인지 + risk-signal checklist가 있을 때는 각 항목이 `yes|no`인지, 하나라도 `yes`면 `high-risk -> full`인지
 4. `plan`: `plan.md`의 target files, `RQ -> Task Mapping`, `Architecture Notes`, `Reuse and Config Plan`, `Execution Strategy`, task cards가 비어 있지 않은지 + parallel implementer mode면 task cards가 file-disjoint worker package인지
-5. `handoffs`: `implementer/tester/reviewer/security-handoff.md`가 존재하고 각 역할에 필요한 handoff 필드가 비어 있지 않은지 + `brief/plan/project/architecture/gates` source digest가 최신인지
-6. `role-chain`: workflow mode에 맞는 역할 체인(`trivial`, `lite`, `full`)의 필수 필드(`agent-id/scope/result/evidence`)가 채워졌는지 + 현재 mode에서 허용되지 않는 extra role section/receipt가 없는지 + `Dispatch Monitor` 필드가 채워졌는지 + `multi-agent` execution mode에서만 `agent-id` 중복이 없는지 + 상태전이 규칙 준수 여부 + `plan.md` 소유권 규칙 준수 여부 + role receipt의 `touched_files` 존재 여부 및 역할별 수정 범위 정책 준수 여부 + `full` mode reviewer/security receipt의 current approval-target hash 일치 여부
+5. `handoffs`: active workflow mode에 필요한 handoff 파일만 존재하고 각 역할에 필요한 handoff 필드가 비어 있지 않은지 + `brief/plan/project/architecture/gates` source digest가 최신인지
+6. `role-chain`: workflow mode에 맞는 역할 체인(`trivial`, `lite`, `full`)의 필수 필드(`agent-id/scope/result/evidence`)가 채워졌는지 + 현재 mode에서 허용되지 않는 extra role section/receipt가 없는지 + `Dispatch Monitor` 필드가 채워졌는지 + monitor timestamp 관계(`started-at <= last-progress-at <= interrupt-after`)와 refreshed idle window가 말이 되는지 + 필수 역할 receipt의 `updated_at_utc`가 workflow 순서와 모순되지 않는지 + `multi-agent` execution mode에서만 `agent-id` 중복이 없는지 + 상태전이 규칙 준수 여부 + `plan.md` 소유권 규칙 준수 여부 + role receipt의 `touched_files` 존재 여부 및 역할별 수정 범위 정책 준수 여부 + approval-bound PASS receipts (`tester`, `gate-checker`, `reviewer`, `security` when present) 의 current approval-target hash 일치 여부
 7. `test-matrix`: `test-matrix.md`가 `VERIFIED` 상태인지 + 모든 RQ row가 테스트 파일/normal/error/boundary/status를 채웠는지
 8. `scope`: 변경 파일이 `plan.md` target files 범위를 벗어나는지
 9. `file-size`: 신규 파일/수정 파일의 라인 수 정책 위반 여부
@@ -74,6 +75,13 @@ scripts/gates/run.sh --reuse-if-valid <feature-id>
 3. `reviewer = FAIL`이면 `security = BLOCKED`여야 한다.
 4. `security = PASS`는 `reviewer = PASS`일 때만 허용된다.
 5. `implementer = PASS`는 `planner = PASS`일 때만 허용된다.
+6. 필수 실행 역할(planner 이후 체인) receipt의 `updated_at_utc`는 workflow 순서를 거꾸로 가리키면 안 된다. 최종 orchestrator closeout 기록은 이 순서 강제에서 예외다.
+
+## Dispatch Monitor Guard 규칙
+1. `queue`는 실행 시작이 아니므로 `started-at-utc`와 `interrupt-after-utc`가 비어 있어도 된다.
+2. `start`, `progress`, `risk`, `done`, `blocked`는 모두 actionable signal로 간주하고 `interrupt-after-utc`를 최신 signal 기준 idle deadline으로 새로 잡는다.
+3. `scripts/dispatch-heartbeat.sh guard`는 active role이 45초 idle이면 `AT_RISK`, 120초 idle이면 `BLOCKED`로 승격할 수 있다.
+4. `guard`는 stale 판정을 하더라도 `last-progress-at-utc`를 새 progress처럼 덮어쓰면 안 된다.
 
 ## plan 소유권 규칙 (role-chain에서 강제)
 1. `planner.scope`는 반드시 `plan.md`를 포함해야 한다.
@@ -86,9 +94,16 @@ scripts/gates/run.sh --reuse-if-valid <feature-id>
 3. `single` execution mode에서는 같은 lead `agent-id`가 여러 역할에 재사용될 수 있다.
 4. `agent-id`가 역할명 자체(`planner`, `implementer` 등)면 FAIL이다.
 
+## Packet / Handoff 범위 규칙
+1. `trivial` packet은 `implementer-handoff.md`만 요구한다.
+2. `lite` packet은 `implementer-handoff.md`, `tester-handoff.md`를 요구한다.
+3. `full` packet은 `implementer-handoff.md`, `tester-handoff.md`, `reviewer-handoff.md`, `security-handoff.md`를 모두 요구한다.
+4. 낮은 workflow mode에서 불필요한 reviewer/security handoff 파일이 남아 있으면 FAIL이다.
+
 ## 완료 선언 규칙
 - 완료 보고는 `scripts/complete-feature.sh`로만 수행한다.
 - 수동 완료 선언(게이트/role-chain 검증 없이)은 허용하지 않는다.
 - 최종 `git status` 확인, commit, PR 생성 전에는 `scripts/complete-feature.sh`를 먼저 실행해야 한다.
 - `complete-feature.sh`는 `run-log.md`, active feature artifacts, `HANDOFF/CODEX_RESUME/MAINTENANCE_STATUS`, 현재 completion 세션 로그 같은 closeout 파일을 기본으로 stage한다.
 - closeout staging을 생략하려면 명시적으로 `--no-stage-closeout`를 사용해야 한다.
+- `tester`, `gate-checker`, `reviewer`, `security`의 `PASS` receipt는 모두 current approval-target hash에 묶여야 하며, 관련 target file이 바뀌면 해당 역할은 다시 실행해야 한다.

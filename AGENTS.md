@@ -21,15 +21,13 @@ Do not duplicate detailed role logic here.
 If conflicts exist, higher item wins.
 
 ## Session Bootstrap (Mandatory)
-0. For a new implementation request, first ask the user to choose:
-   - workflow mode:
-     - `Lite`
-     - `Trivial`
-     - `Full`
-   - execution mode:
-     - `Single`
-     - `Multi-Agent`
-   Include the AI-recommended option first in each question. `Multi-Agent` may be executed only after the user explicitly chooses it. Once chosen, workflow mode and execution mode are locked until the user explicitly asks to change them.
+0. For a new implementation request, classify the feature risk first in `brief.md`:
+   - `Standard` (recommended): starts in workflow mode `Lite`
+   - `Trivial`: starts in workflow mode `Trivial`
+   - `High-Risk`: starts in workflow mode `Full`
+   Use the `## Risk Signals` checklist in `brief.md` to justify the route. If one or more signals are `yes`, the feature must be treated as `high-risk` and start in `full`.
+   Default execution mode is `Single`.
+   Ask the user only when overriding the default workflow route or enabling `Multi-Agent`. `Multi-Agent` may be executed only after the user explicitly chooses it. Once chosen, workflow mode and execution mode are locked until the user explicitly asks to change them.
 1. Run `scripts/context-log.sh resume-lite`.
 2. Run setup check once when bootstrapping a new project copy:
    - `scripts/check-project-setup.sh`
@@ -57,7 +55,11 @@ If conflicts exist, higher item wins.
   - downstream roles should prefer role-specific `*-handoff.md` files as the distilled handoff.
   - downstream roles reopen upstream context docs only when a handoff file is insufficient, contradictory, or missing a required constraint.
 - Ownership rule:
-  - `brief.md` owns both:
+  - `brief.md` owns:
+    - risk class:
+      - `trivial`: lowest-risk route; may default to workflow mode `trivial`
+      - `standard`: default route; should start in workflow mode `lite`
+      - `high-risk`: requires workflow mode `full`
     - workflow mode:
       - `trivial`: `orchestrator -> planner -> implementer -> gate-checker`
       - `lite`: `trivial` plus `tester`
@@ -66,8 +68,8 @@ If conflicts exist, higher item wins.
       - `single`: one lead agent may own multiple roles; bounded helper sub-agents are allowed
       - `multi-agent`: explicit role-level delegation; role `agent-id` values must stay unique
   - `planner` exclusively owns `docs/features/<feature-id>/plan.md` authoring.
-  - `planner` refreshes `implementer-handoff.md`, `tester-handoff.md`, `reviewer-handoff.md`, `security-handoff.md` by running `scripts/sync-handoffs.sh <feature-id>` after updating `plan.md`.
-  - `scripts/sync-handoffs.sh <feature-id>` also re-seeds `docs/features/<feature-id>/test-matrix.md` rows from the RQ list and updates handoff source digests.
+  - `planner` refreshes workflow-relevant handoffs by running `scripts/sync-handoffs.sh <feature-id>` after updating `plan.md`.
+  - `scripts/sync-handoffs.sh <feature-id>` also re-seeds `docs/features/<feature-id>/test-matrix.md` rows from the RQ list, updates handoff source digests, and removes handoff files that are not required for the active workflow mode.
   - Before dispatching `implementer` in any workflow mode, `bash scripts/gates/check-implementer-ready.sh --feature <feature-id>` must pass; until then code edits are not allowed.
   - `implementer` owns production/source/config edits and the baseline test updates needed for the feature.
   - `tester` never edits production code.
@@ -127,11 +129,12 @@ If conflicts exist, higher item wins.
   - `docs/features/<feature-id>/brief.md`
   - `docs/features/<feature-id>/plan.md`
   - `docs/features/<feature-id>/implementer-handoff.md`
-  - `docs/features/<feature-id>/tester-handoff.md`
-  - `docs/features/<feature-id>/reviewer-handoff.md`
-  - `docs/features/<feature-id>/security-handoff.md`
   - `docs/features/<feature-id>/test-matrix.md`
   - `docs/features/<feature-id>/run-log.md`
+- Mode-specific packet files:
+  - `trivial`: no additional handoff files beyond `implementer-handoff.md`
+  - `lite`: additionally requires `docs/features/<feature-id>/tester-handoff.md`
+  - `full`: additionally requires `docs/features/<feature-id>/tester-handoff.md`, `docs/features/<feature-id>/reviewer-handoff.md`, `docs/features/<feature-id>/security-handoff.md`
 - If packet does not exist, create it from `docs/features/_template/`.
 - Use `scripts/start-feature.sh <feature-id>` as the only workflow entry.
 - To inspect or set workflow mode:

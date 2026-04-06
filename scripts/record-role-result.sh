@@ -148,11 +148,9 @@ for required_name in AGENT_ID SCOPE RQ_COVERED RQ_MISSING EVIDENCE NEXT_ACTION T
   fi
 done
 
-case "$ROLE" in
-  reviewer|security)
-    APPROVAL_TARGET_HASH="$(approval_target_hash)"
-    ;;
-esac
+if role_requires_approval_binding "$ROLE" && [[ "$RESULT" == "PASS" ]]; then
+  APPROVAL_TARGET_HASH="$(approval_target_hash)"
+fi
 
 RUN_LOG="$(ensure_run_log_or_exit "$FEATURE_ID")"
 BLOCK_FILE="$(mktemp)"

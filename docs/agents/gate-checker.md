@@ -14,6 +14,7 @@
 - Command outputs for failures.
 - Single command used: `scripts/gates/run.sh <feature-id>` (or active feature fallback)
 - `role-chain` failure is treated as hard fail.
+- `PASS` must bind to the current approval-target hash, so relevant target changes require rerunning gate-checker before completion.
 
 ## Execution Note
 - `trivial` mode skips `tester`; `implementer` must finalize `test-matrix.md` before gate-checker runs.

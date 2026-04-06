@@ -2,6 +2,19 @@
 
 ROOT_DIR_DEFAULT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
+role_requires_approval_binding() {
+  local role
+  role="$(printf '%s' "${1:-}" | tr '[:upper:]' '[:lower:]')"
+
+  case "$role" in
+    tester|gate-checker|reviewer|security)
+      return 0
+      ;;
+  esac
+
+  return 1
+}
+
 role_receipt_dir() {
   local root_dir="$ROOT_DIR_DEFAULT"
   local feature_id=""

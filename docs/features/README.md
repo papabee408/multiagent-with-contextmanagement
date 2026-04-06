@@ -10,21 +10,19 @@ Create one directory per feature:
 `docs/features/<feature-id>/`
 
 ## Required Files
-- `brief.md`: requirements and RQ IDs
-- `plan.md`: task/file mapping
-- `implementer-handoff.md`: implementation-only distilled context
-- `tester-handoff.md`: test-only distilled context
-- `reviewer-handoff.md`: review-only distilled context
-- `security-handoff.md`: security-only distilled context
-- `test-matrix.md`: test coverage map by RQ
-- `run-log.md`: role-by-role outputs and status
+- Common in every mode: `brief.md`, `plan.md`, `implementer-handoff.md`, `test-matrix.md`, `run-log.md`
+- `trivial`: no extra handoff files
+- `lite`: additionally requires `tester-handoff.md`
+- `full`: additionally requires `tester-handoff.md`, `reviewer-handoff.md`, `security-handoff.md`
 
 ## Rule
 Only the current feature packet should be loaded by role agents.
 Downstream roles should read only their handoff file, not the full plan, unless the handoff is insufficient.
-`brief.md` chooses the workflow mode (`trivial|lite|full`) and execution mode (`single|multi-agent`).
+`brief.md` chooses the risk class, workflow mode (`trivial|lite|full`), and execution mode (`single|multi-agent`).
+Use `brief.md` risk signals as the concrete routing checklist. If one or more signals are `yes`, the feature must be treated as `high-risk` and start in `full`.
 `plan.md` separately chooses the implementer execution mode (`serial|parallel`).
 Workflow mode and execution mode are locked after bootstrap; change them only when the user explicitly asked for it.
+`tester` and `gate-checker` PASS results are expected to bind to the current approval target, so relevant target changes require rerunning those roles before completion.
 
 ## Commands
 Start feature (recommended):
@@ -36,7 +34,7 @@ scripts/start-feature.sh --workflow-mode full --execution-mode multi-agent <feat
 ```
 
 `start-feature.sh`의 mode 인자는 새 feature packet을 만들 때만 사용한다.
-기존 feature packet을 다시 열 때는 `scripts/set-active-feature.sh <feature-id>`만 사용하고, mode 변경은 사용자 승인 후 `promote-workflow.sh` 또는 `workflow-mode.sh` / `execution-mode.sh`의 `--allow-change` 경로로 처리한다.
+기존 feature packet을 다시 열 때는 `scripts/set-active-feature.sh <feature-id>`만 사용하고, mode 변경은 사용자 승인 후 `promote-workflow.sh` 또는 `workflow-mode.sh` / `execution-mode.sh`의 `--allow-change` 경로로 처리한다. 기존 feature에 mode 인자를 붙여 실행하면 실패해야 하며, 그 실패가 현재 active feature를 바꾸면 안 된다.
 
 Create packet directly:
 

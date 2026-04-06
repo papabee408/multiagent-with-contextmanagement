@@ -11,7 +11,7 @@
 - last-progress-at-utc:
 - interrupt-after-utc:
 - last-progress:
-- note: `QUEUED` may leave `started-at-utc` and `interrupt-after-utc` blank until the role actually starts.
+- note: `QUEUED` may leave `started-at-utc` and `interrupt-after-utc` blank until the role actually starts. `start|progress|risk|done|blocked` refresh `interrupt-after-utc` from the latest actionable output, and `guard` may promote stale active work to `AT_RISK` or `BLOCKED` without changing `last-progress-at-utc`.
 
 ## Evidence Rule
 - `evidence` must name concrete files, commands, diffs, or raw outputs.

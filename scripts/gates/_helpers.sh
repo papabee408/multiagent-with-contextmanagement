@@ -102,6 +102,132 @@ normalize_mode_token() {
   esac
 }
 
+normalize_risk_class_token() {
+  local value="${1:-}"
+  value="$(lower "$(trim "$value")")"
+  case "$value" in
+    trivial|standard|high-risk)
+      printf '%s' "$value"
+      ;;
+    *)
+      printf '%s' ""
+      ;;
+  esac
+}
+
+risk_signal_keys() {
+  printf '%s\n' \
+    "auth-permissions" \
+    "payments-billing" \
+    "data-migration" \
+    "public-api" \
+    "infra-deploy" \
+    "secrets-sensitive-data" \
+    "blast-radius"
+}
+
+normalize_yes_no_token() {
+  local value="${1:-}"
+  value="$(lower "$(trim "$value")")"
+  case "$value" in
+    yes|y|true)
+      printf '%s' "yes"
+      ;;
+    no|n|false)
+      printf '%s' "no"
+      ;;
+    *)
+      printf '%s' ""
+      ;;
+  esac
+}
+
+brief_has_section() {
+  local file="$1"
+  local section="$2"
+
+  if [[ ! -f "$file" ]]; then
+    return 1
+  fi
+
+  awk -v section="$section" '
+    $0 == section { found = 1; exit }
+    END { exit(found ? 0 : 1) }
+  ' "$file"
+}
+
+brief_has_risk_signals_section() {
+  local brief_file="$FEATURE_DIR/brief.md"
+  brief_has_section "$brief_file" "## Risk Signals"
+}
+
+risk_signal_value_from_brief() {
+  local key="$1"
+  local brief_file="$FEATURE_DIR/brief.md"
+  local value
+
+  value="$(section_key_value "$brief_file" "## Risk Signals" "$key")"
+  normalize_yes_no_token "$value"
+}
+
+risk_signal_yes_keys_from_brief() {
+  local key
+  local value
+
+  if ! brief_has_risk_signals_section; then
+    return 0
+  fi
+
+  while IFS= read -r key; do
+    [[ -n "$key" ]] || continue
+    value="$(risk_signal_value_from_brief "$key")"
+    if [[ "$value" == "yes" ]]; then
+      printf '%s\n' "$key"
+    fi
+  done < <(risk_signal_keys)
+}
+
+high_risk_signals_count_from_brief() {
+  local count=0
+  while IFS= read -r _key; do
+    [[ -n "$_key" ]] || continue
+    count=$((count + 1))
+  done < <(risk_signal_yes_keys_from_brief)
+
+  printf '%s' "$count"
+}
+
+risk_class_from_brief() {
+  local brief_file="$FEATURE_DIR/brief.md"
+  local risk_class
+
+  risk_class="$(section_key_value "$brief_file" "## Risk Class" "class")"
+  risk_class="$(normalize_risk_class_token "$risk_class")"
+  printf '%s' "$risk_class"
+}
+
+risk_rationale_from_brief() {
+  local brief_file="$FEATURE_DIR/brief.md"
+  section_key_value "$brief_file" "## Risk Class" "rationale"
+}
+
+default_workflow_mode_for_risk_class() {
+  local risk_class
+
+  risk_class="$(normalize_risk_class_token "${1:-}")"
+  case "$risk_class" in
+    trivial)
+      printf '%s' "trivial"
+      ;;
+    high-risk)
+      printf '%s' "full"
+      ;;
+    *)
+      printf '%s' "lite"
+      ;;
+  esac
+}
+
 execution_mode_from_brief() {
   local brief_file="$FEATURE_DIR/brief.md"
   local mode
@@ -180,6 +306,24 @@ workflow_roles_for_mode() {
   esac
 }
 
+required_handoff_files_for_mode() {
+  local mode
+
+  mode="$(normalize_mode_token "${1:-}")"
+  printf '%s\n' "implementer-handoff.md"
+  case "$mode" in
+    lite|full)
+      printf '%s\n' "tester-handoff.md"
+      ;;
+  esac
+  case "$mode" in
+    full)
+      printf '%s\n' "reviewer-handoff.md"
+      printf '%s\n' "security-handoff.md"
+      ;;
+  esac
+}
+
 changed_files() {
   local -a files=()
   local range="${GATE_DIFF_RANGE:-}"
@@ -250,9 +394,22 @@ allowed_files_from_plan() {
   ' "$PLAN_FILE" | sed '/^$/d' | sort -u
 }
 
-is_doc_file() {
+is_workflow_internal_file() {
   local path="$1"
-  [[ "$path" == docs/* || "$path" == "AGENTS.md" || "$path" == "README.md" ]]
+
+  case "$path" in
+    "docs/features/$FEATURE_ID/"* \
+    |"docs/context/HANDOFF.md" \
+    |"docs/context/CODEX_RESUME.md" \
+    |"docs/context/MAINTENANCE_STATUS.md" \
+    |"docs/context/DECISIONS.md" \
+    |"docs/context/DECISIONS_ARCHIVE.md" \
+    |"docs/context/sessions/"*)
+      return 0
+      ;;
+  esac
+
+  return 1
 }
 
 utc_now() {

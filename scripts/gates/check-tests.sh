@@ -95,6 +95,9 @@ run_infra_tests() {
   echo "[INFO] running context-log tests"
   bash tests/context-log.test.sh
 
+  echo "[INFO] running template KPI report tests"
+  bash tests/report-template-kpis.test.sh
+
   echo "[INFO] running gate script tests"
   bash tests/gates.test.sh
 
@@ -112,6 +115,9 @@ run_infra_tests() {
 
   echo "[INFO] running workflow mode tests"
   bash tests/workflow-mode.test.sh
+
+  echo "[INFO] running export-template tests"
+  bash tests/export-template.test.sh
 
   echo "[INFO] running execution mode tests"
   bash tests/execution-mode.test.sh

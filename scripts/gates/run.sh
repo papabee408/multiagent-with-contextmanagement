@@ -106,6 +106,7 @@ reuse_full_gate_receipt_if_current() {
   [[ "$(json_receipt_field "$receipt_file" "kind")" == "full-gate" ]] || return 1
   [[ "$(json_receipt_field "$receipt_file" "result")" == "PASS" ]] || return 1
   [[ "$(json_receipt_field "$receipt_file" "fingerprint")" == "$current_full_gate_fingerprint" ]] || return 1
+  [[ "$(json_receipt_field "$receipt_file" "tests_fingerprint")" == "$current_feature_tests_fingerprint" ]] || return 1
 
   echo "[PASS] full gate receipt reused: $FEATURE_ID"
   return 0

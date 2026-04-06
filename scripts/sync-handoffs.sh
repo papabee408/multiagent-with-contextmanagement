@@ -332,7 +332,7 @@ $(render_source_digest)
 - execution notes / commands: Run \`scripts/gates/check-tests.sh\`, then update \`test-matrix.md\` with the concrete test files you executed.
 
 ## Acceptance
-- matrix expectations: every brief RQ must have a \`test-matrix.md\` row with concrete normal/error/boundary coverage, test file, and \`VERIFIED\` status before tester returns \`PASS\`
+- matrix expectations: every brief RQ must have a \`test-matrix.md\` row with concrete normal/error/boundary coverage, test file, and \`VERIFIED\` status before tester returns \`PASS\`; tester \`PASS\` also binds to the current approval-target hash and must be rerun after relevant target changes
 - trivial-mode note: $(value_or_tbd "$(if [[ "$(workflow_mode_from_brief)" == "trivial" ]]; then printf '%s' "tester role is skipped; implementer must complete feature tests and finalize \`test-matrix.md\` before gate-checker"; else printf '%s' "tester role remains active for this workflow mode"; fi)")
 
 ## Manual Notes
@@ -444,12 +444,36 @@ matrix_last_updated_value() {
   ' "$TEST_MATRIX_FILE"
 }
 
+matrix_source_digest_value() {
+  local key="$1"
+
+  if [[ ! -f "$TEST_MATRIX_FILE" ]]; then
+    return 0
+  fi
+
+  awk -v key="$key" '
+    $0 == "## Status" { in_status = 1; next }
+    in_status && /^## / { in_status = 0 }
+    in_status && index($0, "- " key ":") == 1 {
+      line = substr($0, length("- " key ":") + 1)
+      gsub(/`/, "", line)
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", line)
+      print line
+      exit
+    }
+  ' "$TEST_MATRIX_FILE"
+}
+
 render_test_matrix() {
   local existing_rows_tmp
   local new_rows_tmp
   local preserve_verified=1
   local existing_status
   local existing_last_updated
+  local existing_brief_sha
+  local existing_plan_sha
+  local current_brief_sha
+  local current_plan_sha
 
   existing_rows_tmp="$(mktemp)"
   new_rows_tmp="$(mktemp)"
@@ -477,7 +501,14 @@ render_test_matrix() {
 
   existing_status="$(normalize_inline "$(matrix_status_value)")"
   existing_last_updated="$(normalize_inline "$(matrix_last_updated_value)")"
+  existing_brief_sha="$(normalize_inline "$(matrix_source_digest_value "source-brief-sha")")"
+  existing_plan_sha="$(normalize_inline "$(matrix_source_digest_value "source-plan-sha")")"
+  current_brief_sha="$(hash_or_tbd "$BRIEF_FILE")"
+  current_plan_sha="$(hash_or_tbd "$PLAN_FILE")"
   if [[ "$(printf '%s' "$existing_status" | tr '[:lower:]' '[:upper:]')" != "VERIFIED" ]]; then
+    preserve_verified=0
+  fi
+  if [[ "$existing_brief_sha" != "$current_brief_sha" || "$existing_plan_sha" != "$current_plan_sha" ]]; then
     preserve_verified=0
   fi
 
@@ -575,9 +606,25 @@ if [[ ! -f "$BRIEF_FILE" || ! -f "$PLAN_FILE" ]]; then
 fi
 
 render_implementer_handoff
-render_tester_handoff
-render_reviewer_handoff
-render_security_handoff
+case "$(workflow_mode_from_brief)" in
+  trivial)
+    rm -f "$TESTER_FILE" "$REVIEWER_FILE" "$SECURITY_FILE"
+    ;;
+  lite)
+    render_tester_handoff
+    rm -f "$REVIEWER_FILE" "$SECURITY_FILE"
+    ;;
+  full)
+    render_tester_handoff
+    render_reviewer_handoff
+    render_security_handoff
+    ;;
+  *)
+    render_tester_handoff
+    render_reviewer_handoff
+    render_security_handoff
+    ;;
+esac
 render_test_matrix
 
 echo "[OK] handoffs synced for feature: $FEATURE_ID"

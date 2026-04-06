@@ -29,6 +29,12 @@ set -euo pipefail
 echo context-log >> infra.log
 EOF
 
+cat > "$TMP_DIR/tests/report-template-kpis.test.sh" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+echo report-template-kpis >> infra.log
+EOF
+
 cat > "$TMP_DIR/tests/gates.test.sh" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -101,9 +107,16 @@ set -euo pipefail
 echo gate-cache >> infra.log
 EOF
 
+cat > "$TMP_DIR/tests/export-template.test.sh" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+echo export-template >> infra.log
+EOF
+
 chmod +x \
   "$TMP_DIR/scripts/gates/check-tests.sh" \
   "$TMP_DIR/tests/context-log.test.sh" \
+  "$TMP_DIR/tests/report-template-kpis.test.sh" \
   "$TMP_DIR/tests/gates.test.sh" \
   "$TMP_DIR/tests/dispatch-heartbeat.test.sh" \
   "$TMP_DIR/tests/run-log-ops.test.sh" \
@@ -115,7 +128,8 @@ chmod +x \
   "$TMP_DIR/tests/start-feature.test.sh" \
   "$TMP_DIR/tests/implementer-subtasks.test.sh" \
   "$TMP_DIR/tests/check-tests-modes.test.sh" \
-  "$TMP_DIR/tests/gate-cache.test.sh"
+  "$TMP_DIR/tests/gate-cache.test.sh" \
+  "$TMP_DIR/tests/export-template.test.sh"
 
 cd "$TMP_DIR"
 
@@ -130,6 +144,7 @@ rm -f feature.log infra.log
 
 bash scripts/gates/check-tests.sh --infra >/dev/null
 grep -Fq 'context-log' infra.log
+grep -Fq 'report-template-kpis' infra.log
 grep -Fq 'gates' infra.log
 grep -Fq 'dispatch' infra.log
 grep -Fq 'run-log' infra.log
@@ -142,6 +157,7 @@ grep -Fq 'start-feature' infra.log
 grep -Fq 'implementer-subtasks' infra.log
 grep -Fq 'mode-self' infra.log
 grep -Fq 'gate-cache' infra.log
+grep -Fq 'export-template' infra.log
 if [[ -f feature.log ]]; then
   echo "[FAIL] infra mode should not run feature tests"
   exit 1

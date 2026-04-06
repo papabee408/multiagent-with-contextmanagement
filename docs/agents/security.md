@@ -2,7 +2,7 @@
 
 ## Responsibility
 - Security-only review: secrets, authz/authn, validation, abuse paths.
-- This role is mandatory in `full` mode and optional in `lite` mode.
+- This role runs only in `full` mode unless the workflow is explicitly promoted.
 
 ## Preconditions
 - Execute only after reviewer result is `PASS`.

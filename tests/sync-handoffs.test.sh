@@ -139,7 +139,15 @@ grep -Fq -- '- status: `VERIFIED`' docs/features/feature-sync/test-matrix.md
 
 perl -0pi -e 's/shell-only fixture, no external services/shell-only fixture with changed dependency constraint/' docs/features/feature-sync/plan.md
 bash scripts/sync-handoffs.sh feature-sync >/dev/null
+grep -Fq -- '- status: `DRAFT`' docs/features/feature-sync/test-matrix.md
 plan_sha="$(shasum -a 256 docs/features/feature-sync/plan.md | awk '{print $1}')"
 grep -Fq -- "- plan-sha: $plan_sha" docs/features/feature-sync/tester-handoff.md
+
+perl -0pi -e 's/- status: `DRAFT`/- status: `VERIFIED`/' docs/features/feature-sync/test-matrix.md
+perl -0pi -e 's#\| RQ-001 \| covered \| covered \| covered \| tests/feature-sync.test.mjs \| VERIFIED \|#| RQ-001 | covered | covered | covered | tests/feature-sync.test.mjs | VERIFIED |#' \
+  docs/features/feature-sync/test-matrix.md
+perl -0pi -e 's/Keep handoff sync deterministic./Keep handoff sync deterministic even after brief updates./' docs/features/feature-sync/brief.md
+bash scripts/sync-handoffs.sh feature-sync >/dev/null
+grep -Fq -- '- status: `DRAFT`' docs/features/feature-sync/test-matrix.md
 
 echo "[PASS] sync-handoffs smoke"

@@ -28,7 +28,7 @@
 
 ```bash
 scripts/context-log.sh resume-lite
-scripts/start-feature.sh --workflow-mode lite --execution-mode single <feature-id>
+scripts/start-feature.sh <feature-id>
 scripts/workflow-mode.sh show --feature <feature-id>
 scripts/execution-mode.sh show --feature <feature-id>
 scripts/sync-handoffs.sh <feature-id>
@@ -36,7 +36,8 @@ bash scripts/gates/check-implementer-ready.sh --feature <feature-id>
 ```
 
 - `resume-lite`: 직전 handoff와 resume snapshot을 만든다.
-- 새 구현 요청은 먼저 `Trivial / Lite / Full` workflow mode와 `Single / Multi-Agent` execution mode를 사용자에게 묻고, AI는 각 질문에서 추천 옵션을 먼저 제시해야 한다.
+- 새 구현 요청은 기본적으로 `standard -> lite -> single`로 시작하고, `brief.md`의 risk-signal checklist로 `trivial` 또는 `high-risk -> full` 여부를 판단한다.
+- 사용자는 기본 route를 바꾸거나 `Multi-Agent`를 켤 때만 명시적으로 선택하면 된다.
 - `start-feature.sh`: feature packet을 만들거나 활성 feature로 전환한다.
 - `workflow-mode.sh show`: 현재 feature가 `trivial`, `lite`, `full` 중 어느 role chain인지 확인한다.
 - `execution-mode.sh show`: 현재 feature가 `single`, `multi-agent` 중 어떤 실행 소유권 모드인지 확인한다.
@@ -104,7 +105,7 @@ scripts/gates/run.sh --reuse-if-valid <feature-id>
 - `gates/run.sh`: packet, handoffs, role-chain, test-matrix, scope, file-size, tests, secrets 확인
   - 추가로 `project-context`, `brief`, `plan`까지 확인해 오래된 문서/누락된 요구사항/재사용 계획 누락을 잡는다.
 - `run.sh --reuse-if-valid`: 최근 PASS gate receipt가 현재 fingerprint와 같으면 전체 gate를 재사용한다.
-- reviewer/security approval hash는 `HANDOFF.md`, `CODEX_RESUME.md`, session log 같은 closeout 운영 파일 때문에 stale 되지 않도록 approval target에서 제외된다.
+- tester/gate-checker/reviewer/security approval hash는 `HANDOFF.md`, `CODEX_RESUME.md`, session log 같은 closeout 운영 파일 때문에 stale 되지 않도록 approval target에서 제외된다.
 
 ### 5. 작업 완료 기록
 
@@ -126,7 +127,7 @@ scripts/start-feature.sh <feature-id>
 scripts/start-feature.sh --workflow-mode lite --execution-mode single <feature-id>
 ```
 
-- 위 `start-feature.sh` mode 인자는 "새 packet 생성 시점"에만 쓴다.
+- 위 `start-feature.sh` mode 인자는 "새 packet 생성 시점"에만 쓴다. 기본 생성은 `standard -> lite -> single`이므로, 명시적 mode 인자는 override가 필요할 때만 쓴다.
 - 이미 있는 feature는 `start-feature.sh`로 mode를 바꾸지 않는다. 기존 feature 전환은 `set-active-feature.sh`, workflow 승격은 `promote-workflow.sh`, 그 외 승인된 mode 변경은 `workflow-mode.sh` / `execution-mode.sh`의 `--allow-change` 경로를 사용한다.
 
 ### 진행 중인 feature를 바꿀 때
@@ -146,6 +147,16 @@ scripts/promote-workflow.sh --feature <feature-id> <trivial|lite|full> --reason 
 ```bash
 scripts/gates/run.sh
 ```
+
+### workflow 운영 지표를 보고 싶을 때
+
+```bash
+bash scripts/report-template-kpis.sh
+scripts/context-log.sh monthly
+```
+
+- `report-template-kpis.sh`: 현재 feature packet들을 기준으로 risk mix, workflow mix, override 비율, full gate PASS coverage, 평균 planner->gate-checker 소요 시간을 본다.
+- `context-log.sh monthly`: 위 KPI 요약을 `docs/context/MAINTENANCE_STATUS.md`에 context maintenance 정보와 함께 기록한다.
 
 ### test-matrix / run-log 규칙이 잘 지켜지는지 보고 싶을 때
 

@@ -4,7 +4,7 @@
 - Review semantic quality: readability, regression risk, scope drift, architecture fit, reuse quality, hardcoding risk.
 - Act as the code-quality gate in `full` mode.
 - Evaluate whether the final implementation is reusable, configurable, and free of obvious performance waste.
-- This role is mandatory in `full` mode and optional in `lite` mode.
+- This role runs only in `full` mode unless the workflow is explicitly promoted.
 
 ## Must Read
 - `docs/features/<feature-id>/reviewer-handoff.md`

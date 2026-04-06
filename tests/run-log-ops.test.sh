@@ -125,4 +125,19 @@ printf '%s\n' "$finish_output" | grep -Eq '^started-at-utc:[[:space:]]*$'
 printf '%s\n' "$finish_output" | grep -Eq '^interrupt-after-utc:[[:space:]]*$'
 printf '%s\n' "$finish_output" | grep -Fq 'last-progress: apply task cards'
 
+bash scripts/record-role-result.sh security \
+  --agent-id sec-301 \
+  --scope "docs/features/feature-1/run-log.md" \
+  --rq-covered "[RQ-001]" \
+  --rq-missing "[]" \
+  --result BLOCKED \
+  --evidence "waiting on reviewer handoff" \
+  --next-action "orchestrator" \
+  --touched-files "[]" >/dev/null
+
+grep -Fq -- '- agent-id: sec-301' docs/features/feature-1/run-log.md
+grep -Fq -- '- result: BLOCKED' docs/features/feature-1/run-log.md
+grep -Fq '## State-Machine Notes' docs/features/feature-1/run-log.md
+grep -Fq '"role": "security"' docs/features/feature-1/artifacts/roles/security.json
+
 echo "[PASS] run-log-ops smoke"

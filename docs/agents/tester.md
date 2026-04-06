@@ -8,6 +8,7 @@
 - Finalize `test-matrix.md` with the tests actually executed before returning `PASS`.
 - In `full` mode, if implementer-provided coverage is insufficient, tester may add or adjust files under `tests/**` only.
 - In `lite` mode, tester should avoid code edits and prefer reporting coverage gaps back to implementer.
+- `PASS` must bind to the current approval-target hash, so relevant target changes require rerunning tester before completion.
 
 ## Must Read
 - `docs/features/<feature-id>/tester-handoff.md`
@@ -31,6 +32,7 @@ Open `plan.md`, `CONVENTIONS.md`, `RULES.md`, or `ARCHITECTURE.md` only when the
 - RQ coverage by normal/error/boundary.
 - Updated `test-matrix.md` rows with concrete test files.
 - A feature-test receipt is expected under `docs/features/<feature-id>/artifacts/tests/feature.json` when the feature packet is active.
+- A current `approval_target_hash` is expected in the tester role receipt when tester returns `PASS`.
 
 ## Must Not
 - Edit production code or non-test config.

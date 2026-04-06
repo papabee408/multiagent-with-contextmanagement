@@ -13,10 +13,9 @@ Do not load all role files in a single pass.
 - `security.md`
 
 ## Global Contract
-Before dispatching implementation work, ask the user to pick:
-- workflow mode: `Lite`, `Trivial`, or `Full`
-- execution mode: `Single` or `Multi-Agent`
-Put the AI-recommended option first in each question.
+For new work, default to risk class `standard`, workflow mode `lite`, and execution mode `single`.
+Use the brief risk-signal checklist to decide whether the request is still `standard`, can drop to `trivial`, or must become `high-risk -> full`.
+Ask the user only when overriding the default workflow route or enabling `Multi-Agent`.
 `Multi-Agent` requires explicit user opt-in, and chosen modes stay locked until the user explicitly asks to change them.
 Use role-specific `*-handoff.md` files as the default downstream handoff.
 Planner refreshes those handoffs by running `scripts/sync-handoffs.sh <feature-id>` after updating `plan.md`.

@@ -19,6 +19,20 @@
 ## Acceptance
 - 
 
+## Risk Signals
+- auth-permissions: `no`
+- payments-billing: `no`
+- data-migration: `no`
+- public-api: `no`
+- infra-deploy: `no`
+- secrets-sensitive-data: `no`
+- blast-radius: `no`
+- note: switch one or more items to `yes` when the request touches that area deeply enough to justify `high-risk -> full`
+
+## Risk Class
+- class:
+- rationale:
+
 ## Workflow Mode
 - mode:
 - rationale:

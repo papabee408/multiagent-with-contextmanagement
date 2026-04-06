@@ -56,6 +56,25 @@ field_value() {
   ' "$file"
 }
 
+section_first_content() {
+  local file="$1"
+  local section="$2"
+
+  awk -v section="$section" '
+    $0 == section { in_section = 1; next }
+    /^## / && in_section { in_section = 0 }
+    in_section {
+      line = $0
+      sub(/^[[:space:]]*-[[:space:]]*/, "", line)
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", line)
+      if (line != "") {
+        print line
+        exit
+      }
+    }
+  ' "$file"
+}
+
 require_section() {
   local file="$1"
   local section="$2"
@@ -63,6 +82,28 @@ require_section() {
 
   if ! grep -Fxq "$section" "$file"; then
     failures+=("$label:missing-section(${section})")
+  fi
+}
+
+require_nonempty_section() {
+  local file="$1"
+  local section="$2"
+  local label="$3"
+  local value
+
+  value="$(section_first_content "$file" "$section")"
+  if is_placeholder_text "$value"; then
+    failures+=("$label:empty-section(${section})")
+  fi
+}
+
+require_gates_item() {
+  local file="$1"
+  local item="$2"
+  local label="$3"
+
+  if ! grep -Fq "\`$item\`" "$file"; then
+    failures+=("$label:missing-gates-item($item)")
   fi
 }
 
@@ -126,6 +167,31 @@ require_section "$RULES_FILE" "## Scope and RQ" "RULES.md"
 require_section "$RULES_FILE" "## Reuse and Hardcoding" "RULES.md"
 require_section "$RULES_FILE" "## Architecture Fit" "RULES.md"
 require_section "$RULES_FILE" "## Testing" "RULES.md"
+require_section "$GATES_FILE" "## Gate 항목" "GATES.md"
+require_section "$GATES_FILE" "## 실행 커맨드" "GATES.md"
+require_section "$GATES_FILE" "## 완료 선언 규칙" "GATES.md"
+require_section "$GATES_FILE" "## 실패 대응" "GATES.md"
+
+require_nonempty_section "$PROJECT_FILE" "## Product" "PROJECT.md"
+require_nonempty_section "$PROJECT_FILE" "## Stack" "PROJECT.md"
+require_nonempty_section "$PROJECT_FILE" "## Constraints" "PROJECT.md"
+require_nonempty_section "$PROJECT_FILE" "## Working Agreements" "PROJECT.md"
+require_nonempty_section "$CONVENTIONS_FILE" "## Reuse First" "CONVENTIONS.md"
+require_nonempty_section "$CONVENTIONS_FILE" "## Configuration and Constants" "CONVENTIONS.md"
+require_nonempty_section "$CONVENTIONS_FILE" "## Components and Modules" "CONVENTIONS.md"
+require_nonempty_section "$CONVENTIONS_FILE" "## Tests and Change Hygiene" "CONVENTIONS.md"
+require_nonempty_section "$ARCHITECTURE_FILE" "## System Map" "ARCHITECTURE.md"
+require_nonempty_section "$ARCHITECTURE_FILE" "## Layers" "ARCHITECTURE.md"
+require_nonempty_section "$ARCHITECTURE_FILE" "## Dependency Direction" "ARCHITECTURE.md"
+require_nonempty_section "$ARCHITECTURE_FILE" "## Placement Guide" "ARCHITECTURE.md"
+require_nonempty_section "$RULES_FILE" "## Scope and RQ" "RULES.md"
+require_nonempty_section "$RULES_FILE" "## Reuse and Hardcoding" "RULES.md"
+require_nonempty_section "$RULES_FILE" "## Architecture Fit" "RULES.md"
+require_nonempty_section "$RULES_FILE" "## Testing" "RULES.md"
+require_nonempty_section "$GATES_FILE" "## Gate 항목" "GATES.md"
+require_nonempty_section "$GATES_FILE" "## 실행 커맨드" "GATES.md"
+require_nonempty_section "$GATES_FILE" "## 완료 선언 규칙" "GATES.md"
+require_nonempty_section "$GATES_FILE" "## 실패 대응" "GATES.md"
 
 project_name="$(field_value "$PROJECT_FILE" "## Identity" "project-name")"
 repo_slug="$(field_value "$PROJECT_FILE" "## Identity" "repo-slug")"
@@ -152,6 +218,11 @@ scan_forbidden_patterns "$PROJECT_FILE" "PROJECT.md"
 scan_forbidden_patterns "$CONVENTIONS_FILE" "CONVENTIONS.md"
 scan_forbidden_patterns "$ARCHITECTURE_FILE" "ARCHITECTURE.md"
 scan_forbidden_patterns "$RULES_FILE" "RULES.md"
+scan_forbidden_patterns "$GATES_FILE" "GATES.md"
+
+for gate in project-context brief plan handoffs role-chain test-matrix scope file-size tests secrets; do
+  require_gates_item "$GATES_FILE" "$gate" "GATES.md"
+done
 
 if [[ ${#failures[@]} -gt 0 ]]; then
   echo "[FAIL] project-context"

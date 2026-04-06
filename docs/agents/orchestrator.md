@@ -1,7 +1,11 @@
 # Orchestrator Contract
 
 ## Responsibility
-- Ask the user to choose workflow mode (`Lite`, `Trivial`, `Full`) and execution mode (`Single`, `Multi-Agent`) before bootstrapping a new implementation request, with recommendations.
+- Classify the feature risk in `brief.md` before bootstrapping a new implementation request.
+- Use the brief risk-signal checklist to decide whether the request is still `standard` or must be promoted to `high-risk`.
+- Default new work to workflow mode `Lite` and execution mode `Single`.
+- Promote to workflow mode `Trivial` only for tiny, low-risk requests and to `Full` for `high-risk` requests or explicit user override.
+- Ask the user only when overriding the default workflow route or enabling `Multi-Agent`.
 - Convert user request to `RQ-xxx` list.
 - Ensure the feature packet exists before role dispatch.
 - Dispatch role sequence and context slices.
@@ -21,7 +25,7 @@ Read `GATES.md` only for workflow state machine, completion policy, and merge-bl
 
 ## Hard State Machine
 1. Before the first role dispatch, run `scripts/start-feature.sh <feature-id>` or confirm the packet already exists.
-2. Record workflow mode in `brief.md` with `scripts/workflow-mode.sh`, record execution mode with `scripts/execution-mode.sh`, and do not change either one unless the user explicitly approved the change.
+2. Record risk class, workflow mode, execution mode, and risk signals in `brief.md`. New work defaults to `standard -> lite -> single`; `high-risk` work must start in `full`, and `multi-agent` still requires explicit user approval.
 3. `planner` must update `docs/features/<feature-id>/plan.md` and rerun `scripts/sync-handoffs.sh <feature-id>` before `implementer`.
 4. Before `implementer`, `bash scripts/gates/check-implementer-ready.sh --feature <feature-id>` must pass. This applies to `trivial`, `lite`, and `full`.
 5. `trivial` mode route: `planner -> implementer -> gate-checker`
@@ -39,10 +43,12 @@ Read `GATES.md` only for workflow state machine, completion policy, and merge-bl
 ## Visibility Rules
 - Maintain `## Dispatch Monitor` with `scripts/dispatch-heartbeat.sh`.
 - Record dispatch with `queue`, role start with `start`, and each concrete update with `progress|risk|blocked|done`.
+- Use `scripts/dispatch-heartbeat.sh guard` when a role may be stale; it can auto-promote active work to `AT_RISK` after 45 seconds idle and `BLOCKED` after 120 seconds idle without rewriting the last concrete progress timestamp.
 - Prefer `scripts/dispatch-role.sh`, `scripts/record-role-result.sh`, and `scripts/finish-role.sh` to reduce repetitive manual edits to `run-log.md`.
 - Use `scripts/dispatch-heartbeat.sh show` to inspect the active feature status without opening `run-log.md`.
 - Dispatch each downstream role with its role-specific handoff file instead of the full plan whenever possible.
-- `queue` means waiting to start; do not treat it as execution start time. `started-at-utc` and `interrupt-after-utc` become meaningful on `start` or a later execution signal.
+- Expect `scripts/sync-handoffs.sh` to materialize only the handoff files required by the active workflow mode.
+- `queue` means waiting to start; do not treat it as execution start time. `started-at-utc` and `interrupt-after-utc` become meaningful on `start` or a later execution signal, and each actionable execution signal refreshes the 120-second idle deadline from that latest signal.
 - Meaningful progress must name a file path, command, or blocker. Generic status text is not enough.
 - If the user cannot tell what the active role is doing from `run-log.md`, orchestration visibility is failing.
 - `scripts/complete-feature.sh` stages closeout-generated operational files for the active feature and current completion session by default; use `--no-stage-closeout` only when the user explicitly wants them left unstaged.

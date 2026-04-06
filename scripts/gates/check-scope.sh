@@ -38,7 +38,7 @@ for f in "${changed[@]}"; do
   if grep -Fxq "$f" "$allow_tmp"; then
     continue
   fi
-  if is_doc_file "$f"; then
+  if is_workflow_internal_file "$f"; then
     continue
   fi
   violations+=("$f")
