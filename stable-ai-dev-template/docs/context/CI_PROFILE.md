@@ -3,20 +3,29 @@
 ## Project Profile
 - platform: <replace>
 - stack: <replace>
-- package-manager: none
+- package-manager: <replace>
 - setup-status: draft
 
+## Git / PR Policy
+- git-host: github
+- default-base-branch: main
+- default-branch-strategy: publish-late
+- task-branch-pattern: task/<task-id>
+- required-check-resolution: branch-protection-first
+- merge-method: squash
+
+## Required Check Fallback
+- `AI Gate`
+
 ## PR Fast Checks
-Add one backticked command per bullet after setup. Keep this list fast.
+- `replace with the fastest reliable lint/typecheck/test command`
 
 ## High-Risk Checks
-Add extra backticked commands only for sensitive work. Leave empty if not needed yet.
+- `replace with extra commands only for sensitive changes`
 
 ## Full Project Checks
-Add slower backticked commands for manual full regression runs.
+- `replace with slower full regression commands`
 
 ## Notes
-- This file is for project setup and CI wiring, not everyday task context.
-- Store platform/framework decisions and CI command policy here so AI sessions do not have to rediscover them from scratch.
-- In the three check sections above, keep bullets command-only: `- \`actual command\``.
-- Put explanations, caveats, absolute paths, and migration notes here in `## Notes`, not in the command sections.
+- Keep command sections command-only: `- \`actual command\``
+- Put explanations and caveats in `## Notes`, not inside command sections.

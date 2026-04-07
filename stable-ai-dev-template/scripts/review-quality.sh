@@ -48,9 +48,7 @@ done
 
 TASK_FILE="$(task_file "$TASK_ID")"
 RECEIPT_FILE="$(quality_review_receipt_file "$TASK_ID")"
-TRACKED_RECEIPT_FILE="$(tracked_quality_review_receipt_file "$TASK_ID")"
 RISK_LEVEL="$(task_risk_level "$TASK_ID")"
-PROFILE="$(task_review_profile "$TASK_ID")"
 
 if [[ ! -f "$TASK_FILE" ]]; then
   echo "[FAIL] review-quality"
@@ -65,7 +63,8 @@ fi
 
 bash "$ROOT_DIR/scripts/check-task.sh" "$TASK_ID" >/dev/null
 ensure_task_state_in "$TASK_ID" in_progress review
-ensure_receipt_pass_and_fresh "$TASK_ID" "$(verification_receipt_file "$TASK_ID")" "verification"
+ensure_publish_late_base_branch_safe "$TASK_ID" "warn"
+ensure_runtime_receipt_pass_and_fresh "$TASK_ID" "$(verification_receipt_file "$TASK_ID")" "verification"
 bash "$ROOT_DIR/scripts/check-scope.sh" "$TASK_ID" >/dev/null
 
 for value in "$REUSE" "$HARDCODING" "$TESTS" "$REQUEST_SCOPE" "$RISK_CONTROLS"; do
@@ -81,6 +80,12 @@ for value in "$REUSE" "$HARDCODING" "$TESTS" "$REQUEST_SCOPE" "$RISK_CONTROLS"; 
     esac
   fi
 done
+
+reuse_record="${REUSE:-n/a}"
+hardcoding_record="${HARDCODING:-n/a}"
+tests_record="${TESTS:-n/a}"
+request_scope_record="${REQUEST_SCOPE:-n/a}"
+risk_controls_record="${RISK_CONTROLS:-n/a}"
 
 declare -a failures=()
 case "$RISK_LEVEL" in
@@ -106,29 +111,14 @@ if [[ ${#failures[@]} -gt 0 ]]; then
   result="FAIL"
 fi
 
-reuse_record="${REUSE:-n/a}"
-hardcoding_record="${HARDCODING:-n/a}"
-tests_record="${TESTS:-n/a}"
-request_scope_record="${REQUEST_SCOPE:-n/a}"
-risk_controls_record="${RISK_CONTROLS:-n/a}"
-
-{
-  echo "result=$result"
-  echo "executed_at_utc=$(utc_now)"
-  echo "fingerprint=$(task_fingerprint "$TASK_ID")"
-  echo "profile=$PROFILE"
-  echo "summary=$SUMMARY"
-  echo "reuse=$reuse_record"
-  echo "hardcoding=$hardcoding_record"
-  echo "tests=$tests_record"
-  echo "request_scope=$request_scope_record"
-  echo "risk_controls=$risk_controls_record"
-} > "$RECEIPT_FILE"
-sync_receipt_to_tracked "$RECEIPT_FILE" "$TRACKED_RECEIPT_FILE"
+fingerprint="$(task_fingerprint "$TASK_ID")"
+write_runtime_receipt "$RECEIPT_FILE" "$result" "$fingerprint" "$SUMMARY"
+review_time="$(receipt_value "$RECEIPT_FILE" "executed_at_utc")"
 
 replace_key_value_or_exit "$TASK_FILE" "## Review Status" "quality-review-status" "$(lower "$result")"
 replace_key_value_or_exit "$TASK_FILE" "## Review Status" "quality-review-note" "$SUMMARY"
-replace_key_value_or_exit "$TASK_FILE" "## Review Status" "quality-review-fingerprint" "$(task_fingerprint "$TASK_ID")"
+replace_key_value_or_exit "$TASK_FILE" "## Review Status" "quality-review-at-utc" "$review_time"
+replace_key_value_or_exit "$TASK_FILE" "## Review Status" "quality-review-fingerprint" "$fingerprint"
 replace_key_value_or_exit "$TASK_FILE" "## Review Status" "reuse-review" "$(lower "$reuse_record")"
 replace_key_value_or_exit "$TASK_FILE" "## Review Status" "hardcoding-review" "$(lower "$hardcoding_record")"
 replace_key_value_or_exit "$TASK_FILE" "## Review Status" "tests-review" "$(lower "$tests_record")"
@@ -149,24 +139,11 @@ if [[ "$result" != "PASS" ]]; then
   exit 1
 fi
 
-case "$PROFILE" in
-  quick)
-    replace_key_value_or_exit "$TASK_FILE" "## Session Resume" "current focus" "quality review recorded; task is ready for completion when all receipts stay fresh"
-    replace_key_value_or_exit "$TASK_FILE" "## Session Resume" "next action" "run bash scripts/complete-task.sh $TASK_ID \"<summary>\" \"<next-step>\""
-    ;;
-  standard|deep)
-    replace_key_value_or_exit "$TASK_FILE" "## Session Resume" "current focus" "quality review recorded; run the independent context-free review before completion"
-    replace_key_value_or_exit "$TASK_FILE" "## Session Resume" "next action" "run bash scripts/review-independent.sh $TASK_ID --reviewer \"<agent-id>\" --summary \"<review note>\""
-    ;;
-  *)
-    replace_key_value_or_exit "$TASK_FILE" "## Session Resume" "current focus" "quality review recorded; complete the remaining review steps before completion"
-    replace_key_value_or_exit "$TASK_FILE" "## Session Resume" "next action" "run bash scripts/review-independent.sh $TASK_ID --reviewer \"<agent-id>\" --summary \"<review note>\""
-    ;;
-esac
+replace_key_value_or_exit "$TASK_FILE" "## Session Resume" "current focus" "quality review recorded; task is ready for completion when receipts stay fresh"
+replace_key_value_or_exit "$TASK_FILE" "## Session Resume" "next action" "run bash scripts/complete-task.sh $TASK_ID \"<summary>\" \"<next-step>\""
 
 bash "$ROOT_DIR/scripts/refresh-current.sh" "$TASK_ID" >/dev/null
 
 echo "[PASS] quality-review"
 echo " - task=$TASK_ID"
-echo " - profile=$PROFILE"
 echo " - receipt=.context/tasks/$TASK_ID/quality-review.receipt"

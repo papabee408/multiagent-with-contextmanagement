@@ -10,6 +10,8 @@ CI_REF_NAME="${CI_REF_NAME:-}"
 CI_DIFF_BASE="${CI_DIFF_BASE:-}"
 CI_DIFF_HEAD="${CI_DIFF_HEAD:-}"
 CI_RUN_FULL_PROJECT_CHECKS="${CI_RUN_FULL_PROJECT_CHECKS:-0}"
+CI_PR_BODY="${CI_PR_BODY:-}"
+CI_TASK_ID="${CI_TASK_ID:-}"
 
 is_truthy() {
   case "$(lower "${1:-}")" in
@@ -69,63 +71,76 @@ ci_task_fingerprint() {
   } | sha256_stdin
 }
 
-detect_task_id_or_exit() {
-  local explicit_task_id
-  local current_active_task
-  local current_snapshot_task
-  local task_file
-  local detected_task_id
-  local task_files=()
-  local candidate_task_id
+changed_live_task_files() {
+  ci_changed_files | awk '
+    index($0, "docs/tasks/") == 1 &&
+    $0 ~ /\.md$/ &&
+    $0 != "docs/tasks/_template.md" &&
+    $0 != "docs/tasks/README.md" { print }
+  ' | sort -u
+}
 
-  explicit_task_id="${CI_TASK_ID:-}"
-  if [[ -n "$explicit_task_id" ]]; then
-    printf '%s' "$explicit_task_id"
+task_id_from_pr_metadata() {
+  if [[ -z "$CI_PR_BODY" ]]; then
     return 0
   fi
 
+  printf '%s\n' "$CI_PR_BODY" | extract_task_id_from_text
+}
+
+detect_task_id_or_exit() {
+  local metadata_task_id
+  local task_files=()
+  local task_file
+  local task_id=""
+
+  if [[ -n "$CI_TASK_ID" ]]; then
+    printf '%s' "$CI_TASK_ID"
+    return 0
+  fi
+
+  metadata_task_id="$(task_id_from_pr_metadata || true)"
   while IFS= read -r task_file; do
     [[ -n "$task_file" ]] || continue
     task_files+=("$task_file")
-  done < <(ci_changed_files | awk '
-    index($0, "docs/tasks/") == 1 && $0 ~ /\.md$/ && $0 != "docs/tasks/_template.md" && $0 != "docs/tasks/README.md" { print }
-  ')
+  done < <(changed_live_task_files)
 
-  if [[ ${#task_files[@]} == 1 ]]; then
-    detected_task_id="${task_files[0]#docs/tasks/}"
-    detected_task_id="${detected_task_id%.md}"
-    printf '%s' "$detected_task_id"
+  if [[ -n "$metadata_task_id" ]]; then
+    if [[ ! -f "$(task_file "$metadata_task_id")" ]]; then
+      echo "[FAIL] ai-gate"
+      echo " - PR body Task-ID does not map to a task file: $metadata_task_id"
+      exit 1
+    fi
+
+    if [[ ${#task_files[@]} -gt 0 ]]; then
+      for task_file in "${task_files[@]}"; do
+        if [[ "$task_file" != "docs/tasks/$metadata_task_id.md" ]]; then
+          echo "[FAIL] ai-gate"
+          echo " - PR body Task-ID does not match changed task file(s)"
+          printf ' - %s\n' "${task_files[@]}"
+          exit 1
+        fi
+      done
+    fi
+
+    printf '%s' "$metadata_task_id"
     return 0
   fi
 
-  current_active_task="$(active_task_value)"
-  current_snapshot_task="$(current_snapshot_active_task_value)"
-
-  for candidate_task_id in "$current_active_task" "$current_snapshot_task"; do
-    [[ -n "$candidate_task_id" ]] || continue
-    [[ -f "$(task_file "$candidate_task_id")" ]] || continue
-
-    if [[ ${#task_files[@]} == 0 ]]; then
-      printf '%s' "$candidate_task_id"
-      return 0
-    fi
-
-    for task_file in "${task_files[@]}"; do
-      if [[ "$task_file" == "docs/tasks/$candidate_task_id.md" ]]; then
-        printf '%s' "$candidate_task_id"
-        return 0
-      fi
-    done
-  done
+  if [[ ${#task_files[@]} == 1 ]]; then
+    task_id="${task_files[0]#docs/tasks/}"
+    task_id="${task_id%.md}"
+    printf '%s' "$task_id"
+    return 0
+  fi
 
   echo "[FAIL] ai-gate"
   if [[ ${#task_files[@]} == 0 ]]; then
-    echo " - could not detect a task id from changed files"
+    echo " - could not resolve a task id from PR body Task-ID or changed task files"
   else
-    echo " - expected exactly one changed task file, found ${#task_files[@]}"
+    echo " - multiple changed task files and no clear Task-ID metadata"
     printf ' - %s\n' "${task_files[@]}"
   fi
-  echo " - set CI_TASK_ID if the task cannot be inferred automatically"
   exit 1
 }
 
@@ -150,7 +165,6 @@ check_ci_scope() {
   local relative_path
 
   allowed_tmp="$(mktemp)"
-
   {
     target_files_from_task "$task_id"
     printf '%s\n' "docs/tasks/$task_id.md"
@@ -160,121 +174,20 @@ check_ci_scope() {
 
   while IFS= read -r relative_path; do
     [[ -n "$relative_path" ]] || continue
-    if is_workflow_internal_file "$task_id" "$relative_path"; then
-      continue
-    fi
     if grep -Fxq "$relative_path" "$allowed_tmp"; then
       continue
     fi
     violations+=("$relative_path")
   done < <(ci_changed_files)
 
+  rm -f "$allowed_tmp"
+
   if [[ ${#violations[@]} -gt 0 ]]; then
-    rm -f "$allowed_tmp"
     echo "[FAIL] ai-gate"
     echo " - CI scope check failed for task: $task_id"
     printf ' - %s\n' "${violations[@]}"
     exit 1
   fi
-
-  rm -f "$allowed_tmp"
-}
-
-check_tracked_review_receipts_ci() {
-  local task_id="$1"
-  local risk_level
-  local current_fingerprint
-  local scope_tracked_receipt
-  local quality_tracked_receipt
-  local independent_tracked_receipt
-  local receipt_result
-  local receipt_fingerprint
-  local receipt_summary
-  local receipt_reviewer
-  local task_scope_note
-  local task_quality_note
-  local task_independent_note
-  local task_independent_reviewer
-  local key
-  local task_value
-  local receipt_key
-  local receipt_value_current
-
-  risk_level="$(task_risk_level "$task_id")"
-  current_fingerprint="$(ci_task_fingerprint "$task_id")"
-  scope_tracked_receipt="$(tracked_scope_review_receipt_file "$task_id")"
-  quality_tracked_receipt="$(tracked_quality_review_receipt_file "$task_id")"
-  independent_tracked_receipt="$(tracked_independent_review_receipt_file "$task_id")"
-  task_scope_note="$(section_key_value "$(task_file "$task_id")" "## Review Status" "scope-review-note")"
-  task_quality_note="$(section_key_value "$(task_file "$task_id")" "## Review Status" "quality-review-note")"
-  task_independent_note="$(section_key_value "$(task_file "$task_id")" "## Review Status" "independent-review-note")"
-  task_independent_reviewer="$(section_key_value "$(task_file "$task_id")" "## Review Status" "independent-reviewer")"
-
-  for tracked_receipt in "$scope_tracked_receipt" "$quality_tracked_receipt"; do
-    if [[ ! -f "$tracked_receipt" ]]; then
-      echo "[FAIL] ai-gate"
-      echo " - missing tracked review receipt for task: $task_id"
-      echo " - receipt=${tracked_receipt#$ROOT_DIR/}"
-      exit 1
-    fi
-  done
-
-  receipt_result="$(receipt_value "$scope_tracked_receipt" "result")"
-  receipt_fingerprint="$(receipt_value "$scope_tracked_receipt" "fingerprint")"
-  receipt_summary="$(receipt_value "$scope_tracked_receipt" "summary")"
-  if [[ "$receipt_result" != "PASS" || "$receipt_fingerprint" != "$current_fingerprint" || "$receipt_summary" != "$task_scope_note" ]]; then
-    echo "[FAIL] ai-gate"
-    echo " - tracked scope review receipt is stale or mismatched for task: $task_id"
-    exit 1
-  fi
-
-  receipt_result="$(receipt_value "$quality_tracked_receipt" "result")"
-  receipt_fingerprint="$(receipt_value "$quality_tracked_receipt" "fingerprint")"
-  receipt_summary="$(receipt_value "$quality_tracked_receipt" "summary")"
-  if [[ "$receipt_result" != "PASS" || "$receipt_fingerprint" != "$current_fingerprint" || "$receipt_summary" != "$task_quality_note" ]]; then
-    echo "[FAIL] ai-gate"
-    echo " - tracked quality review receipt is stale or mismatched for task: $task_id"
-    exit 1
-  fi
-
-  for key in reuse hardcoding tests request_scope risk_controls; do
-    case "$key" in
-      request_scope)
-        task_value="$(lower "$(section_key_value "$(task_file "$task_id")" "## Review Status" "request-scope-review")")"
-        ;;
-      risk_controls)
-        task_value="$(lower "$(section_key_value "$(task_file "$task_id")" "## Review Status" "risk-controls-review")")"
-        ;;
-      *)
-        task_value="$(lower "$(section_key_value "$(task_file "$task_id")" "## Review Status" "$key-review")")"
-        ;;
-    esac
-    receipt_value_current="$(lower "$(receipt_value "$quality_tracked_receipt" "$key")")"
-    if [[ -n "$receipt_value_current" && "$receipt_value_current" != "$task_value" ]]; then
-      echo "[FAIL] ai-gate"
-      echo " - tracked quality review receipt does not match task review fields for task: $task_id"
-      exit 1
-    fi
-  done
-
-  case "$risk_level" in
-    standard|high-risk)
-      if [[ ! -f "$independent_tracked_receipt" ]]; then
-        echo "[FAIL] ai-gate"
-        echo " - missing tracked independent review receipt for task: $task_id"
-        exit 1
-      fi
-      receipt_result="$(receipt_value "$independent_tracked_receipt" "result")"
-      receipt_fingerprint="$(receipt_value "$independent_tracked_receipt" "fingerprint")"
-      receipt_summary="$(receipt_value "$independent_tracked_receipt" "summary")"
-      receipt_reviewer="$(receipt_value "$independent_tracked_receipt" "reviewer")"
-      if [[ "$receipt_result" != "PASS" || "$receipt_fingerprint" != "$current_fingerprint" || "$receipt_summary" != "$task_independent_note" || "$receipt_reviewer" != "$task_independent_reviewer" ]]; then
-        echo "[FAIL] ai-gate"
-        echo " - tracked independent review receipt is stale or mismatched for task: $task_id"
-        exit 1
-      fi
-      ;;
-  esac
 }
 
 run_task_verification_commands_ci() {
@@ -287,7 +200,7 @@ run_task_verification_commands_ci() {
     commands+=("$command")
   done < <(verification_commands_from_task "$task_id")
 
-  if [[ ${#commands[@]} == 0 ]]; then
+  if [[ ${#commands[@]} -eq 0 ]]; then
     echo "[FAIL] ai-gate"
     echo " - no verification commands declared for task: $task_id"
     exit 1
@@ -299,116 +212,98 @@ run_task_verification_commands_ci() {
   done
 }
 
-check_review_status_ci() {
+check_summary_statuses_ci() {
   local task_id="$1"
   local risk_level
-  local scope_status
-  local quality_status
-  local independent_status
-  local scope_note
-  local quality_note
-  local scope_fingerprint
-  local quality_fingerprint
-  local independent_note
-  local independent_reviewer
-  local independent_fingerprint
-  local independent_proof
-  local expected_independent_proof
   local current_fingerprint
-  local value
+  local verification_status
+  local verification_note
+  local verification_at
+  local verification_fingerprint
+  local scope_status
+  local scope_note
+  local scope_at
+  local scope_fingerprint
+  local quality_status
+  local quality_note
+  local quality_at
+  local quality_fingerprint
   local required_keys=()
+  local key
+  local value
 
   risk_level="$(task_risk_level "$task_id")"
-  scope_status="$(lower "$(section_key_value "$(task_file "$task_id")" "## Review Status" "scope-review-status")")"
-  quality_status="$(lower "$(section_key_value "$(task_file "$task_id")" "## Review Status" "quality-review-status")")"
-  independent_status="$(lower "$(section_key_value "$(task_file "$task_id")" "## Review Status" "independent-review-status")")"
-  scope_note="$(section_key_value "$(task_file "$task_id")" "## Review Status" "scope-review-note")"
-  quality_note="$(section_key_value "$(task_file "$task_id")" "## Review Status" "quality-review-note")"
-  scope_fingerprint="$(section_key_value "$(task_file "$task_id")" "## Review Status" "scope-review-fingerprint")"
-  quality_fingerprint="$(section_key_value "$(task_file "$task_id")" "## Review Status" "quality-review-fingerprint")"
-  independent_note="$(section_key_value "$(task_file "$task_id")" "## Review Status" "independent-review-note")"
-  independent_reviewer="$(section_key_value "$(task_file "$task_id")" "## Review Status" "independent-reviewer")"
-  independent_fingerprint="$(section_key_value "$(task_file "$task_id")" "## Review Status" "independent-review-fingerprint")"
-  independent_proof="$(section_key_value "$(task_file "$task_id")" "## Review Status" "independent-review-proof")"
   current_fingerprint="$(ci_task_fingerprint "$task_id")"
 
-  if [[ "$scope_status" != "pass" ]]; then
+  verification_status="$(lower "$(section_key_value "$(task_file "$task_id")" "## Verification Status" "verification-status")")"
+  verification_note="$(section_key_value "$(task_file "$task_id")" "## Verification Status" "verification-note")"
+  verification_at="$(section_key_value "$(task_file "$task_id")" "## Verification Status" "verification-at-utc")"
+  verification_fingerprint="$(section_key_value "$(task_file "$task_id")" "## Verification Status" "verification-fingerprint")"
+
+  scope_status="$(lower "$(section_key_value "$(task_file "$task_id")" "## Review Status" "scope-review-status")")"
+  scope_note="$(section_key_value "$(task_file "$task_id")" "## Review Status" "scope-review-note")"
+  scope_at="$(section_key_value "$(task_file "$task_id")" "## Review Status" "scope-review-at-utc")"
+  scope_fingerprint="$(section_key_value "$(task_file "$task_id")" "## Review Status" "scope-review-fingerprint")"
+
+  quality_status="$(lower "$(section_key_value "$(task_file "$task_id")" "## Review Status" "quality-review-status")")"
+  quality_note="$(section_key_value "$(task_file "$task_id")" "## Review Status" "quality-review-note")"
+  quality_at="$(section_key_value "$(task_file "$task_id")" "## Review Status" "quality-review-at-utc")"
+  quality_fingerprint="$(section_key_value "$(task_file "$task_id")" "## Review Status" "quality-review-fingerprint")"
+
+  [[ "$verification_status" == "pass" ]] || {
     echo "[FAIL] ai-gate"
-    echo " - scope review must be PASS for task: $task_id"
+    echo " - verification-status must be pass"
+    exit 1
+  }
+  [[ "$scope_status" == "pass" ]] || {
+    echo "[FAIL] ai-gate"
+    echo " - scope-review-status must be pass"
+    exit 1
+  }
+  [[ "$quality_status" == "pass" ]] || {
+    echo "[FAIL] ai-gate"
+    echo " - quality-review-status must be pass"
+    exit 1
+  }
+
+  if placeholder_like "$verification_note" || placeholder_like "$verification_at" || placeholder_like "$verification_fingerprint"; then
+    echo "[FAIL] ai-gate"
+    echo " - verification summary fields are incomplete"
     exit 1
   fi
-  if [[ "$quality_status" != "pass" ]]; then
+  if placeholder_like "$scope_note" || placeholder_like "$scope_at" || placeholder_like "$scope_fingerprint"; then
     echo "[FAIL] ai-gate"
-    echo " - quality review must be PASS for task: $task_id"
+    echo " - scope review summary fields are incomplete"
     exit 1
   fi
-  if placeholder_like "$scope_note" || placeholder_like "$quality_note"; then
+  if placeholder_like "$quality_note" || placeholder_like "$quality_at" || placeholder_like "$quality_fingerprint"; then
     echo "[FAIL] ai-gate"
-    echo " - review notes must be recorded for task: $task_id"
+    echo " - quality review summary fields are incomplete"
     exit 1
   fi
-  if [[ "$scope_fingerprint" != "$current_fingerprint" || "$quality_fingerprint" != "$current_fingerprint" ]]; then
+
+  if [[ "$verification_fingerprint" != "$current_fingerprint" ]]; then
     echo "[FAIL] ai-gate"
-    echo " - review fingerprints are stale for task: $task_id"
+    echo " - verification summary fingerprint is stale"
+    exit 1
+  fi
+  if [[ "$scope_fingerprint" != "$current_fingerprint" ]]; then
+    echo "[FAIL] ai-gate"
+    echo " - scope review summary fingerprint is stale"
+    exit 1
+  fi
+  if [[ "$quality_fingerprint" != "$current_fingerprint" ]]; then
+    echo "[FAIL] ai-gate"
+    echo " - quality review summary fingerprint is stale"
     exit 1
   fi
 
   case "$risk_level" in
-    trivial)
-      return 0
-      ;;
     standard)
-      if [[ "$independent_status" != "pass" ]]; then
-        echo "[FAIL] ai-gate"
-        echo " - independent review must be PASS for task: $task_id"
-        exit 1
-      fi
-      if placeholder_like "$independent_note" || placeholder_like "$independent_reviewer"; then
-        echo "[FAIL] ai-gate"
-        echo " - independent review note and reviewer must be recorded for task: $task_id"
-        exit 1
-      fi
-      if [[ "$independent_fingerprint" != "$current_fingerprint" ]]; then
-        echo "[FAIL] ai-gate"
-        echo " - independent review fingerprint is stale for task: $task_id"
-        exit 1
-      fi
-      expected_independent_proof="$(independent_review_proof_for_fingerprint "$task_id" "$current_fingerprint" "$independent_reviewer" "$independent_note")"
-      if [[ "$independent_proof" != "$expected_independent_proof" ]]; then
-        echo "[FAIL] ai-gate"
-        echo " - independent review proof is invalid for task: $task_id"
-        exit 1
-      fi
       required_keys=("reuse-review" "hardcoding-review" "tests-review" "request-scope-review")
       ;;
     high-risk)
-      if [[ "$independent_status" != "pass" ]]; then
-        echo "[FAIL] ai-gate"
-        echo " - independent review must be PASS for task: $task_id"
-        exit 1
-      fi
-      if placeholder_like "$independent_note" || placeholder_like "$independent_reviewer"; then
-        echo "[FAIL] ai-gate"
-        echo " - independent review note and reviewer must be recorded for task: $task_id"
-        exit 1
-      fi
-      if [[ "$independent_fingerprint" != "$current_fingerprint" ]]; then
-        echo "[FAIL] ai-gate"
-        echo " - independent review fingerprint is stale for task: $task_id"
-        exit 1
-      fi
-      expected_independent_proof="$(independent_review_proof_for_fingerprint "$task_id" "$current_fingerprint" "$independent_reviewer" "$independent_note")"
-      if [[ "$independent_proof" != "$expected_independent_proof" ]]; then
-        echo "[FAIL] ai-gate"
-        echo " - independent review proof is invalid for task: $task_id"
-        exit 1
-      fi
       required_keys=("reuse-review" "hardcoding-review" "tests-review" "request-scope-review" "risk-controls-review")
-      ;;
-    *)
-      echo "[FAIL] ai-gate"
-      echo " - unsupported risk level for task: $task_id"
-      exit 1
       ;;
   esac
 
@@ -416,7 +311,7 @@ check_review_status_ci() {
     value="$(lower "$(section_key_value "$(task_file "$task_id")" "## Review Status" "$key")")"
     if [[ "$value" != "pass" ]]; then
       echo "[FAIL] ai-gate"
-      echo " - review field '$key' must be PASS for task: $task_id"
+      echo " - review field '$key' must be pass"
       exit 1
     fi
   done
@@ -437,9 +332,8 @@ main() {
   bash "$ROOT_DIR/scripts/check-task.sh" "$task_id"
   ensure_merge_ready_state "$task_id"
   check_ci_scope "$task_id"
+  check_summary_statuses_ci "$task_id"
   run_task_verification_commands_ci "$task_id"
-  check_tracked_review_receipts_ci "$task_id"
-  check_review_status_ci "$task_id"
 
   run_project_checks_for_pr_fast "$task_id"
 

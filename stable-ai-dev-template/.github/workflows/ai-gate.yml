@@ -39,3 +39,4 @@ jobs:
           CI_DIFF_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
           CI_DIFF_HEAD: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           CI_RUN_FULL_PROJECT_CHECKS: ${{ github.event_name == 'workflow_dispatch' && inputs.full_project_checks }}
+          CI_PR_BODY: ${{ github.event_name == 'pull_request' && github.event.pull_request.body || '' }}

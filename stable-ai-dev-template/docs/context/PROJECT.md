@@ -13,8 +13,8 @@
 
 ## Quality Bar
 - Preserve existing behavior unless the request explicitly changes it.
-- Prefer small, reviewable diffs over broad refactors.
-- Treat verification failures as blockers, not suggestions.
+- Prefer narrow task-scoped diffs over broad cleanup.
+- Treat stale verification or stale review state as blockers.
 
 ## Critical Flows
 - <replace>

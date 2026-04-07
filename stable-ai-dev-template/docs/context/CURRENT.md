@@ -11,28 +11,40 @@
 4. `docs/context/PROJECT.md`
 5. `docs/context/ARCHITECTURE.md`
 6. `docs/context/CONVENTIONS.md`
-7. `docs/context/DECISIONS.md` only if needed
+7. `docs/context/CI_PROFILE.md` only if needed
+8. `docs/context/DECISIONS.md` only if needed
 
 ## Current State
 - task-state: no active task
 - risk-level: none
-- review-profile: none
 - approval: not-started
 - current focus: choose or bootstrap a task
 - next action: run `bash scripts/bootstrap-task.sh <task-id>`
 - known risks: none
 
-## Changed Files
+## Git / PR
+- base-branch: none
+- branch-strategy: none
+- current-branch: none
+- ahead-of-origin-base: none
+- behind-origin-base: none
+- pr-status: none
+- pr-number: none
+- pr-url: none
+- latest-published-head-sha: none
+
+## Effective Changed Files
 - none
 
 ## Verification
-- last-run-utc: none
-- status: not-run
-- fingerprint: none
-- receipt-file: none
+- verification-status: not-run
+- verification-at-utc: none
+- verification-fingerprint: none
 
 ## Reviews
-- scope-review: not-run
+- scope-review-status: not-run
 - scope-review-at-utc: none
-- quality-review: not-run
+- scope-review-fingerprint: none
+- quality-review-status: not-run
 - quality-review-at-utc: none
+- quality-review-fingerprint: none

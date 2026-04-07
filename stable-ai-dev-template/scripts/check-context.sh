@@ -37,7 +37,7 @@ require_section_first_content() {
   fi
 }
 
-require_section_backtick_command() {
+require_section_first_backtick_value() {
   local file="$1"
   local section="$2"
   local label="$3"
@@ -45,7 +45,7 @@ require_section_backtick_command() {
 
   value="$(section_backtick_values "$file" "$section" | head -n 1)"
   if placeholder_like "$value"; then
-    failures+=("$label:missing-command($section)")
+    failures+=("$label:missing-entry($section)")
   fi
 }
 
@@ -93,7 +93,15 @@ require_section_first_content "$CONVENTIONS_FILE" "## Visual Changes" "CONVENTIO
 
 require_key "$CI_PROFILE_FILE" "## Project Profile" "platform" "CI_PROFILE.md"
 require_key "$CI_PROFILE_FILE" "## Project Profile" "stack" "CI_PROFILE.md"
-require_section_backtick_command "$CI_PROFILE_FILE" "## PR Fast Checks" "CI_PROFILE.md"
+require_key "$CI_PROFILE_FILE" "## Project Profile" "package-manager" "CI_PROFILE.md"
+require_key "$CI_PROFILE_FILE" "## Git / PR Policy" "git-host" "CI_PROFILE.md"
+require_key "$CI_PROFILE_FILE" "## Git / PR Policy" "default-base-branch" "CI_PROFILE.md"
+require_key "$CI_PROFILE_FILE" "## Git / PR Policy" "default-branch-strategy" "CI_PROFILE.md"
+require_key "$CI_PROFILE_FILE" "## Git / PR Policy" "task-branch-pattern" "CI_PROFILE.md"
+require_key "$CI_PROFILE_FILE" "## Git / PR Policy" "required-check-resolution" "CI_PROFILE.md"
+require_key "$CI_PROFILE_FILE" "## Git / PR Policy" "merge-method" "CI_PROFILE.md"
+require_section_first_backtick_value "$CI_PROFILE_FILE" "## Required Check Fallback" "CI_PROFILE.md"
+require_section_first_backtick_value "$CI_PROFILE_FILE" "## PR Fast Checks" "CI_PROFILE.md"
 
 ACTIVE_TASK="$(active_task_value)"
 if [[ -n "$ACTIVE_TASK" && ! -f "$(task_file "$ACTIVE_TASK")" ]]; then

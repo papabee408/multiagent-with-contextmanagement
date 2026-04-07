@@ -1,6 +1,6 @@
 # Task: <task-id>
 
-> PR reminder: if this work ships via PR, the PR diff must contain only this task file under `docs/tasks/`.
+> Normal PR rule: one PR should map to one live task file.
 
 ## Status
 - state: planning
@@ -12,6 +12,12 @@
 - approved-by: pending
 - approved-at-utc: pending
 - approval-note: pending
+
+## Intake
+- user-visible-change-clusters: 1
+- split-decision: single-task
+- split-rationale: <replace>
+- bundle-override-approved: no
 
 ## Goal
 - <replace>
@@ -35,7 +41,7 @@
 - unrelated changes allowed: no
 - incidental refactors allowed: no
 
-## Reuse and Constraints
+## Reuse And Constraints
 - existing abstractions to reuse: <replace>
 - config/constants to centralize: <replace>
 - side effects to avoid: <replace>
@@ -48,25 +54,33 @@
 - <replace>
 
 ## Verification Commands
-- `echo "replace with a real command"`
+- `replace with a real command`
+
+## Verification Status
+- verification-status: pending
+- verification-note: pending
+- verification-at-utc: pending
+- verification-fingerprint: pending
 
 ## Review Status
 - scope-review-status: pending
 - scope-review-note: pending
+- scope-review-at-utc: pending
 - scope-review-fingerprint: pending
 - quality-review-status: pending
 - quality-review-note: pending
+- quality-review-at-utc: pending
 - quality-review-fingerprint: pending
-- independent-review-status: pending
-- independent-review-note: pending
-- independent-reviewer: pending
-- independent-review-fingerprint: pending
-- independent-review-proof: pending
 - reuse-review: pending
 - hardcoding-review: pending
 - tests-review: pending
 - request-scope-review: pending
 - risk-controls-review: pending
+
+## Git / PR
+- base-branch: main
+- branch-strategy: publish-late
+- pr-metadata-policy: required
 
 ## Session Resume
 - current focus: <replace>

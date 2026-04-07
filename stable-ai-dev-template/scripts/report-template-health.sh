@@ -24,7 +24,6 @@ else
       ver[$8] += 1
       scope[$9] += 1
       quality[$10] += 1
-      independent[$11] += 1
     }
     END {
       printf "%s\n", "- completed-tasks: " total
@@ -34,7 +33,6 @@ else
       printf "%s\n", "- verification-pass-records: " (ver["pass"] + 0)
       printf "%s\n", "- scope-review-pass-records: " (scope["pass"] + 0)
       printf "%s\n", "- quality-review-pass-records: " (quality["pass"] + 0)
-      printf "%s\n", "- independent-review-pass-records: " (independent["pass"] + 0)
     }
   ' "$METRICS_FILE"
 fi

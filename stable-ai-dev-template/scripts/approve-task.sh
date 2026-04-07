@@ -53,4 +53,3 @@ bash "$ROOT_DIR/scripts/refresh-current.sh" "$TASK_ID" >/dev/null
 
 echo "[PASS] approve-task"
 echo " - task=$TASK_ID"
-

@@ -446,6 +446,17 @@ cat > "$PROFILE_PATH" <<EOF
 - package-manager: $PACKAGE_MANAGER
 - setup-status: generated
 
+## Git / PR Policy
+- git-host: github
+- default-base-branch: main
+- default-branch-strategy: publish-late
+- task-branch-pattern: task/<task-id>
+- required-check-resolution: branch-protection-first
+- merge-method: squash
+
+## Required Check Fallback
+- \`AI Gate\`
+
 EOF
 
 write_section "## PR Fast Checks" pr_fast_commands "Add one backticked command per bullet after setup. Keep this list fast." >> "$PROFILE_PATH"

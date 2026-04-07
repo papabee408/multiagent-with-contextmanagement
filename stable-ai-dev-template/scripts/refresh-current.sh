@@ -3,7 +3,10 @@ set -euo pipefail
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_lib.sh"
 
-TASK_ID="${1:-$(active_task_value)}"
+TASK_ID="${1:-}"
+if [[ -z "$TASK_ID" && -f "$ACTIVE_TASK_FILE" ]]; then
+  TASK_ID="$(tr -d ' \n\r\t' < "$ACTIVE_TASK_FILE")"
+fi
 CURRENT_FILE="$ROOT_DIR/docs/context/CURRENT.md"
 
 mkdir -p "$ROOT_DIR/docs/context" "$CONTEXT_DIR"
@@ -38,87 +41,95 @@ if [[ -z "$TASK_ID" || ! -f "$(task_file "$TASK_ID")" ]]; then
 4. \`docs/context/PROJECT.md\`
 5. \`docs/context/ARCHITECTURE.md\`
 6. \`docs/context/CONVENTIONS.md\`
-7. \`docs/context/DECISIONS.md\` only if needed
+7. \`docs/context/CI_PROFILE.md\` only if needed
+8. \`docs/context/DECISIONS.md\` only if needed
 
 ## Current State
 - task-state: no active task
 - risk-level: none
-- review-profile: none
 - approval: not-started
 - current focus: choose or bootstrap a task
 - next action: run \`bash scripts/bootstrap-task.sh <task-id>\`
 - known risks: none
 
-## Changed Files
+## Git / PR
+- base-branch: none
+- branch-strategy: none
+- current-branch: none
+- ahead-of-origin-base: none
+- behind-origin-base: none
+- pr-status: none
+- pr-number: none
+- pr-url: none
+- latest-published-head-sha: none
+
+## Effective Changed Files
 - none
 
 ## Verification
-- last-run-utc: none
-- status: not-run
-- fingerprint: none
-- receipt-file: none
+- verification-status: not-run
+- verification-at-utc: none
+- verification-fingerprint: none
 
 ## Reviews
-- scope-review: not-run
+- scope-review-status: not-run
 - scope-review-at-utc: none
-- quality-review: not-run
+- scope-review-fingerprint: none
+- quality-review-status: not-run
 - quality-review-at-utc: none
+- quality-review-fingerprint: none
 EOF
   echo "[OK] refreshed docs/context/CURRENT.md"
   exit 0
 fi
 
 TASK_FILE="$(task_file "$TASK_ID")"
-STATE="$(section_key_value "$TASK_FILE" "## Status" "state")"
+STATE="$(task_state "$TASK_ID")"
 RISK_LEVEL="$(task_risk_level "$TASK_ID")"
-REVIEW_PROFILE="$(task_review_profile "$TASK_ID")"
 CURRENT_FOCUS="$(section_key_value "$TASK_FILE" "## Session Resume" "current focus")"
 NEXT_ACTION="$(section_key_value "$TASK_FILE" "## Session Resume" "next action")"
 KNOWN_RISKS="$(section_key_value "$TASK_FILE" "## Session Resume" "known risks")"
 APPROVED_BY="$(section_key_value "$TASK_FILE" "## Approval" "approved-by")"
 APPROVED_AT="$(section_key_value "$TASK_FILE" "## Approval" "approved-at-utc")"
-RECEIPT_FILE_REL=".context/tasks/$TASK_ID/verification.receipt"
-RECEIPT_FILE_ABS="$(verification_receipt_file "$TASK_ID")"
-VERIFICATION_STATUS="$(receipt_value "$RECEIPT_FILE_ABS" "result")"
-VERIFICATION_TIME="$(receipt_value "$RECEIPT_FILE_ABS" "executed_at_utc")"
-VERIFICATION_FINGERPRINT="$(receipt_value "$RECEIPT_FILE_ABS" "fingerprint")"
-SCOPE_REVIEW_FILE_ABS="$(scope_review_receipt_file "$TASK_ID")"
-QUALITY_REVIEW_FILE_ABS="$(quality_review_receipt_file "$TASK_ID")"
-INDEPENDENT_REVIEW_FILE_ABS="$(independent_review_receipt_file "$TASK_ID")"
-SCOPE_REVIEW_STATUS="$(receipt_value "$SCOPE_REVIEW_FILE_ABS" "result")"
-SCOPE_REVIEW_TIME="$(receipt_value "$SCOPE_REVIEW_FILE_ABS" "executed_at_utc")"
-QUALITY_REVIEW_STATUS="$(receipt_value "$QUALITY_REVIEW_FILE_ABS" "result")"
-QUALITY_REVIEW_TIME="$(receipt_value "$QUALITY_REVIEW_FILE_ABS" "executed_at_utc")"
-INDEPENDENT_REVIEW_STATUS="$(receipt_value "$INDEPENDENT_REVIEW_FILE_ABS" "result")"
-INDEPENDENT_REVIEW_TIME="$(receipt_value "$INDEPENDENT_REVIEW_FILE_ABS" "executed_at_utc")"
 
-if [[ -z "$VERIFICATION_STATUS" ]]; then
-  VERIFICATION_STATUS="not-run"
+BASE_BRANCH="$(base_branch_from_task "$TASK_ID")"
+BRANCH_STRATEGY="$(branch_strategy_from_task "$TASK_ID")"
+CURRENT_BRANCH="$(current_branch_name)"
+
+AHEAD="none"
+BEHIND="none"
+if has_origin_remote && [[ -n "$BASE_BRANCH" ]]; then
+  read -r BEHIND AHEAD < <(ahead_behind_against_origin_base "$BASE_BRANCH")
 fi
-if [[ -z "$VERIFICATION_TIME" ]]; then
-  VERIFICATION_TIME="none"
-fi
-if [[ -z "$VERIFICATION_FINGERPRINT" ]]; then
-  VERIFICATION_FINGERPRINT="none"
-fi
-if [[ -z "$SCOPE_REVIEW_STATUS" ]]; then
-  SCOPE_REVIEW_STATUS="not-run"
-fi
-if [[ -z "$SCOPE_REVIEW_TIME" ]]; then
-  SCOPE_REVIEW_TIME="none"
-fi
-if [[ -z "$QUALITY_REVIEW_STATUS" ]]; then
-  QUALITY_REVIEW_STATUS="not-run"
-fi
-if [[ -z "$QUALITY_REVIEW_TIME" ]]; then
-  QUALITY_REVIEW_TIME="none"
-fi
-if [[ -z "$INDEPENDENT_REVIEW_STATUS" ]]; then
-  INDEPENDENT_REVIEW_STATUS="not-run"
-fi
-if [[ -z "$INDEPENDENT_REVIEW_TIME" ]]; then
-  INDEPENDENT_REVIEW_TIME="none"
-fi
+
+PR_STATUS="$(pr_state_value "$TASK_ID" "pr_status")"
+PR_NUMBER="$(pr_state_value "$TASK_ID" "pr_number")"
+PR_URL="$(pr_state_value "$TASK_ID" "pr_url")"
+PR_HEAD_SHA="$(pr_state_value "$TASK_ID" "head_sha")"
+[[ -z "$PR_STATUS" ]] && PR_STATUS="none"
+[[ -z "$PR_NUMBER" ]] && PR_NUMBER="none"
+[[ -z "$PR_URL" ]] && PR_URL="none"
+[[ -z "$PR_HEAD_SHA" ]] && PR_HEAD_SHA="none"
+
+VERIFICATION_STATUS="$(section_key_value "$TASK_FILE" "## Verification Status" "verification-status")"
+VERIFICATION_AT="$(section_key_value "$TASK_FILE" "## Verification Status" "verification-at-utc")"
+VERIFICATION_FINGERPRINT="$(section_key_value "$TASK_FILE" "## Verification Status" "verification-fingerprint")"
+SCOPE_STATUS="$(section_key_value "$TASK_FILE" "## Review Status" "scope-review-status")"
+SCOPE_AT="$(section_key_value "$TASK_FILE" "## Review Status" "scope-review-at-utc")"
+SCOPE_FINGERPRINT="$(section_key_value "$TASK_FILE" "## Review Status" "scope-review-fingerprint")"
+QUALITY_STATUS="$(section_key_value "$TASK_FILE" "## Review Status" "quality-review-status")"
+QUALITY_AT="$(section_key_value "$TASK_FILE" "## Review Status" "quality-review-at-utc")"
+QUALITY_FINGERPRINT="$(section_key_value "$TASK_FILE" "## Review Status" "quality-review-fingerprint")"
+
+[[ -z "$VERIFICATION_STATUS" ]] && VERIFICATION_STATUS="not-run"
+[[ -z "$VERIFICATION_AT" ]] && VERIFICATION_AT="none"
+[[ -z "$VERIFICATION_FINGERPRINT" ]] && VERIFICATION_FINGERPRINT="none"
+[[ -z "$SCOPE_STATUS" ]] && SCOPE_STATUS="not-run"
+[[ -z "$SCOPE_AT" ]] && SCOPE_AT="none"
+[[ -z "$SCOPE_FINGERPRINT" ]] && SCOPE_FINGERPRINT="none"
+[[ -z "$QUALITY_STATUS" ]] && QUALITY_STATUS="not-run"
+[[ -z "$QUALITY_AT" ]] && QUALITY_AT="none"
+[[ -z "$QUALITY_FINGERPRINT" ]] && QUALITY_FINGERPRINT="none"
 
 APPROVAL_STATUS="pending"
 if ! placeholder_like "$APPROVED_BY" && ! placeholder_like "$APPROVED_AT"; then
@@ -139,33 +150,43 @@ cat > "$CURRENT_FILE" <<EOF
 4. \`docs/context/PROJECT.md\`
 5. \`docs/context/ARCHITECTURE.md\`
 6. \`docs/context/CONVENTIONS.md\`
-7. \`docs/context/DECISIONS.md\` only if the task or diff depends on prior decisions
+7. \`docs/context/CI_PROFILE.md\` only if needed
+8. \`docs/context/DECISIONS.md\` only if needed
 
 ## Current State
 - task-state: $STATE
 - risk-level: $RISK_LEVEL
-- review-profile: $REVIEW_PROFILE
 - approval: $APPROVAL_STATUS
 - current focus: $CURRENT_FOCUS
 - next action: $NEXT_ACTION
 - known risks: $KNOWN_RISKS
 
-## Changed Files
+## Git / PR
+- base-branch: ${BASE_BRANCH:-none}
+- branch-strategy: ${BRANCH_STRATEGY:-none}
+- current-branch: ${CURRENT_BRANCH:-none}
+- ahead-of-origin-base: $AHEAD
+- behind-origin-base: $BEHIND
+- pr-status: $PR_STATUS
+- pr-number: $PR_NUMBER
+- pr-url: $PR_URL
+- latest-published-head-sha: $PR_HEAD_SHA
+
+## Effective Changed Files
 $(render_changed_files "$TASK_ID")
 
 ## Verification
-- last-run-utc: $VERIFICATION_TIME
-- status: $VERIFICATION_STATUS
-- fingerprint: $VERIFICATION_FINGERPRINT
-- receipt-file: $RECEIPT_FILE_REL
+- verification-status: $VERIFICATION_STATUS
+- verification-at-utc: $VERIFICATION_AT
+- verification-fingerprint: $VERIFICATION_FINGERPRINT
 
 ## Reviews
-- scope-review: $SCOPE_REVIEW_STATUS
-- scope-review-at-utc: $SCOPE_REVIEW_TIME
-- quality-review: $QUALITY_REVIEW_STATUS
-- quality-review-at-utc: $QUALITY_REVIEW_TIME
-- independent-review: $INDEPENDENT_REVIEW_STATUS
-- independent-review-at-utc: $INDEPENDENT_REVIEW_TIME
+- scope-review-status: $SCOPE_STATUS
+- scope-review-at-utc: $SCOPE_AT
+- scope-review-fingerprint: $SCOPE_FINGERPRINT
+- quality-review-status: $QUALITY_STATUS
+- quality-review-at-utc: $QUALITY_AT
+- quality-review-fingerprint: $QUALITY_FINGERPRINT
 EOF
 
 echo "[OK] refreshed docs/context/CURRENT.md"
