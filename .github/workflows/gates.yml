@@ -44,4 +44,12 @@ jobs:
           echo "Resolved feature-id: $FEATURE_ID"
 
       - name: Run gates
+        if: ${{ steps.feature.outputs.feature_id != '__stable_ai_dev_template__' }}
         run: scripts/gates/run.sh "${{ steps.feature.outputs.feature_id }}"
+
+      - name: Run stable template smoke
+        if: ${{ steps.feature.outputs.feature_id == '__stable_ai_dev_template__' }}
+        run: |
+          set -euo pipefail
+          cd stable-ai-dev-template
+          bash tests/smoke.sh

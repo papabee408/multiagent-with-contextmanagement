@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 source "$ROOT_DIR/scripts/_git_change_helpers.sh"
 MANUAL_FEATURE_ID="${1:-}"
+STABLE_TEMPLATE_SENTINEL="__stable_ai_dev_template__"
 
 cd "$ROOT_DIR"
 
@@ -26,8 +27,23 @@ collect_changed_files() {
 
 mapfile_output="$(collect_changed_files)"
 
+stable_template_change_count="$(printf '%s\n' "$mapfile_output" \
+  | awk '
+      /^stable-ai-dev-template\// { count += 1 }
+      END { print count + 0 }
+    ')"
+
+if [[ "$stable_template_change_count" -gt 0 ]]; then
+  printf '%s\n' "$STABLE_TEMPLATE_SENTINEL"
+  exit 0
+fi
+
 feature_ids="$(printf '%s\n' "$mapfile_output" \
-  | awk -F/ '/^docs\/features\/[^/]+\// { if ($3 != "_template") print $3 }' \
+  | awk -F/ '
+      index($0, "docs/features/") == 1 && NF >= 3 {
+        if ($3 != "_template") print $3
+      }
+    ' \
   | sort -u)"
 
 feature_count="$(printf '%s\n' "$feature_ids" | sed '/^$/d' | wc -l | tr -d '[:space:]')"
