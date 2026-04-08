@@ -1,0 +1,370 @@
+# Current Snapshot
+
+- last-updated-utc: 2026-04-08 00:42:35Z
+- active-task: migrate-stable-ai-template
+- active-task-file: docs/tasks/migrate-stable-ai-template.md
+
+## Read This First
+1. `docs/context/CURRENT.md`
+2. `.context/active_task`
+3. `docs/tasks/migrate-stable-ai-template.md`
+4. `docs/context/PROJECT.md`
+5. `docs/context/ARCHITECTURE.md`
+6. `docs/context/CONVENTIONS.md`
+7. `docs/context/CI_PROFILE.md` only if needed
+8. `docs/context/DECISIONS.md` only if needed
+
+## Current State
+- task-state: done
+- risk-level: standard
+- approval: approved by user at 2026-04-08 00:37:37Z
+- current focus: task completed; ready to publish from the task branch
+- next action: create or switch to task/migrate-stable-ai-template before the first commit, then publish the migration PR if you want to ship this cutover
+- known risks: the archive-heavy diff makes the task scope large and the root smoke must prove the new runtime works end to end
+
+## Git / PR
+- base-branch: main
+- branch-strategy: publish-late
+- current-branch: chore/migrate-stable-ai-template
+- ahead-of-origin-base: 0
+- behind-origin-base: 0
+- pr-status: none
+- pr-number: none
+- pr-url: none
+- latest-published-head-sha: none
+
+## Effective Changed Files
+- `.github/workflows/ai-gate.yml`
+- `AGENTS.md`
+- `README.md`
+- `docs/context/ARCHITECTURE.md`
+- `docs/context/CI_PROFILE.md`
+- `docs/context/CONVENTIONS.md`
+- `docs/context/CURRENT.md`
+- `docs/context/PROJECT.md`
+- `docs/context/TEMPLATE_IMPROVEMENT_POLICY.md`
+- `docs/tasks/README.md`
+- `docs/tasks/_template.md`
+- `docs/tasks/migrate-stable-ai-template.md`
+- `migration-archive/old-ai-template/.github/workflows/gates.yml`
+- `migration-archive/old-ai-template/UPGRADE_PROMPT.md`
+- `migration-archive/old-ai-template/docs/agents/README.md`
+- `migration-archive/old-ai-template/docs/agents/gate-checker.md`
+- `migration-archive/old-ai-template/docs/agents/implementer.md`
+- `migration-archive/old-ai-template/docs/agents/orchestrator.md`
+- `migration-archive/old-ai-template/docs/agents/planner.md`
+- `migration-archive/old-ai-template/docs/agents/reviewer.md`
+- `migration-archive/old-ai-template/docs/agents/security.md`
+- `migration-archive/old-ai-template/docs/agents/tester.md`
+- `migration-archive/old-ai-template/docs/context/CODEX_RESUME.md`
+- `migration-archive/old-ai-template/docs/context/CODEX_WORKFLOW.md`
+- `migration-archive/old-ai-template/docs/context/DECISIONS_ARCHIVE.md`
+- `migration-archive/old-ai-template/docs/context/GATES.md`
+- `migration-archive/old-ai-template/docs/context/HANDOFF.md`
+- `migration-archive/old-ai-template/docs/context/MAINTENANCE.md`
+- `migration-archive/old-ai-template/docs/context/MAINTENANCE_STATUS.md`
+- `migration-archive/old-ai-template/docs/context/MULTI_AGENT_PROCESS.md`
+- `migration-archive/old-ai-template/docs/context/README.md`
+- `migration-archive/old-ai-template/docs/context/RULES.md`
+- `migration-archive/old-ai-template/docs/context/sessions/20260326-235427-workflow-speed-and-mode-upgrade.md`
+- `migration-archive/old-ai-template/docs/context/sessions/20260327-030154-template-review-remediation.md`
+- `migration-archive/old-ai-template/docs/context/sessions/20260327-035414-template-speed-quality-rebalance.md`
+- `migration-archive/old-ai-template/docs/context/sessions/20260327-042216-complete-template-speed-risk-routing.md`
+- `migration-archive/old-ai-template/docs/context/sessions/20260327-042910-template-stage2-enforcement.md`
+- `migration-archive/old-ai-template/docs/context/sessions/20260327-045310-complete-template-stage2-enforcement.md`
+- `migration-archive/old-ai-template/docs/context/sessions/20260327-045651-template-stage3-operations.md`
+- `migration-archive/old-ai-template/docs/context/sessions/20260327-052757-complete-template-stage3-operations.md`
+- `migration-archive/old-ai-template/docs/context/sessions/20260327-062200-fix-review-followups.md`
+- `migration-archive/old-ai-template/docs/context/sessions/20260327-064758-complete-review-followups-fix.md`
+- `migration-archive/old-ai-template/docs/context/sessions/20260327-070426-template-trust-hardening.md`
+- `migration-archive/old-ai-template/docs/context/sessions/20260327-074202-template-review-hardening-followup.md`
+- `migration-archive/old-ai-template/docs/context/sessions/20260327-080344-complete-template-review-hardening-followup.md`
+- `migration-archive/old-ai-template/docs/context/sessions/20260327-081553-template-completion-hardening.md`
+- `migration-archive/old-ai-template/docs/context/sessions/20260327-084257-complete-template-core-trust-hardening.md`
+- `migration-archive/old-ai-template/docs/context/sessions/20260327-091450-template-v2-minimal-stable.md`
+- `migration-archive/old-ai-template/docs/features/README.md`
+- `migration-archive/old-ai-template/docs/features/_template/brief.md`
+- `migration-archive/old-ai-template/docs/features/_template/implementer-handoff.md`
+- `migration-archive/old-ai-template/docs/features/_template/plan.md`
+- `migration-archive/old-ai-template/docs/features/_template/reviewer-handoff.md`
+- `migration-archive/old-ai-template/docs/features/_template/run-log.md`
+- `migration-archive/old-ai-template/docs/features/_template/security-handoff.md`
+- `migration-archive/old-ai-template/docs/features/_template/test-matrix.md`
+- `migration-archive/old-ai-template/docs/features/_template/tester-handoff.md`
+- `migration-archive/old-ai-template/docs/features/review-followups-fix/.baseline-changes.txt`
+- `migration-archive/old-ai-template/docs/features/review-followups-fix/artifacts/gates/full.json`
+- `migration-archive/old-ai-template/docs/features/review-followups-fix/artifacts/roles/gate-checker.json`
+- `migration-archive/old-ai-template/docs/features/review-followups-fix/artifacts/roles/implementer.json`
+- `migration-archive/old-ai-template/docs/features/review-followups-fix/artifacts/roles/orchestrator.json`
+- `migration-archive/old-ai-template/docs/features/review-followups-fix/artifacts/roles/planner.json`
+- `migration-archive/old-ai-template/docs/features/review-followups-fix/artifacts/roles/tester.json`
+- `migration-archive/old-ai-template/docs/features/review-followups-fix/artifacts/tests/feature.json`
+- `migration-archive/old-ai-template/docs/features/review-followups-fix/brief.md`
+- `migration-archive/old-ai-template/docs/features/review-followups-fix/implementer-handoff.md`
+- `migration-archive/old-ai-template/docs/features/review-followups-fix/plan.md`
+- `migration-archive/old-ai-template/docs/features/review-followups-fix/run-log.md`
+- `migration-archive/old-ai-template/docs/features/review-followups-fix/test-matrix.md`
+- `migration-archive/old-ai-template/docs/features/review-followups-fix/tester-handoff.md`
+- `migration-archive/old-ai-template/docs/features/template-core-trust-hardening/.baseline-changes.txt`
+- `migration-archive/old-ai-template/docs/features/template-core-trust-hardening/artifacts/gates/full.json`
+- `migration-archive/old-ai-template/docs/features/template-core-trust-hardening/artifacts/roles/gate-checker.json`
+- `migration-archive/old-ai-template/docs/features/template-core-trust-hardening/artifacts/roles/implementer.json`
+- `migration-archive/old-ai-template/docs/features/template-core-trust-hardening/artifacts/roles/orchestrator.json`
+- `migration-archive/old-ai-template/docs/features/template-core-trust-hardening/artifacts/roles/planner.json`
+- `migration-archive/old-ai-template/docs/features/template-core-trust-hardening/artifacts/roles/reviewer.json`
+- `migration-archive/old-ai-template/docs/features/template-core-trust-hardening/artifacts/roles/security.json`
+- `migration-archive/old-ai-template/docs/features/template-core-trust-hardening/artifacts/roles/tester.json`
+- `migration-archive/old-ai-template/docs/features/template-core-trust-hardening/artifacts/tests/feature.json`
+- `migration-archive/old-ai-template/docs/features/template-core-trust-hardening/brief.md`
+- `migration-archive/old-ai-template/docs/features/template-core-trust-hardening/implementer-handoff.md`
+- `migration-archive/old-ai-template/docs/features/template-core-trust-hardening/plan.md`
+- `migration-archive/old-ai-template/docs/features/template-core-trust-hardening/reviewer-handoff.md`
+- `migration-archive/old-ai-template/docs/features/template-core-trust-hardening/run-log.md`
+- `migration-archive/old-ai-template/docs/features/template-core-trust-hardening/security-handoff.md`
+- `migration-archive/old-ai-template/docs/features/template-core-trust-hardening/test-matrix.md`
+- `migration-archive/old-ai-template/docs/features/template-core-trust-hardening/tester-handoff.md`
+- `migration-archive/old-ai-template/docs/features/template-ops-hardening/.baseline-changes.txt`
+- `migration-archive/old-ai-template/docs/features/template-ops-hardening/artifacts/gates/full.json`
+- `migration-archive/old-ai-template/docs/features/template-ops-hardening/artifacts/roles/gate-checker.json`
+- `migration-archive/old-ai-template/docs/features/template-ops-hardening/artifacts/roles/implementer.json`
+- `migration-archive/old-ai-template/docs/features/template-ops-hardening/artifacts/roles/orchestrator.json`
+- `migration-archive/old-ai-template/docs/features/template-ops-hardening/artifacts/roles/planner.json`
+- `migration-archive/old-ai-template/docs/features/template-ops-hardening/artifacts/roles/reviewer.json`
+- `migration-archive/old-ai-template/docs/features/template-ops-hardening/artifacts/roles/security.json`
+- `migration-archive/old-ai-template/docs/features/template-ops-hardening/artifacts/roles/tester.json`
+- `migration-archive/old-ai-template/docs/features/template-ops-hardening/artifacts/tests/feature.json`
+- `migration-archive/old-ai-template/docs/features/template-ops-hardening/brief.md`
+- `migration-archive/old-ai-template/docs/features/template-ops-hardening/implementer-handoff.md`
+- `migration-archive/old-ai-template/docs/features/template-ops-hardening/plan.md`
+- `migration-archive/old-ai-template/docs/features/template-ops-hardening/reviewer-handoff.md`
+- `migration-archive/old-ai-template/docs/features/template-ops-hardening/run-log.md`
+- `migration-archive/old-ai-template/docs/features/template-ops-hardening/security-handoff.md`
+- `migration-archive/old-ai-template/docs/features/template-ops-hardening/test-matrix.md`
+- `migration-archive/old-ai-template/docs/features/template-ops-hardening/tester-handoff.md`
+- `migration-archive/old-ai-template/docs/features/template-review-hardening-followup/.baseline-changes.txt`
+- `migration-archive/old-ai-template/docs/features/template-review-hardening-followup/artifacts/gates/full.json`
+- `migration-archive/old-ai-template/docs/features/template-review-hardening-followup/artifacts/roles/gate-checker.json`
+- `migration-archive/old-ai-template/docs/features/template-review-hardening-followup/artifacts/roles/implementer.json`
+- `migration-archive/old-ai-template/docs/features/template-review-hardening-followup/artifacts/roles/orchestrator.json`
+- `migration-archive/old-ai-template/docs/features/template-review-hardening-followup/artifacts/roles/planner.json`
+- `migration-archive/old-ai-template/docs/features/template-review-hardening-followup/artifacts/roles/reviewer.json`
+- `migration-archive/old-ai-template/docs/features/template-review-hardening-followup/artifacts/roles/security.json`
+- `migration-archive/old-ai-template/docs/features/template-review-hardening-followup/artifacts/roles/tester.json`
+- `migration-archive/old-ai-template/docs/features/template-review-hardening-followup/artifacts/tests/feature.json`
+- `migration-archive/old-ai-template/docs/features/template-review-hardening-followup/brief.md`
+- `migration-archive/old-ai-template/docs/features/template-review-hardening-followup/implementer-handoff.md`
+- `migration-archive/old-ai-template/docs/features/template-review-hardening-followup/plan.md`
+- `migration-archive/old-ai-template/docs/features/template-review-hardening-followup/reviewer-handoff.md`
+- `migration-archive/old-ai-template/docs/features/template-review-hardening-followup/run-log.md`
+- `migration-archive/old-ai-template/docs/features/template-review-hardening-followup/security-handoff.md`
+- `migration-archive/old-ai-template/docs/features/template-review-hardening-followup/test-matrix.md`
+- `migration-archive/old-ai-template/docs/features/template-review-hardening-followup/tester-handoff.md`
+- `migration-archive/old-ai-template/docs/features/template-review-remediation/.baseline-changes.txt`
+- `migration-archive/old-ai-template/docs/features/template-review-remediation/artifacts/gates/full.json`
+- `migration-archive/old-ai-template/docs/features/template-review-remediation/artifacts/roles/gate-checker.json`
+- `migration-archive/old-ai-template/docs/features/template-review-remediation/artifacts/roles/implementer.json`
+- `migration-archive/old-ai-template/docs/features/template-review-remediation/artifacts/roles/orchestrator.json`
+- `migration-archive/old-ai-template/docs/features/template-review-remediation/artifacts/roles/planner.json`
+- `migration-archive/old-ai-template/docs/features/template-review-remediation/artifacts/roles/tester.json`
+- `migration-archive/old-ai-template/docs/features/template-review-remediation/artifacts/tests/feature.json`
+- `migration-archive/old-ai-template/docs/features/template-review-remediation/brief.md`
+- `migration-archive/old-ai-template/docs/features/template-review-remediation/implementer-handoff.md`
+- `migration-archive/old-ai-template/docs/features/template-review-remediation/plan.md`
+- `migration-archive/old-ai-template/docs/features/template-review-remediation/reviewer-handoff.md`
+- `migration-archive/old-ai-template/docs/features/template-review-remediation/run-log.md`
+- `migration-archive/old-ai-template/docs/features/template-review-remediation/security-handoff.md`
+- `migration-archive/old-ai-template/docs/features/template-review-remediation/test-matrix.md`
+- `migration-archive/old-ai-template/docs/features/template-review-remediation/tester-handoff.md`
+- `migration-archive/old-ai-template/docs/features/template-speed-risk-routing/.baseline-changes.txt`
+- `migration-archive/old-ai-template/docs/features/template-speed-risk-routing/artifacts/gates/full.json`
+- `migration-archive/old-ai-template/docs/features/template-speed-risk-routing/artifacts/roles/gate-checker.json`
+- `migration-archive/old-ai-template/docs/features/template-speed-risk-routing/artifacts/roles/implementer.json`
+- `migration-archive/old-ai-template/docs/features/template-speed-risk-routing/artifacts/roles/orchestrator.json`
+- `migration-archive/old-ai-template/docs/features/template-speed-risk-routing/artifacts/roles/planner.json`
+- `migration-archive/old-ai-template/docs/features/template-speed-risk-routing/artifacts/roles/tester.json`
+- `migration-archive/old-ai-template/docs/features/template-speed-risk-routing/artifacts/tests/feature.json`
+- `migration-archive/old-ai-template/docs/features/template-speed-risk-routing/brief.md`
+- `migration-archive/old-ai-template/docs/features/template-speed-risk-routing/implementer-handoff.md`
+- `migration-archive/old-ai-template/docs/features/template-speed-risk-routing/plan.md`
+- `migration-archive/old-ai-template/docs/features/template-speed-risk-routing/run-log.md`
+- `migration-archive/old-ai-template/docs/features/template-speed-risk-routing/test-matrix.md`
+- `migration-archive/old-ai-template/docs/features/template-speed-risk-routing/tester-handoff.md`
+- `migration-archive/old-ai-template/docs/features/template-stage2-enforcement/.baseline-changes.txt`
+- `migration-archive/old-ai-template/docs/features/template-stage2-enforcement/artifacts/gates/full.json`
+- `migration-archive/old-ai-template/docs/features/template-stage2-enforcement/artifacts/roles/gate-checker.json`
+- `migration-archive/old-ai-template/docs/features/template-stage2-enforcement/artifacts/roles/implementer.json`
+- `migration-archive/old-ai-template/docs/features/template-stage2-enforcement/artifacts/roles/orchestrator.json`
+- `migration-archive/old-ai-template/docs/features/template-stage2-enforcement/artifacts/roles/planner.json`
+- `migration-archive/old-ai-template/docs/features/template-stage2-enforcement/artifacts/roles/tester.json`
+- `migration-archive/old-ai-template/docs/features/template-stage2-enforcement/artifacts/tests/feature.json`
+- `migration-archive/old-ai-template/docs/features/template-stage2-enforcement/brief.md`
+- `migration-archive/old-ai-template/docs/features/template-stage2-enforcement/implementer-handoff.md`
+- `migration-archive/old-ai-template/docs/features/template-stage2-enforcement/plan.md`
+- `migration-archive/old-ai-template/docs/features/template-stage2-enforcement/run-log.md`
+- `migration-archive/old-ai-template/docs/features/template-stage2-enforcement/test-matrix.md`
+- `migration-archive/old-ai-template/docs/features/template-stage2-enforcement/tester-handoff.md`
+- `migration-archive/old-ai-template/docs/features/template-stage3-operations/.baseline-changes.txt`
+- `migration-archive/old-ai-template/docs/features/template-stage3-operations/artifacts/gates/full.json`
+- `migration-archive/old-ai-template/docs/features/template-stage3-operations/artifacts/roles/gate-checker.json`
+- `migration-archive/old-ai-template/docs/features/template-stage3-operations/artifacts/roles/implementer.json`
+- `migration-archive/old-ai-template/docs/features/template-stage3-operations/artifacts/roles/orchestrator.json`
+- `migration-archive/old-ai-template/docs/features/template-stage3-operations/artifacts/roles/planner.json`
+- `migration-archive/old-ai-template/docs/features/template-stage3-operations/artifacts/roles/tester.json`
+- `migration-archive/old-ai-template/docs/features/template-stage3-operations/artifacts/tests/feature.json`
+- `migration-archive/old-ai-template/docs/features/template-stage3-operations/brief.md`
+- `migration-archive/old-ai-template/docs/features/template-stage3-operations/implementer-handoff.md`
+- `migration-archive/old-ai-template/docs/features/template-stage3-operations/plan.md`
+- `migration-archive/old-ai-template/docs/features/template-stage3-operations/run-log.md`
+- `migration-archive/old-ai-template/docs/features/template-stage3-operations/test-matrix.md`
+- `migration-archive/old-ai-template/docs/features/template-stage3-operations/tester-handoff.md`
+- `migration-archive/old-ai-template/docs/features/template-trust-hardening/.baseline-changes.txt`
+- `migration-archive/old-ai-template/docs/features/template-trust-hardening/artifacts/gates/full.json`
+- `migration-archive/old-ai-template/docs/features/template-trust-hardening/artifacts/roles/gate-checker.json`
+- `migration-archive/old-ai-template/docs/features/template-trust-hardening/artifacts/roles/implementer.json`
+- `migration-archive/old-ai-template/docs/features/template-trust-hardening/artifacts/roles/orchestrator.json`
+- `migration-archive/old-ai-template/docs/features/template-trust-hardening/artifacts/roles/planner.json`
+- `migration-archive/old-ai-template/docs/features/template-trust-hardening/artifacts/roles/reviewer.json`
+- `migration-archive/old-ai-template/docs/features/template-trust-hardening/artifacts/roles/security.json`
+- `migration-archive/old-ai-template/docs/features/template-trust-hardening/artifacts/roles/tester.json`
+- `migration-archive/old-ai-template/docs/features/template-trust-hardening/artifacts/tests/feature.json`
+- `migration-archive/old-ai-template/docs/features/template-trust-hardening/brief.md`
+- `migration-archive/old-ai-template/docs/features/template-trust-hardening/implementer-handoff.md`
+- `migration-archive/old-ai-template/docs/features/template-trust-hardening/plan.md`
+- `migration-archive/old-ai-template/docs/features/template-trust-hardening/reviewer-handoff.md`
+- `migration-archive/old-ai-template/docs/features/template-trust-hardening/run-log.md`
+- `migration-archive/old-ai-template/docs/features/template-trust-hardening/security-handoff.md`
+- `migration-archive/old-ai-template/docs/features/template-trust-hardening/test-matrix.md`
+- `migration-archive/old-ai-template/docs/features/template-trust-hardening/tester-handoff.md`
+- `migration-archive/old-ai-template/docs/features/template-v2-minimal-stable/.baseline-changes.txt`
+- `migration-archive/old-ai-template/docs/features/template-v2-minimal-stable/brief.md`
+- `migration-archive/old-ai-template/docs/features/template-v2-minimal-stable/implementer-handoff.md`
+- `migration-archive/old-ai-template/docs/features/template-v2-minimal-stable/plan.md`
+- `migration-archive/old-ai-template/docs/features/template-v2-minimal-stable/run-log.md`
+- `migration-archive/old-ai-template/docs/features/template-v2-minimal-stable/test-matrix.md`
+- `migration-archive/old-ai-template/docs/features/template-v2-minimal-stable/tester-handoff.md`
+- `migration-archive/old-ai-template/docs/features/workflow-speed-and-mode-upgrade/.baseline-changes.txt`
+- `migration-archive/old-ai-template/docs/features/workflow-speed-and-mode-upgrade/artifacts/gates/full.json`
+- `migration-archive/old-ai-template/docs/features/workflow-speed-and-mode-upgrade/artifacts/roles/gate-checker.json`
+- `migration-archive/old-ai-template/docs/features/workflow-speed-and-mode-upgrade/artifacts/roles/implementer.json`
+- `migration-archive/old-ai-template/docs/features/workflow-speed-and-mode-upgrade/artifacts/roles/orchestrator.json`
+- `migration-archive/old-ai-template/docs/features/workflow-speed-and-mode-upgrade/artifacts/roles/planner.json`
+- `migration-archive/old-ai-template/docs/features/workflow-speed-and-mode-upgrade/artifacts/roles/reviewer.json`
+- `migration-archive/old-ai-template/docs/features/workflow-speed-and-mode-upgrade/artifacts/roles/security.json`
+- `migration-archive/old-ai-template/docs/features/workflow-speed-and-mode-upgrade/artifacts/roles/tester.json`
+- `migration-archive/old-ai-template/docs/features/workflow-speed-and-mode-upgrade/artifacts/tests/feature.json`
+- `migration-archive/old-ai-template/docs/features/workflow-speed-and-mode-upgrade/brief.md`
+- `migration-archive/old-ai-template/docs/features/workflow-speed-and-mode-upgrade/implementer-handoff.md`
+- `migration-archive/old-ai-template/docs/features/workflow-speed-and-mode-upgrade/plan.md`
+- `migration-archive/old-ai-template/docs/features/workflow-speed-and-mode-upgrade/reviewer-handoff.md`
+- `migration-archive/old-ai-template/docs/features/workflow-speed-and-mode-upgrade/run-log.md`
+- `migration-archive/old-ai-template/docs/features/workflow-speed-and-mode-upgrade/security-handoff.md`
+- `migration-archive/old-ai-template/docs/features/workflow-speed-and-mode-upgrade/test-matrix.md`
+- `migration-archive/old-ai-template/docs/features/workflow-speed-and-mode-upgrade/tester-handoff.md`
+- `migration-archive/old-ai-template/docs/plans/2026-03-14-multi-agent-efficiency-plan.md`
+- `migration-archive/old-ai-template/docs/plans/2026-03-14-multi-agent-process-efficiency-plan.md`
+- `migration-archive/old-ai-template/docs/plans/2026-03-14-multi-agent-process-rollout/STAGE-01-item-1-plan-canonicalization.md`
+- `migration-archive/old-ai-template/docs/plans/2026-03-14-multi-agent-process-rollout/STAGE-02-item-2-handoff-source-digest.md`
+- `migration-archive/old-ai-template/docs/plans/2026-03-14-multi-agent-process-rollout/STAGE-03-item-5-run-log-wrapper-commands.md`
+- `migration-archive/old-ai-template/docs/plans/2026-03-14-multi-agent-process-rollout/STAGE-04-item-6-tester-gate-checker-boundary.md`
+- `migration-archive/old-ai-template/docs/plans/2026-03-14-multi-agent-process-rollout/STAGE-05-item-3-validation-cache.md`
+- `migration-archive/old-ai-template/docs/plans/2026-03-14-multi-agent-process-rollout/TRACKER.md`
+- `migration-archive/old-ai-template/docs/plans/2026-03-14-multi-agent-process-upgrade/01-item-1-plan-source-and-handoff-sync.md`
+- `migration-archive/old-ai-template/docs/plans/2026-03-14-multi-agent-process-upgrade/02-item-2-handoff-source-digest.md`
+- `migration-archive/old-ai-template/docs/plans/2026-03-14-multi-agent-process-upgrade/03-item-5-orchestration-wrapper-commands.md`
+- `migration-archive/old-ai-template/docs/plans/2026-03-14-multi-agent-process-upgrade/04-item-3-validation-cache.md`
+- `migration-archive/old-ai-template/docs/plans/2026-03-14-multi-agent-process-upgrade/05-item-6-tester-gate-checker-boundary.md`
+- `migration-archive/old-ai-template/docs/plans/2026-03-14-multi-agent-process-upgrade/06-item-4-structured-role-receipts.md`
+- `migration-archive/old-ai-template/docs/plans/2026-03-14-multi-agent-process-upgrade/TRACKER.md`
+- `migration-archive/old-ai-template/docs/plans/2026-03-14-multi-agent-structure-review.md`
+- `migration-archive/old-ai-template/scripts/_git_change_helpers.sh`
+- `migration-archive/old-ai-template/scripts/_role_receipt_helpers.sh`
+- `migration-archive/old-ai-template/scripts/_run_log_helpers.sh`
+- `migration-archive/old-ai-template/scripts/check-project-setup.sh`
+- `migration-archive/old-ai-template/scripts/ci/detect-feature.sh`
+- `migration-archive/old-ai-template/scripts/complete-feature.sh`
+- `migration-archive/old-ai-template/scripts/context-log.sh`
+- `migration-archive/old-ai-template/scripts/dispatch-heartbeat.sh`
+- `migration-archive/old-ai-template/scripts/dispatch-role.sh`
+- `migration-archive/old-ai-template/scripts/execution-mode.sh`
+- `migration-archive/old-ai-template/scripts/export-template.sh`
+- `migration-archive/old-ai-template/scripts/feature-packet.sh`
+- `migration-archive/old-ai-template/scripts/finish-role.sh`
+- `migration-archive/old-ai-template/scripts/gates/_helpers.sh`
+- `migration-archive/old-ai-template/scripts/gates/_validation_cache.sh`
+- `migration-archive/old-ai-template/scripts/gates/check-brief.sh`
+- `migration-archive/old-ai-template/scripts/gates/check-file-size.sh`
+- `migration-archive/old-ai-template/scripts/gates/check-handoffs.sh`
+- `migration-archive/old-ai-template/scripts/gates/check-implementer-ready.sh`
+- `migration-archive/old-ai-template/scripts/gates/check-packet.sh`
+- `migration-archive/old-ai-template/scripts/gates/check-plan.sh`
+- `migration-archive/old-ai-template/scripts/gates/check-project-context.sh`
+- `migration-archive/old-ai-template/scripts/gates/check-role-chain.sh`
+- `migration-archive/old-ai-template/scripts/gates/check-scope.sh`
+- `migration-archive/old-ai-template/scripts/gates/check-secrets.sh`
+- `migration-archive/old-ai-template/scripts/gates/check-test-matrix.sh`
+- `migration-archive/old-ai-template/scripts/gates/check-tests.sh`
+- `migration-archive/old-ai-template/scripts/gates/run.sh`
+- `migration-archive/old-ai-template/scripts/gates/size-exceptions.txt`
+- `migration-archive/old-ai-template/scripts/implementer-subtasks.sh`
+- `migration-archive/old-ai-template/scripts/promote-workflow.sh`
+- `migration-archive/old-ai-template/scripts/record-role-result.sh`
+- `migration-archive/old-ai-template/scripts/report-template-kpis.sh`
+- `migration-archive/old-ai-template/scripts/set-active-feature.sh`
+- `migration-archive/old-ai-template/scripts/stage-closeout.sh`
+- `migration-archive/old-ai-template/scripts/start-feature.sh`
+- `migration-archive/old-ai-template/scripts/sync-handoffs.sh`
+- `migration-archive/old-ai-template/scripts/workflow-mode.sh`
+- `migration-archive/old-ai-template/tests/check-tests-modes.test.sh`
+- `migration-archive/old-ai-template/tests/context-log.test.sh`
+- `migration-archive/old-ai-template/tests/dispatch-heartbeat.test.sh`
+- `migration-archive/old-ai-template/tests/execution-mode.test.sh`
+- `migration-archive/old-ai-template/tests/export-template.test.sh`
+- `migration-archive/old-ai-template/tests/gate-cache.test.sh`
+- `migration-archive/old-ai-template/tests/gates.test.sh`
+- `migration-archive/old-ai-template/tests/implementer-subtasks.test.sh`
+- `migration-archive/old-ai-template/tests/promote-workflow.test.sh`
+- `migration-archive/old-ai-template/tests/report-template-kpis.test.sh`
+- `migration-archive/old-ai-template/tests/run-log-ops.test.sh`
+- `migration-archive/old-ai-template/tests/stage-closeout.test.sh`
+- `migration-archive/old-ai-template/tests/start-feature.test.sh`
+- `migration-archive/old-ai-template/tests/sync-handoffs.test.sh`
+- `migration-archive/old-ai-template/tests/unit/smoke.test.mjs`
+- `migration-archive/old-ai-template/tests/workflow-mode.test.sh`
+- `scripts/_lib.sh`
+- `scripts/approve-task.sh`
+- `scripts/bootstrap-task.sh`
+- `scripts/check-context.sh`
+- `scripts/check-scope.sh`
+- `scripts/check-task.sh`
+- `scripts/ci/project-checks.sh`
+- `scripts/ci/run-ai-gate.sh`
+- `scripts/complete-task.sh`
+- `scripts/log-decision.sh`
+- `scripts/merge-task-pr.sh`
+- `scripts/open-task-pr.sh`
+- `scripts/record-task-feedback.sh`
+- `scripts/record-task-metrics.sh`
+- `scripts/refresh-current.sh`
+- `scripts/report-template-health.sh`
+- `scripts/review-independent.sh`
+- `scripts/review-quality.sh`
+- `scripts/review-scope.sh`
+- `scripts/run-task-checks.sh`
+- `scripts/setup-ci-profile.sh`
+- `scripts/start-task.sh`
+- `scripts/submit-task-plan.sh`
+- `stable-ai-dev-template/MIGRATION_REPORT.md`
+- `tests/smoke.sh`
+
+## Verification
+- verification-status: pass
+- verification-at-utc: 2026-04-08 00:40:48Z
+- verification-fingerprint: 57c0585a8be9030b8b254afb687eec8e80a205e88b3dea76bb95164b825d7620
+
+## Reviews
+- scope-review-status: pass
+- scope-review-at-utc: 2026-04-08 00:41:21Z
+- scope-review-fingerprint: 57c0585a8be9030b8b254afb687eec8e80a205e88b3dea76bb95164b825d7620
+- quality-review-status: pass
+- quality-review-at-utc: 2026-04-08 00:41:49Z
+- quality-review-fingerprint: 57c0585a8be9030b8b254afb687eec8e80a205e88b3dea76bb95164b825d7620

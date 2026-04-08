@@ -1,183 +1,103 @@
-# Codex Router Prompt
+# Task-Driven AI Dev Instructions
 
-This file is the thin router for this repository.
-Do not duplicate detailed role logic here.
+## Goal
 
-## Core Goal
-- Keep context small.
-- Prevent requirement loss.
-- Run work through explicit role contracts.
+Keep one live user request mapped to one task file and one PR flow while minimizing manual git and PR work.
 
-## Source of Truth
-1. `docs/agents/<role>.md` (role behavior)
-2. `docs/features/<feature-id>/*` (feature-scoped context)
-3. `docs/context/PROJECT.md` (actual project brief and constraints)
-4. `docs/context/ARCHITECTURE.md` (module boundaries)
-5. `docs/context/CONVENTIONS.md` (reuse, hardcoding, naming conventions)
-6. `docs/context/RULES.md` (implementer coding rules)
-7. `docs/context/GATES.md` (pass/fail policy)
-8. `test-guide.md` (test-writing style)
+## Repo Note
 
-If conflicts exist, higher item wins.
+- The live workflow is now the root task-driven template.
+- `migration-archive/old-ai-template/` is historical reference only and must not be treated as active workflow state.
+- `stable-ai-dev-template/` remains as the nested source bundle during migration stabilization.
 
-## Session Bootstrap (Mandatory)
-0. For a new implementation request, classify the feature risk first in `brief.md`:
-   - `Standard` (recommended): starts in workflow mode `Lite`
-   - `Trivial`: starts in workflow mode `Trivial`
-   - `High-Risk`: starts in workflow mode `Full`
-   Use the `## Risk Signals` checklist in `brief.md` to justify the route. If one or more signals are `yes`, the feature must be treated as `high-risk` and start in `full`.
-   Default execution mode is `Single`.
-   Ask the user only when overriding the default workflow route or enabling `Multi-Agent`. `Multi-Agent` may be executed only after the user explicitly chooses it. Once chosen, workflow mode and execution mode are locked until the user explicitly asks to change them.
-1. Run `scripts/context-log.sh resume-lite`.
-2. Run setup check once when bootstrapping a new project copy:
-   - `scripts/check-project-setup.sh`
-3. Read first:
-   - `docs/context/HANDOFF.md`
-   - `docs/context/CODEX_RESUME.md`
-4. Load shared docs by role, not all at once:
-   - `planner`: `docs/context/PROJECT.md`, `docs/context/ARCHITECTURE.md`, `docs/context/GATES.md`
-   - `implementer`: `docs/features/<feature-id>/implementer-handoff.md`, `docs/context/RULES.md`
-   - `tester`: `docs/features/<feature-id>/tester-handoff.md`, `docs/features/<feature-id>/test-matrix.md`, `docs/context/GATES.md`, `test-guide.md`
-   - `reviewer`: `docs/features/<feature-id>/reviewer-handoff.md`, implementer diff, gate output
-   - `security`: implementer diff, relevant config/env usage, `docs/features/<feature-id>/security-handoff.md`
-   - `gate-checker`: `docs/features/<feature-id>/plan.md`, `docs/context/GATES.md`
-   - `orchestrator`: `docs/context/PROJECT.md`, `docs/context/GATES.md` (state-machine/completion only), `docs/context/HANDOFF.md`, `docs/context/CODEX_RESUME.md`
-5. Open deep-dive only when needed:
-   - `docs/context/DECISIONS.md`
-   - latest `docs/context/sessions/*`
-   - `docs/context/DECISIONS_ARCHIVE.md`
+## Read Order
 
-## Role Routing Rule (Mandatory)
-- Use 7 roles: `orchestrator`, `planner`, `implementer`, `tester`, `gate-checker`, `reviewer`, `security`.
-- Context handoff rule:
-  - `planner` is the role that reads project intent and architecture deeply.
-  - `planner` also reads gate policy deeply so downstream handoffs already include verification expectations.
-  - downstream roles should prefer role-specific `*-handoff.md` files as the distilled handoff.
-  - downstream roles reopen upstream context docs only when a handoff file is insufficient, contradictory, or missing a required constraint.
-- Ownership rule:
-  - `brief.md` owns:
-    - risk class:
-      - `trivial`: lowest-risk route; may default to workflow mode `trivial`
-      - `standard`: default route; should start in workflow mode `lite`
-      - `high-risk`: requires workflow mode `full`
-    - workflow mode:
-      - `trivial`: `orchestrator -> planner -> implementer -> gate-checker`
-      - `lite`: `trivial` plus `tester`
-      - `full`: `lite` plus `reviewer -> security`
-    - execution mode:
-      - `single`: one lead agent may own multiple roles; bounded helper sub-agents are allowed
-      - `multi-agent`: explicit role-level delegation; role `agent-id` values must stay unique
-  - `planner` exclusively owns `docs/features/<feature-id>/plan.md` authoring.
-  - `planner` refreshes workflow-relevant handoffs by running `scripts/sync-handoffs.sh <feature-id>` after updating `plan.md`.
-  - `scripts/sync-handoffs.sh <feature-id>` also re-seeds `docs/features/<feature-id>/test-matrix.md` rows from the RQ list, updates handoff source digests, and removes handoff files that are not required for the active workflow mode.
-  - Before dispatching `implementer` in any workflow mode, `bash scripts/gates/check-implementer-ready.sh --feature <feature-id>` must pass; until then code edits are not allowed.
-  - `implementer` owns production/source/config edits and the baseline test updates needed for the feature.
-  - `tester` never edits production code.
-  - `trivial` mode skips `tester`; in that mode `implementer` finalizes `test-matrix.md`.
-  - `tester` may strengthen `tests/**` only in `full` mode when implementer coverage is insufficient; in `lite` mode tester should report gaps instead of editing tests.
-  - `tester` finalizes `docs/features/<feature-id>/test-matrix.md` before returning `PASS`.
-  - `reviewer` is the quality gate in `full` mode and must explicitly judge reuse/componentization, hardcoding/config centralization, and obvious performance waste.
-  - `plan.md` owns the implementer execution strategy:
-    - `serial`: one implementer agent edits all approved files.
-    - `parallel`: parent implementer may dispatch subworkers only across disjoint task-card file sets; parent implementer stays merge owner.
-  - `orchestrator` is orchestration-only and must not edit `plan.md`.
-- Each role must load only:
-  - its own role file in `docs/agents/`
-  - current feature packet in `docs/features/<feature-id>/`
-  - minimal shared docs required for that role
-- Never load all role files at once.
-- Runtime guard: if no meaningful progress signal appears within 45s, mark the role `AT_RISK` in `run-log.md` and notify the user.
-- Runtime guard: interrupt any role that stays in clarification mode >90s.
-- Runtime guard: mark role `BLOCKED` and re-dispatch if no actionable output by 120s.
-- Execution integrity:
-  - every role output must include `agent-id`
-  - in `multi-agent` execution mode, all dispatched role `agent-id` values must be unique
-  - in `single` execution mode, the same lead `agent-id` may appear across multiple roles
+1. `docs/context/CURRENT.md`
+2. `.context/active_task`
+3. `docs/tasks/<task-id>.md`
+4. `docs/context/PROJECT.md`
+5. `docs/context/ARCHITECTURE.md`
+6. `docs/context/CONVENTIONS.md`
+7. `docs/context/CI_PROFILE.md` only when the task touches git, PR, merge, verification policy, or CI
+8. `docs/context/DECISIONS.md` only when the task or diff depends on prior decisions
 
-## Dispatch Visibility Rule (Mandatory)
-- Before dispatching a role, orchestrator updates the monitor with:
-  - `scripts/dispatch-heartbeat.sh queue --feature <feature-id> <role> "<next action>"`
-  - or `scripts/dispatch-role.sh --feature <feature-id> <role> "<next action>"`
-- When a role actually starts, update with:
-  - `scripts/dispatch-heartbeat.sh start --feature <feature-id> <role> "<first concrete action>"`
-- While a role is running, update with:
-  - `scripts/dispatch-heartbeat.sh progress|risk|blocked|done --feature <feature-id> <role> "<file/command/blocker>"`
-- To write the role output block in `run-log.md`, prefer:
-  - `scripts/record-role-result.sh --feature <feature-id> <role> --agent-id <id> --scope "<scope>" --rq-covered "<rq>" --rq-missing "<rq>" --result PASS|FAIL|BLOCKED --evidence "<evidence>" --next-action "<next>" --touched-files "<project files intentionally edited or []>"`
-- `touched-files` policy:
-  - `orchestrator`: feature/context docs only when non-empty
-  - `planner`: current feature packet docs only
-  - `implementer`: `plan.md` target files only, plus `docs/features/<feature-id>/test-matrix.md` in `trivial` mode
-  - `tester`: `test-matrix.md`, plus `tests/**` only in `full` mode
-  - `gate-checker`, `reviewer`, `security`: `[]`
-- To finish a role and queue the next one in one step, prefer:
-  - `scripts/finish-role.sh --feature <feature-id> <role> "<done message>" --next-role <role> --next-action "<next action>"`
-- To inspect the active feature monitor from terminal:
-  - `scripts/dispatch-heartbeat.sh show`
-- Every role must produce a first meaningful progress signal within 30 seconds.
-- Meaningful progress means one of:
-  - file(s) being inspected
-  - file(s) being edited
-  - test command being run
-  - gate command being run
-  - concrete blocker with next action
-- Phrases like "thinking", "checking", or "looking around" are not meaningful progress.
-- User waiting rule: keep waiting only when the latest progress update is <=45s old and names a concrete file, command, or blocker.
+## Intake Rule
 
-## Feature Packet Rule (Mandatory)
-- Every implementation request maps to one feature packet:
-  - `docs/features/<feature-id>/brief.md`
-  - `docs/features/<feature-id>/plan.md`
-  - `docs/features/<feature-id>/implementer-handoff.md`
-  - `docs/features/<feature-id>/test-matrix.md`
-  - `docs/features/<feature-id>/run-log.md`
-- Mode-specific packet files:
-  - `trivial`: no additional handoff files beyond `implementer-handoff.md`
-  - `lite`: additionally requires `docs/features/<feature-id>/tester-handoff.md`
-  - `full`: additionally requires `docs/features/<feature-id>/tester-handoff.md`, `docs/features/<feature-id>/reviewer-handoff.md`, `docs/features/<feature-id>/security-handoff.md`
-- If packet does not exist, create it from `docs/features/_template/`.
-- Use `scripts/start-feature.sh <feature-id>` as the only workflow entry.
-- To inspect or set workflow mode:
-  - `scripts/workflow-mode.sh show --feature <feature-id>`
-  - `scripts/workflow-mode.sh role-sequence --feature <feature-id>`
-- Before dispatching `implementer`:
-  - `bash scripts/gates/check-implementer-ready.sh --feature <feature-id>`
-- To inspect or set execution mode:
-  - `scripts/execution-mode.sh show --feature <feature-id>`
-- To promote a running feature in place:
-  - `scripts/promote-workflow.sh --feature <feature-id> <trivial|lite|full> --reason "<why>"`
-- `scripts/set-active-feature.sh <feature-id>` is allowed only for switching an existing packet.
+- Default policy: one user-visible change cluster per task.
+- If a request contains multiple independent clusters, recommend splitting before implementation.
+- Recommend splitting when changes touch different screens, domains, risks, verification paths, rollout paths, or likely follow-up paths.
+- If the user explicitly insists on bundling, record that in the task intake fields, raise review depth, and avoid `trivial` risk.
 
-## Context Logging Rule (Mandatory)
-- Only orchestrator may run:
-  - `scripts/context-log.sh note`
-  - `scripts/context-log.sh decision`
-  - `scripts/context-log.sh finish`
-- Other roles must not write context docs directly.
+## User-Facing Split Copy
 
-## End of Request (Mandatory)
-- Orchestrator publishes final summary: `RQ covered`, `RQ missing`, key evidence, next action.
-- Then run:
-  - `scripts/complete-feature.sh <feature-id> "<summary>" "<next-step>"`
-- If the user asks for commit/PR/git cleanup, run `complete-feature.sh` before the final clean-tree check.
-- `complete-feature.sh` stages changed closeout files for the active feature and current completion session by default so `run-log.md`, role receipts, and context-log outputs do not leave a false dirty worktree after completion.
-- Use `scripts/complete-feature.sh --no-stage-closeout ...` only when the caller explicitly wants those closeout files left unstaged.
+Use short guidance like:
 
-## CI Enforcement (Mandatory)
-- PR must pass `Gates` workflow.
-- `Gates` runs `scripts/gates/run.sh <feature-id>` and fails when any required check fails:
-  - `project-context`
-  - `brief`
-  - `plan`
-  - `handoffs`
-  - `packet`
-  - `role-chain` (including execution-mode `agent-id` rules)
-  - `test-matrix`
-  - `scope`
-  - `file-size`
-  - `tests`
-  - `secrets`
-- Any single FAIL blocks feature completion and PR merge.
-- New-project setup alerts must verify:
-  - GitHub Actions is enabled.
-  - Branch protection requires `Gates` check.
+- "이 요청은 기능이 여러 개 섞여 있어서 한 번에 묶는 것보다 나눠서 처리하는 편이 더 빠릅니다."
+- "이유는 검증, PR 리뷰, merge, 후속 수정까지 전체 리드타임이 줄기 때문입니다."
+- "원하면 제가 작업 단위를 1. 2. 3.으로 나눠서 첫 번째부터 바로 진행하겠습니다."
+
+## Core Task Rule
+
+- One live request = one `docs/tasks/<task-id>.md` file = one PR flow.
+- Do not create separate PR tasks, merge tasks, or cleanup tasks for the same request.
+- The task file is the only request-scoped contract.
+- The task defines both file scope and intent scope.
+
+## State Machine
+
+- `planning -> awaiting_approval -> approved -> in_progress -> review -> done`
+- Use scripts for all state transitions.
+- Do not hand-edit state fields directly.
+- Do not edit implementation files before approval and `start-task`.
+
+## Branch Strategy
+
+- Default strategy: `publish-late`
+- `publish-late` allows uncommitted work on the base branch.
+- `publish-late` forbids local commits on the base branch.
+- Before the first commit in `publish-late`, explicitly create or switch to the task branch.
+- Normal `publish-late` flow:
+  1. work on the base branch with uncommitted task-owned changes
+  2. create or switch to the task branch
+  3. stage approved files explicitly
+  4. create the commit explicitly
+  5. run `open-task-pr`
+- Use `early-branch` for long-running, mixed, checkpoint-heavy, or parallelizable work.
+- `open-task-pr` is publish-only. It does not create branches, stage files, or create commits.
+
+## Scope Rule
+
+Only edit target files plus workflow internal files:
+
+- `docs/tasks/<task-id>.md`
+- `docs/context/CURRENT.md`
+- `.context/active_task`
+- `.context/tasks/<task-id>/*`
+- `docs/context/DECISIONS.md` only when the task truly records a reusable decision
+
+## Verification And Review Rule
+
+- Runtime receipts live only under `.context/tasks/<task-id>/*`.
+- Runtime receipts are not tracked in git.
+- The task file stores human-readable verification and review summary fields.
+- `complete-task` requires fresh PASS runtime receipts for verification, scope review, and quality review.
+- If the task contract or scoped diff changes, old runtime receipts are stale.
+
+## PR And Merge Rule
+
+- `open-task-pr` publishes an already committed task branch.
+- `merge-task-pr` is the default merge path.
+- PR body must include explicit `Task-ID` metadata.
+- CI resolves the task by PR body `Task-ID` first and by changed task file only as fallback.
+- `merge-task-pr` must verify:
+  - the PR is open
+  - the base branch matches the task
+  - the PR body `Task-ID` matches the task
+  - the latest PR head SHA has all required checks green
+- After merge, sync local base branch and clean local and remote task branches.
+
+## Session Reset Rule
+
+- Do not scan the whole repo on a new session.
+- Read `CURRENT -> active_task -> task file -> PROJECT -> ARCHITECTURE -> CONVENTIONS`.
+- Use `CURRENT.md` as the default resume surface.
