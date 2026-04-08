@@ -3,15 +3,15 @@
 > Normal PR rule: one PR should map to one live task file.
 
 ## Status
-- state: planning
+- state: done
 - owner: ai
 - risk-level: standard
-- updated-at-utc: 2026-04-08 03:00:00Z
+- updated-at-utc: 2026-04-08 03:12:32Z
 
 ## Approval
-- approved-by: pending
-- approved-at-utc: pending
-- approval-note: pending
+- approved-by: user
+- approved-at-utc: 2026-04-08 03:00:58Z
+- approval-note: Approved in chat on 2026-04-07 America/Los_Angeles for stable bundle sync and legacy cleanup.
 
 ## Intake
 - user-visible-change-clusters: 1
@@ -335,6 +335,7 @@
 - `migration-archive/old-ai-template/tests/sync-handoffs.test.sh`
 - `migration-archive/old-ai-template/tests/unit/smoke.test.mjs`
 - `migration-archive/old-ai-template/tests/workflow-mode.test.sh`
+- `scripts/_lib.sh`
 - `scripts/check-template-sync.sh`
 - `scripts/merge-task-pr.sh`
 - `stable-ai-dev-template/.gitignore`
@@ -379,25 +380,25 @@
 - `bash stable-ai-dev-template/tests/smoke.sh`
 
 ## Verification Status
-- verification-status: pending
-- verification-note: pending
-- verification-at-utc: pending
-- verification-fingerprint: pending
+- verification-status: pass
+- verification-note: verification passed; see .context/tasks/sync-stable-template-bundle/verification.log
+- verification-at-utc: 2026-04-08 03:11:39Z
+- verification-fingerprint: 560110698b20befc7aa04975b810aaeac5439814670a17b277672fe48a0fd3e1
 
 ## Review Status
-- scope-review-status: pending
-- scope-review-note: pending
-- scope-review-at-utc: pending
-- scope-review-fingerprint: pending
-- quality-review-status: pending
-- quality-review-note: pending
-- quality-review-at-utc: pending
-- quality-review-fingerprint: pending
-- reuse-review: pending
-- hardcoding-review: pending
-- tests-review: pending
-- request-scope-review: pending
-- risk-controls-review: pending
+- scope-review-status: pass
+- scope-review-note: scope matches the approved root and bundle sync cleanup
+- scope-review-at-utc: 2026-04-08 03:11:59Z
+- scope-review-fingerprint: 560110698b20befc7aa04975b810aaeac5439814670a17b277672fe48a0fd3e1
+- quality-review-status: pass
+- quality-review-note: quality checks passed for the canonical bundle sync cleanup
+- quality-review-at-utc: 2026-04-08 03:12:13Z
+- quality-review-fingerprint: 560110698b20befc7aa04975b810aaeac5439814670a17b277672fe48a0fd3e1
+- reuse-review: pass
+- hardcoding-review: pass
+- tests-review: pass
+- request-scope-review: pass
+- risk-controls-review: n/a
 
 ## Git / PR
 - base-branch: main
@@ -405,10 +406,10 @@
 - pr-metadata-policy: required
 
 ## Session Resume
-- current focus: finish the cleanup task contract, refresh verification, and republish the PR metadata
-- next action: submit the plan, record approval, run verification and reviews, then update the open PR body
+- current focus: task completed; ready to publish from the task branch
+- next action: update PR #3, push the branch, wait for AI Gate, then merge and sync local main
 - known risks: the diff is large, CI task detection is strict about changed task files, and root/nested parity must stay exact
 
 ## Completion
-- summary: pending
-- follow-up: pending
+- summary: made the nested stable bundle canonical, kept the root mirrored to it, and removed the legacy template trees
+- follow-up: update PR #3, push the branch, wait for AI Gate, then merge and sync local main
