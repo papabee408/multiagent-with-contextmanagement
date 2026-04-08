@@ -12,6 +12,13 @@ Create one task file per live user request:
 - If the request mixes independent features, recommend splitting before implementation.
 - The task file defines both file scope and intent scope.
 
+## Follow-up Routing
+
+- If a follow-up arrives while the current task is `planning`, `awaiting_approval`, `approved`, or `in_progress`, decide whether it is still the same change cluster before editing code.
+- Update the current task first when the follow-up keeps the same goal and PR flow, and revise `Goal`, `Target Files`, `Verification Commands`, and `risk-level` before implementation if the contract changes.
+- If the task is already `review` or `done`, or the follow-up materially changes verification, risk, or review path, open a new task instead of widening the old one.
+- When uncertain, choose a new task.
+
 ## State Machine
 
 `planning -> awaiting_approval -> approved -> in_progress -> review -> done`

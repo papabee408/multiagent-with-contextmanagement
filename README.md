@@ -105,3 +105,12 @@ If a request mixes multiple independent features, recommend splitting first. Use
 - "이 요청은 기능이 여러 개 섞여 있어서 한 번에 묶는 것보다 나눠서 처리하는 편이 더 빠릅니다."
 - "이유는 검증, PR 리뷰, merge, 후속 수정까지 전체 리드타임이 줄기 때문입니다."
 - "원하면 제가 작업 단위를 1. 2. 3.으로 나눠서 첫 번째부터 바로 진행하겠습니다."
+
+## Follow-up Routing
+
+When a small extra request appears during a task, make the routing decision before coding:
+
+- If the task is still `planning`, `awaiting_approval`, `approved`, or `in_progress`, update that task only when the follow-up keeps the same goal and PR flow.
+- Before absorbing the follow-up, revisit `Goal`, `Target Files`, `Verification Commands`, and `risk-level`.
+- If the task is already `review` or `done`, or the follow-up materially changes verification, risk, or review path, bootstrap a new task.
+- When unsure, open a new task. That is usually faster than fixing the wrong task and PR later.
