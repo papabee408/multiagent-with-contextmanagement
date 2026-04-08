@@ -114,6 +114,7 @@
 - hardcoding-review: pass
 - tests-review: pass
 - request-scope-review: pass
+- architecture-review: pass
 - risk-controls-review: n/a
 
 ## Git / PR

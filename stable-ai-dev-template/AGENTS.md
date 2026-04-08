@@ -15,6 +15,14 @@ Keep one live user request mapped to one task file and one PR flow while minimiz
 7. `docs/context/CI_PROFILE.md` only when the task touches git, PR, merge, verification policy, or CI
 8. `docs/context/DECISIONS.md` only when the task or diff depends on prior decisions
 
+## Architecture-First Rule
+
+- Before implementation, map the change to existing boundaries in `docs/context/ARCHITECTURE.md`.
+- If a boundary does not exist, define a narrow new module boundary in the task plan before editing code.
+- Do not keep adding logic to files that already mix multiple concerns; extract responsibilities first.
+- Keep presentation/entry logic, domain logic, and IO/integration logic separated.
+- Prefer composable modules over all-in-one files so each file has one primary reason to change.
+
 ## Intake Rule
 
 - Default policy: one user-visible change cluster per task.
@@ -74,6 +82,7 @@ Only edit target files plus workflow internal files:
 - Runtime receipts live only under `.context/tasks/<task-id>/*`.
 - Runtime receipts are not tracked in git.
 - The task file stores human-readable verification and review summary fields.
+- Quality review notes must explicitly confirm architecture boundary placement for changed code.
 - `complete-task` requires fresh PASS runtime receipts for verification, scope review, and quality review.
 - If the task contract or scoped diff changes, old runtime receipts are stale.
 

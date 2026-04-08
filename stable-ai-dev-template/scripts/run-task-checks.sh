@@ -74,7 +74,7 @@ if [[ "$result" != "PASS" ]]; then
 fi
 
 replace_key_value_or_exit "$TASK_FILE" "## Session Resume" "current focus" "verification recorded for the current approved diff"
-replace_key_value_or_exit "$TASK_FILE" "## Session Resume" "next action" "run bash scripts/review-scope.sh $TASK_ID and bash scripts/review-quality.sh $TASK_ID"
+replace_key_value_or_exit "$TASK_FILE" "## Session Resume" "next action" "run bash scripts/review-scope.sh $TASK_ID and bash scripts/review-quality.sh $TASK_ID --summary \"<quality note>\" --architecture pass ..."
 
 bash "$ROOT_DIR/scripts/refresh-current.sh" "$TASK_ID" >/dev/null
 

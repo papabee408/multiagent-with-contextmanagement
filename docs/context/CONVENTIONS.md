@@ -11,6 +11,12 @@
 - Centralize externally meaningful constants and config.
 - Do not scatter magic values across production code.
 
+## Architecture Hygiene
+- Keep one primary responsibility per file and split files when responsibilities diverge.
+- Keep domain/business rules outside handlers, views, and transport adapters.
+- Isolate IO boundaries so external integration code does not leak through core logic.
+- Prefer small, explicit modules over broad utility files that accumulate mixed concerns.
+
 ## Testing
 - Every behavior change needs explicit verification commands in the task.
 - Cover normal, error, and boundary paths unless the task explicitly limits scope.

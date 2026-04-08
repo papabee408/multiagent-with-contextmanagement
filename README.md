@@ -8,6 +8,7 @@ This template is for long-running AI-assisted product development where sessions
 - One live request mapped to one task file and one PR flow
 - Explicit approval before implementation starts
 - Narrow file scope and narrow request intent
+- Architecture-safe incremental changes through explicit boundary checks
 - Runtime-only receipts with fresh verification and review gating
 - Minimal operator git work through explicit publish and explicit manual merge
 
@@ -69,7 +70,7 @@ bash scripts/start-task.sh <task-id>
 ```bash
 bash scripts/run-task-checks.sh <task-id>
 bash scripts/review-scope.sh <task-id> --summary "<scope note>"
-bash scripts/review-quality.sh <task-id> --summary "<quality note>" ...
+bash scripts/review-quality.sh <task-id> --summary "<quality note>" --architecture pass ...
 bash scripts/complete-task.sh <task-id> "<summary>" "<next-step>"
 ```
 

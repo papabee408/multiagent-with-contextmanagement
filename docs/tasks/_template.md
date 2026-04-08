@@ -31,6 +31,11 @@
 ## Implementation Plan
 - Step 1: <replace>
 
+## Architecture Notes
+- intended module boundaries: <replace>
+- dependency direction: <replace>
+- extraction/refactor triggers in touched files: <replace>
+
 ## Target Files
 - `path/to/file`
 
@@ -72,6 +77,7 @@
 - hardcoding-review: pending
 - tests-review: pending
 - request-scope-review: pending
+- architecture-review: pending
 - risk-controls-review: pending
 
 ## Git / PR
