@@ -1,6 +1,6 @@
 # Current Snapshot
 
-- last-updated-utc: 2026-04-08 03:34:37Z
+- last-updated-utc: 2026-04-08 04:14:20Z
 - active-task: sync-stable-template-bundle
 - active-task-file: docs/tasks/sync-stable-template-bundle.md
 
@@ -36,8 +36,6 @@
 ## Effective Changed Files
 - `.gitignore`
 - `AGENTS.md`
-- `MIGRATE_EXISTING_PROJECT.md`
-- `MIGRATION_ROLLOUT_PLAYBOOK.md`
 - `README.md`
 - `docs/context/CONVENTIONS.md`
 - `docs/context/CURRENT.md`

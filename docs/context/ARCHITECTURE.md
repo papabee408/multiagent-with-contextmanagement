@@ -10,7 +10,7 @@
 - Root task scripts own state transitions, verification receipts, and PR automation.
 - Task contracts under `docs/tasks/` own request scope, verification commands, and review summaries.
 - Context docs under `docs/context/` own reusable repo policy, not request-local state.
-- `migration-archive/old-ai-template/` and `stable-ai-dev-template/` are reference trees and must not be imported as live runtime dependencies.
+- `stable-ai-dev-template/` mirrors the live template for copy/bootstrap workflows and must not be imported as a runtime dependency.
 
 ## Dependency Rules
 - allowed: workflow entrypoints call shared shell helpers, read task/context docs, and read local `.context/` runtime state
