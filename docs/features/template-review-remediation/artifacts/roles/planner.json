@@ -1,0 +1,22 @@
+{
+  "kind": "role-result",
+  "role": "planner",
+  "agent_id": "plan-remediation-01",
+  "scope": "docs/features/template-review-remediation/plan.md, docs/features/template-review-remediation/implementer-handoff.md, docs/features/template-review-remediation/tester-handoff.md, docs/features/template-review-remediation/reviewer-handoff.md, docs/features/template-review-remediation/security-handoff.md, docs/features/template-review-remediation/test-matrix.md, docs/features/template-review-remediation/run-log.md",
+  "rq_covered": "[RQ-001, RQ-002, RQ-003, RQ-004, RQ-005]",
+  "rq_missing": "[]",
+  "result": "PASS",
+  "evidence": "edited docs/features/template-review-remediation/plan.md, ran scripts/sync-handoffs.sh template-review-remediation, scripts/gates/check-plan.sh template-review-remediation, scripts/gates/check-handoffs.sh template-review-remediation, and scripts/gates/check-implementer-ready.sh --feature template-review-remediation",
+  "next_action": "implementer",
+  "touched_files": [
+    "docs/features/template-review-remediation/plan.md",
+    "docs/features/template-review-remediation/implementer-handoff.md",
+    "docs/features/template-review-remediation/tester-handoff.md",
+    "docs/features/template-review-remediation/reviewer-handoff.md",
+    "docs/features/template-review-remediation/security-handoff.md",
+    "docs/features/template-review-remediation/test-matrix.md",
+    "docs/features/template-review-remediation/run-log.md"
+  ],
+  "input_digest": "f2fbeb911eb600b287258762e3aae050e8719f439fd88cdc6dada8894ff452b5",
+  "updated_at_utc": "2026-03-27 03:05:14Z"
+}

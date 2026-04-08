@@ -7,13 +7,14 @@ source "$ROOT_DIR/scripts/_run_log_helpers.sh"
 FEATURE_ID=""
 MODE_VALUE=""
 RATIONALE_VALUE=""
+ALLOW_CHANGE=0
 
 usage() {
   cat <<'EOF'
 Usage:
   scripts/workflow-mode.sh show [--feature <feature-id>]
   scripts/workflow-mode.sh role-sequence [--feature <feature-id>]
-  scripts/workflow-mode.sh set [--feature <feature-id>] <lite|full> [--reason "<why this mode fits>"]
+  scripts/workflow-mode.sh set [--feature <feature-id>] [--allow-change] <trivial|lite|full> [--reason "<why this mode fits>"]
 EOF
 }
 
@@ -52,19 +53,26 @@ replace_brief_key_or_exit() {
   mv "$tmp_file" "$file"
 }
 
-current_reason_or_default() {
-  local feature_id="$1"
-  local brief_file="$ROOT_DIR/docs/features/$feature_id/brief.md"
-  local current_reason=""
+default_reason_for_mode() {
+  case "${1:-}" in
+    trivial)
+      printf '%s' "small, low-risk path that stops at gate-checker"
+      ;;
+    lite)
+      printf '%s' "balanced default path with tester verification and no reviewer/security stage"
+      ;;
+    full)
+      printf '%s' "higher-risk or broader change keeps reviewer and security required"
+      ;;
+    *)
+      printf '%s' ""
+      ;;
+  esac
+}
 
-  source "$ROOT_DIR/scripts/gates/_helpers.sh" "$feature_id"
-  current_reason="$(workflow_rationale_from_brief)"
-  if is_placeholder_text "$current_reason"; then
-    printf '%s' "selected during feature bootstrap"
-    return 0
-  fi
-
-  printf '%s' "$current_reason"
+current_mode_is_locked() {
+  local current_mode="$1"
+  [[ -n "$current_mode" ]]
 }
 
 COMMAND="${1:-}"
@@ -91,6 +99,10 @@ while [[ $# -gt 0 ]]; do
         exit 1
       fi
       shift 2
+      ;;
+    --allow-change)
+      ALLOW_CHANGE=1
+      shift
       ;;
     -h|--help)
       usage
@@ -131,16 +143,22 @@ case "$COMMAND" in
       exit 1
     fi
     case "$MODE_VALUE" in
-      lite|full)
+      trivial|lite|full)
         ;;
       *)
-        echo "[ERROR] workflow mode must be lite or full" >&2
+        echo "[ERROR] workflow mode must be trivial, lite, or full" >&2
         exit 1
         ;;
     esac
 
+    current_mode="$(workflow_mode_from_brief)"
+    if current_mode_is_locked "$current_mode" && [[ "$current_mode" != "$MODE_VALUE" && "$ALLOW_CHANGE" != "1" ]]; then
+      echo "[ERROR] workflow mode is locked after bootstrap. Use --allow-change only when the user explicitly approved a mode change." >&2
+      exit 1
+    fi
+
     if [[ -z "$RATIONALE_VALUE" ]]; then
-      RATIONALE_VALUE="$(current_reason_or_default "$FEATURE_ID")"
+      RATIONALE_VALUE="$(default_reason_for_mode "$MODE_VALUE")"
     fi
 
     replace_brief_key_or_exit "$BRIEF_FILE" "## Workflow Mode" "mode" "\`$MODE_VALUE\`"

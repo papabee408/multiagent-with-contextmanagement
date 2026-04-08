@@ -30,13 +30,19 @@
 scripts/context-log.sh resume-lite
 scripts/start-feature.sh <feature-id>
 scripts/workflow-mode.sh show --feature <feature-id>
+scripts/execution-mode.sh show --feature <feature-id>
 scripts/sync-handoffs.sh <feature-id>
+bash scripts/gates/check-implementer-ready.sh --feature <feature-id>
 ```
 
 - `resume-lite`: 직전 handoff와 resume snapshot을 만든다.
+- 새 구현 요청은 기본적으로 `standard -> lite -> single`로 시작하고, `brief.md`의 risk-signal checklist로 `trivial` 또는 `high-risk -> full` 여부를 판단한다.
+- 사용자는 기본 route를 바꾸거나 `Multi-Agent`를 켤 때만 명시적으로 선택하면 된다.
 - `start-feature.sh`: feature packet을 만들거나 활성 feature로 전환한다.
-- `workflow-mode.sh show`: 현재 feature가 `lite`인지 `full`인지와 role chain 기준을 확인한다.
+- `workflow-mode.sh show`: 현재 feature가 `trivial`, `lite`, `full` 중 어느 role chain인지 확인한다.
+- `execution-mode.sh show`: 현재 feature가 `single`, `multi-agent` 중 어떤 실행 소유권 모드인지 확인한다.
 - `sync-handoffs.sh`: `plan.md`와 `brief.md`를 기준으로 handoff 4종과 `test-matrix.md` source digest를 다시 생성한다.
+- `check-implementer-ready.sh`: `brief`, `plan`, `handoffs`가 모두 PASS인지 먼저 확인한다. `implementer`는 이 preflight 전에는 queue 되면 안 된다.
 - `implementer-subtasks.sh list|validate`: `plan.md`가 `parallel` implementer mode일 때 task card 단위 worker package를 확인한다.
 
 ### 2. 지금 에이전트가 뭘 하는지 보기
@@ -86,6 +92,7 @@ scripts/finish-role.sh <role> "<done message>" --next-role <role> --next-action 
 bash scripts/gates/check-tests.sh --feature
 bash scripts/gates/check-tests.sh --infra
 bash scripts/gates/check-tests.sh --full
+scripts/gates/run.sh --fast <feature-id>
 scripts/gates/run.sh
 scripts/gates/run.sh <feature-id>
 scripts/gates/run.sh --reuse-if-valid <feature-id>
@@ -94,9 +101,11 @@ scripts/gates/run.sh --reuse-if-valid <feature-id>
 - `check-tests.sh --feature`: tester용 feature-facing test 실행
 - `check-tests.sh --infra`: template/gate/dispatch 같은 infra smoke 실행
 - `check-tests.sh --full`: 전체 로컬 회귀 실행
+- `gates/run.sh --fast`: 로컬 반복 루프용 빠른 gate. role-chain/test-matrix/final approval 검사는 생략하고 feature test만 우선 본다.
 - `gates/run.sh`: packet, handoffs, role-chain, test-matrix, scope, file-size, tests, secrets 확인
   - 추가로 `project-context`, `brief`, `plan`까지 확인해 오래된 문서/누락된 요구사항/재사용 계획 누락을 잡는다.
 - `run.sh --reuse-if-valid`: 최근 PASS gate receipt가 현재 fingerprint와 같으면 전체 gate를 재사용한다.
+- tester/gate-checker/reviewer/security approval hash는 `HANDOFF.md`, `CODEX_RESUME.md`, session log 같은 closeout 운영 파일 때문에 stale 되지 않도록 approval target에서 제외된다.
 
 ### 5. 작업 완료 기록
 
@@ -105,6 +114,9 @@ scripts/complete-feature.sh <feature-id> "<summary>" "<next-step>"
 ```
 
 - `complete-feature.sh`는 내부에서 `scripts/gates/run.sh --reuse-if-valid <feature-id>`를 호출해 불필요한 중복 gate를 줄인다.
+- 완료 과정에서 바뀐 `run-log.md`, 현재 feature role receipt, `HANDOFF/CODEX_RESUME/MAINTENANCE_STATUS`, 현재 completion 세션 로그 같은 closeout 파일도 기본으로 stage한다.
+- 그래서 `커밋`, `PR 생성`, `git status clean 확인`은 `complete-feature.sh` 다음에 두는 것이 기준 순서다.
+- closeout 파일을 일부러 unstaged로 남겨야 할 때만 `scripts/complete-feature.sh --no-stage-closeout ...`를 쓴다.
 
 ## 언제 어떤 명령을 쓰나
 
@@ -112,19 +124,39 @@ scripts/complete-feature.sh <feature-id> "<summary>" "<next-step>"
 
 ```bash
 scripts/start-feature.sh <feature-id>
+scripts/start-feature.sh --workflow-mode lite --execution-mode single <feature-id>
 ```
+
+- 위 `start-feature.sh` mode 인자는 "새 packet 생성 시점"에만 쓴다. 기본 생성은 `standard -> lite -> single`이므로, 명시적 mode 인자는 override가 필요할 때만 쓴다.
+- 이미 있는 feature는 `start-feature.sh`로 mode를 바꾸지 않는다. 기존 feature 전환은 `set-active-feature.sh`, workflow 승격은 `promote-workflow.sh`, 그 외 승인된 mode 변경은 `workflow-mode.sh` / `execution-mode.sh`의 `--allow-change` 경로를 사용한다.
 
 ### 진행 중인 feature를 바꿀 때
 
 ```bash
 scripts/set-active-feature.sh <feature-id>
+scripts/execution-mode.sh show --feature <feature-id>
+scripts/promote-workflow.sh --feature <feature-id> <trivial|lite|full> --reason "<why>"
 ```
+
+- workflow/execution mode는 시작 후 잠긴다.
+- mode 변경은 사용자가 명시적으로 승인한 경우에만 `--allow-change` 경로로 수행해야 한다.
+- `promote-workflow.sh`는 upward change만 허용한다.
 
 ### gate만 다시 확인하고 싶을 때
 
 ```bash
 scripts/gates/run.sh
 ```
+
+### workflow 운영 지표를 보고 싶을 때
+
+```bash
+bash scripts/report-template-kpis.sh
+scripts/context-log.sh monthly
+```
+
+- `report-template-kpis.sh`: 현재 feature packet들을 기준으로 risk mix, workflow mix, override 비율, full gate PASS coverage, 평균 planner->gate-checker 소요 시간을 본다.
+- `context-log.sh monthly`: 위 KPI 요약을 `docs/context/MAINTENANCE_STATUS.md`에 context maintenance 정보와 함께 기록한다.
 
 ### test-matrix / run-log 규칙이 잘 지켜지는지 보고 싶을 때
 

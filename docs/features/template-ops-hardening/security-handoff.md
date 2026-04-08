@@ -7,18 +7,21 @@
 - plan-sha: e399a69c0ad3cf6a38350364e14274cd6ed854f903d6a6a538445094572baa17
 - project-context-sha: ecca12d92cc35ce868121156749e28d9e88d062a0da9d755e5b9c498b7d845ac
 - architecture-sha: 1c26799c1924e637673f787dcdc39b9629ed412be609d7e917ce0b668dd92be1
-- gates-sha: 4a5c2a3c55503e74a45ae00292f2f4aae6e5f13ac000fdad3f43bfdfc28f7773
-- sync-script-sha: 4d96b37385fb134061205d91aac52c6b1dfd9d12cc74bee3ef897c442e532bdd
-- generated-at-utc: 2026-03-15 20:00:11Z
+- gates-sha: 33bb0866e23e5f2331bf12fcebe12ad7ab87cd050102bec017f0dda24b44b5e4
+- sync-script-sha: 5275e9cbf78d8d5aea2d37ea4057a0810d9225b8a4377ac81fee61a8cdaccbbd
+- generated-at-utc: 2026-03-27 02:47:04Z
 
 ## Focus
 - workflow mode: full
+- execution mode: TBD
 - validation / auth focus: Keep the repo mapped to exactly one feature packet for this change.
+- approval target: current final diff plus the same approval-target hash reviewed by reviewer; stale approvals must fail before completion
 - secrets / config touchpoints: role names, gate names, monitor statuses, RQ/test-matrix metadata semantics; gate names, role names, monitor field names, status enums
 - abuse / failure paths: No product feature work outside the template itself; gate validation logic should stay in shell scripts and must not introduce product-runtime coupling; production code outside template operations/docs
 
 ## Acceptance
 - fail conditions: hardcoded values violate brief requirement notes, centralized config is bypassed, or forbidden dependency paths from `plan.md` are introduced
+- approval binding: security receipt must record the current approval-target hash; any later approval-target change invalidates the security approval automatically
 
 ## Manual Notes
 - Edit `brief.md` or `plan.md` and rerun `scripts/sync-handoffs.sh` if generated defaults need to change.

@@ -1,0 +1,10 @@
+{
+  "kind": "full-gate",
+  "feature_id": "template-speed-risk-routing",
+  "fingerprint": "ce7bf0abf851bc26ee506c570342e7e5dced1a767c79700c4dd4a1a2350d7b9e",
+  "result": "PASS",
+  "tests_fingerprint": "8f920ef8c48c2b74352192daf34548a3b89944e86477ae87e977fbec604974c1",
+  "command": "scripts/gates/run.sh template-speed-risk-routing",
+  "executed_at_utc": "2026-03-27 04:16:25Z",
+  "script_sha": "8314e7665b292655357d779cc3c9092e6773fc767557891cd35ad351790aad18"
+}

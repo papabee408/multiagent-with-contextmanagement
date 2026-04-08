@@ -1,0 +1,10 @@
+{
+  "kind": "full-gate",
+  "feature_id": "template-core-trust-hardening",
+  "fingerprint": "020ba5dfdc60a6ad1852aff4eac282a8b5beeab3a84d6657b5f29bbf603ea518",
+  "result": "PASS",
+  "tests_fingerprint": "697294b04df909839738a06b0157585d5537392667f2f986f54ca23da06aacf7",
+  "command": "scripts/gates/run.sh template-core-trust-hardening",
+  "executed_at_utc": "2026-03-27 08:42:41Z",
+  "script_sha": "d94a215c863e4601f41844a39559976d7abc7c9b8eb48df38a318e5103562dc0"
+}

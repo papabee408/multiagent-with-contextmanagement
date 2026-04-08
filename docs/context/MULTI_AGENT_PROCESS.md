@@ -77,12 +77,15 @@ scripts/context-log.sh resume-lite
 
 ```bash
 scripts/start-feature.sh <feature-id>
+scripts/start-feature.sh --workflow-mode lite --execution-mode single <feature-id>
 ```
 
 실제 효과:
 
 - `.context/`를 보장한다.
 - `.context/setup-check.done`가 없으면 먼저 `scripts/check-project-setup.sh`를 실행한다.
+- 새 구현 요청은 시작 전에 user가 workflow mode(`trivial|lite|full`)와 execution mode(`single|multi-agent`)를 직접 고른다.
+- 선택된 mode는 user가 다시 바꾸라고 하기 전까지 잠긴다.
 - packet이 없으면 `scripts/feature-packet.sh`로 생성한다.
 - packet이 있으면 `scripts/set-active-feature.sh`로 활성 feature만 바꾼다.
 
@@ -119,12 +122,9 @@ scripts/finish-role.sh <role> "<done message>" --next-role <role> --next-action 
 
 정상 순서:
 
-1. `planner`
-2. `implementer`
-3. `tester`
-4. `gate-checker`
-5. `reviewer`
-6. `security`
+- `trivial`: `planner -> implementer -> gate-checker`
+- `lite`: `planner -> implementer -> tester -> gate-checker`
+- `full`: `planner -> implementer -> tester -> gate-checker -> reviewer -> security`
 
 상태 전이 규칙:
 
@@ -161,11 +161,17 @@ bash scripts/gates/check-tests.sh --full
 전체 gate:
 
 ```bash
+bash scripts/gates/check-implementer-ready.sh --feature <feature-id>
+scripts/gates/run.sh --fast <feature-id>
 scripts/gates/run.sh <feature-id>
 scripts/gates/run.sh --reuse-if-valid <feature-id>
 ```
 
+`check-implementer-ready.sh`는 구현 전 preflight다.
+현재 packet의 `brief`, `plan`, `handoffs`가 모두 PASS일 때만 `implementer`를 시작할 수 있다.
+이 규칙은 `trivial`에도 그대로 적용된다.
 `run.sh` 안에는 이미 `tests` gate가 포함되어 있다.
+`run.sh --fast`는 local iteration용 빠른 경로다.
 즉 tester는 `--feature`를 책임지고, gate-checker는 `run.sh`를 통해 현재 feature receipt를 재사용하거나 feature 테스트를 다시 실행한 뒤 infra 테스트를 반드시 다시 도는 식으로 책임을 나눈다.
 
 재사용 규칙:
@@ -187,6 +193,13 @@ scripts/complete-feature.sh <feature-id> "<summary>" "<next-step>"
 - `scripts/gates/run.sh --reuse-if-valid <feature-id>`를 실행한다.
 - active context session이 없으면 새 세션을 연다.
 - `context-log.sh note`와 `context-log.sh finish`를 호출해 `docs/context/*`를 갱신한다.
+- 기본 동작으로 `scripts/stage-closeout.sh --feature <feature-id>`를 호출해 `run-log.md`, active feature artifacts, `HANDOFF/CODEX_RESUME/MAINTENANCE_STATUS`, 현재 completion 세션 로그 같은 closeout 파일을 stage한다.
+
+운영 의미:
+
+- 완료 직후 `run-log.md`나 `CODEX_RESUME.md`가 다시 바뀌어서 worktree가 dirty로 보이는 문제를 줄인다.
+- 따라서 commit, PR 생성, 최종 clean-tree 확인은 `complete-feature.sh` 다음에 수행하는 것이 기준 순서다.
+- closeout 파일을 의도적으로 unstaged로 남기고 싶을 때만 `scripts/complete-feature.sh --no-stage-closeout ...`를 쓴다.
 
 ## Role Contract Summary
 
@@ -256,8 +269,11 @@ scripts/complete-feature.sh <feature-id> "<summary>" "<next-step>"
 주요 책임:
 
 - planner 승인 범위만 구현
+- `check-implementer-ready.sh` PASS 이후에만 코드 수정 시작
 
 ### `tester`
+
+`trivial` mode에서는 이 역할을 생략한다.
 
 기본 입력:
 
@@ -297,7 +313,8 @@ scripts/complete-feature.sh <feature-id> "<summary>" "<next-step>"
 기본 입력:
 
 - `docs/features/<feature-id>/reviewer-handoff.md`
-- implementer diff
+- final diff
+- current approval-target hash
 - gate-checker output
 
 주요 책임:
@@ -308,7 +325,8 @@ scripts/complete-feature.sh <feature-id> "<summary>" "<next-step>"
 
 기본 입력:
 
-- implementer diff
+- final diff
+- current approval-target hash
 - relevant config/env usage
 - `docs/features/<feature-id>/security-handoff.md`
 
@@ -331,7 +349,8 @@ scripts/complete-feature.sh <feature-id> "<summary>" "<next-step>"
 - `interrupt-after-utc`
 - `last-progress`
 
-`role-chain` gate는 위 필드가 비어 있지 않은지와 timestamp ordering만 확인한다.
+`role-chain` gate는 `last-progress-at-utc`와 `last-progress`를 항상 요구한다.
+`started-at-utc`와 `interrupt-after-utc`는 실행이 실제로 시작된 상태에서 요구되며, `QUEUED` 상태에서는 비어 있어도 된다.
 
 ### 2. `Role Outputs`
 
@@ -364,7 +383,8 @@ scripts/complete-feature.sh <feature-id> "<summary>" "<next-step>"
 실제 강제 규칙:
 
 - 7개 역할 모두 섹션이 있어야 한다.
-- `agent-id`는 역할 간 중복되면 안 된다.
+- `multi-agent` execution mode에서만 `agent-id`는 역할 간 중복되면 안 된다.
+- `single` execution mode에서는 같은 lead `agent-id`가 여러 역할에 재사용될 수 있다.
 - `agent-id`가 역할명 자체면 안 된다.
 - `planner.scope`는 `plan.md`를 포함해야 한다.
 - `orchestrator.scope`는 `plan.md`를 포함하면 안 된다.
@@ -492,7 +512,7 @@ scripts/complete-feature.sh <feature-id> "<summary>" "<next-step>"
 - `handoffs`
   - 4개 handoff 파일과 필수 키 검사
 - `role-chain`
-  - `run-log.md`의 역할 섹션, dispatch monitor, 상태 전이, `agent-id` 유일성, `plan.md` ownership 검사
+  - `run-log.md`의 역할 섹션, dispatch monitor, 상태 전이, execution mode에 맞는 `agent-id` 규칙, `plan.md` ownership 검사
 - `test-matrix`
   - `VERIFIED` 상태와 row completeness 검사
 - `scope`
@@ -528,7 +548,7 @@ shell script가 실제로 FAIL을 내는 규칙이다.
 예:
 
 - `run-log.md` 형식
-- `agent-id` 유일성
+- execution mode에 맞는 `agent-id` 규칙
 - `brief.md` / `plan.md` / `handoff.md` / `test-matrix.md`의 비어 있지 않은 필드
 - 테스트 실행 성공
 - scope/file-size/secrets

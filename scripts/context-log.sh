@@ -481,6 +481,7 @@ generate_maintenance_status() {
   local context_kb
   local active_decision_count
   local archived_decision_count
+  local workflow_kpis
   session_count="$(find "$SESSIONS_DIR" -maxdepth 1 -type f -name '*.md' | wc -l | tr -d ' ')"
   context_kb="$(du -sk "$CONTEXT_DIR" | awk '{print $1}')"
   active_decision_count="$(count_decision_entries "$DECISIONS_FILE")"
@@ -493,6 +494,12 @@ generate_maintenance_status() {
   fi
   if (( context_kb > MONTHLY_CONTEXT_WARN_KB )); then
     context_threshold_state="warning"
+  fi
+
+  if [[ -f "$ROOT_DIR/scripts/report-template-kpis.sh" ]]; then
+    workflow_kpis="$(bash "$ROOT_DIR/scripts/report-template-kpis.sh" --maintenance-section)"
+  else
+    workflow_kpis="- workflow KPI report unavailable"
   fi
 
   cat > "$MAINTENANCE_STATUS_FILE" <<EOF
@@ -509,9 +516,14 @@ generate_maintenance_status() {
 - Session file threshold ($MONTHLY_SESSION_WARN_COUNT): $session_threshold_state
 - Context size threshold in KB ($MONTHLY_CONTEXT_WARN_KB): $context_threshold_state
 
+## Workflow KPIs
+
+$workflow_kpis
+
 ## Next Actions
 
 - If either threshold is warning, run \`scripts/context-log.sh archive-decisions\` with a lower keep count and tighten note verbosity.
+- Review the workflow KPI mix before changing default routing or reviewer/security policy.
 - Keep startup reading focused on \`HANDOFF.md\` and \`CODEX_RESUME.md\`.
 EOF
 }

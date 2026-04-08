@@ -14,16 +14,53 @@ Usage:
   scripts/dispatch-heartbeat.sh risk [--feature <feature-id>] <role> "<message>"
   scripts/dispatch-heartbeat.sh blocked [--feature <feature-id>] <role> "<message>"
   scripts/dispatch-heartbeat.sh done [--feature <feature-id>] <role> "<message>"
+  scripts/dispatch-heartbeat.sh guard [--feature <feature-id>]
   scripts/dispatch-heartbeat.sh show [--feature <feature-id>]
 EOF
 }
 
-now_utc() {
-  perl -MPOSIX -e 'print strftime("%Y-%m-%d %H:%M:%SZ", gmtime(time()))'
+now_epoch() {
+  if [[ -n "${DISPATCH_HEARTBEAT_NOW_EPOCH:-}" ]]; then
+    printf '%s' "$DISPATCH_HEARTBEAT_NOW_EPOCH"
+    return
+  fi
+
+  perl -e 'print time()'
 }
 
-interrupt_deadline_utc() {
-  perl -MPOSIX -e 'print strftime("%Y-%m-%d %H:%M:%SZ", gmtime(time() + 120))'
+format_utc_from_epoch() {
+  perl -MPOSIX -e 'print strftime("%Y-%m-%d %H:%M:%SZ", gmtime($ARGV[0]))' "${1:-0}"
+}
+
+now_utc() {
+  format_utc_from_epoch "$(now_epoch)"
+}
+
+risk_threshold_seconds() {
+  printf '%s' "${DISPATCH_HEARTBEAT_RISK_SECONDS:-45}"
+}
+
+interrupt_threshold_seconds() {
+  printf '%s' "${DISPATCH_HEARTBEAT_INTERRUPT_SECONDS:-120}"
+}
+
+seconds_after_now_utc() {
+  local offset="${1:-0}"
+  format_utc_from_epoch "$(( $(now_epoch) + offset ))"
+}
+
+utc_to_epoch() {
+  local value="${1:-}"
+  if [[ -z "$value" ]]; then
+    printf '%s' ""
+    return
+  fi
+
+  perl -MTime::Piece -e '
+    my $value = shift;
+    my $epoch = Time::Piece->strptime($value, "%Y-%m-%d %H:%M:%SZ")->epoch;
+    print $epoch;
+  ' "$value" 2>/dev/null || printf '%s' ""
 }
 
 trim() {
@@ -138,6 +175,41 @@ update_monitor_field() {
   mv "$tmp_file" "$run_log"
 }
 
+refresh_idle_deadline_utc() {
+  seconds_after_now_utc "$(interrupt_threshold_seconds)"
+}
+
+existing_started_at_value() {
+  local run_log="$1"
+  local now="$2"
+  local started_at
+
+  started_at="$(monitor_field_value "$run_log" "started-at-utc")"
+  started_at="$(trim "$started_at")"
+  if [[ -z "$started_at" ]]; then
+    started_at="$now"
+  fi
+
+  printf '%s' "$started_at"
+}
+
+set_monitor_state() {
+  local run_log="$1"
+  local role="$2"
+  local status="$3"
+  local started_at="$4"
+  local last_progress_at="$5"
+  local interrupt_after="$6"
+  local message="$7"
+
+  update_monitor_field "$run_log" "current-role" "$role"
+  update_monitor_field "$run_log" "current-status" "\`$status\`"
+  update_monitor_field "$run_log" "started-at-utc" "$started_at"
+  update_monitor_field "$run_log" "last-progress-at-utc" "$last_progress_at"
+  update_monitor_field "$run_log" "interrupt-after-utc" "$interrupt_after"
+  update_monitor_field "$run_log" "last-progress" "$message"
+}
+
 update_monitor() {
   local command="$1"
   local role="$2"
@@ -146,51 +218,55 @@ update_monitor() {
   local run_log
   local status
   local now
-  local deadline
   local started_at
+  local interrupt_after
+  local readiness_output
 
   validate_role "$role"
   run_log="$(ensure_run_log "$feature_id")"
   now="$(now_utc)"
-  deadline="$(interrupt_deadline_utc)"
   message="$(normalize_line "$message")"
+
+  if [[ "$role" == "implementer" && ( "$command" == "queue" || "$command" == "start" ) ]]; then
+    if ! readiness_output="$(bash "$ROOT_DIR/scripts/gates/check-implementer-ready.sh" --feature "$feature_id" 2>&1)"; then
+      if [[ -n "$readiness_output" ]]; then
+        printf '%s\n' "$readiness_output" >&2
+      fi
+      echo "[ERROR] implementer dispatch blocked: brief, plan, and synced handoffs must pass before code edits" >&2
+      exit 1
+    fi
+  fi
 
   case "$command" in
     queue)
       status="QUEUED"
-      started_at="$now"
+      started_at=""
+      interrupt_after=""
       ;;
-    start|progress)
+    start)
       status="RUNNING"
-      started_at="$(monitor_field_value "$run_log" "started-at-utc")"
-      started_at="$(trim "$started_at")"
-      if [[ -z "$started_at" ]]; then
-        started_at="$now"
-      fi
+      started_at="$now"
+      interrupt_after="$(refresh_idle_deadline_utc)"
+      ;;
+    progress)
+      status="RUNNING"
+      started_at="$(existing_started_at_value "$run_log" "$now")"
+      interrupt_after="$(refresh_idle_deadline_utc)"
       ;;
     risk)
       status="AT_RISK"
-      started_at="$(monitor_field_value "$run_log" "started-at-utc")"
-      started_at="$(trim "$started_at")"
-      if [[ -z "$started_at" ]]; then
-        started_at="$now"
-      fi
+      started_at="$(existing_started_at_value "$run_log" "$now")"
+      interrupt_after="$(refresh_idle_deadline_utc)"
       ;;
     blocked)
       status="BLOCKED"
-      started_at="$(monitor_field_value "$run_log" "started-at-utc")"
-      started_at="$(trim "$started_at")"
-      if [[ -z "$started_at" ]]; then
-        started_at="$now"
-      fi
+      started_at="$(existing_started_at_value "$run_log" "$now")"
+      interrupt_after="$(refresh_idle_deadline_utc)"
       ;;
     done)
       status="DONE"
-      started_at="$(monitor_field_value "$run_log" "started-at-utc")"
-      started_at="$(trim "$started_at")"
-      if [[ -z "$started_at" ]]; then
-        started_at="$now"
-      fi
+      started_at="$(existing_started_at_value "$run_log" "$now")"
+      interrupt_after="$(refresh_idle_deadline_utc)"
       ;;
     *)
       echo "[ERROR] unsupported command: $command" >&2
@@ -198,12 +274,76 @@ update_monitor() {
       ;;
   esac
 
-  update_monitor_field "$run_log" "current-role" "$role"
-  update_monitor_field "$run_log" "current-status" "\`$status\`"
-  update_monitor_field "$run_log" "started-at-utc" "$started_at"
-  update_monitor_field "$run_log" "last-progress-at-utc" "$now"
-  update_monitor_field "$run_log" "interrupt-after-utc" "$deadline"
-  update_monitor_field "$run_log" "last-progress" "$message"
+  set_monitor_state \
+    "$run_log" \
+    "$role" \
+    "$status" \
+    "$started_at" \
+    "$now" \
+    "$interrupt_after" \
+    "$message"
+
+  show_monitor "$feature_id"
+}
+
+guard_monitor() {
+  local feature_id="$1"
+  local run_log
+  local status
+  local role
+  local started_at
+  local last_progress_at
+  local last_progress
+  local last_progress_epoch
+  local now_epoch_value
+  local age_seconds
+  local interrupt_after
+
+  run_log="$(ensure_run_log "$feature_id")"
+  role="$(trim "$(monitor_field_value "$run_log" "current-role")")"
+  status="$(trim "$(monitor_field_value "$run_log" "current-status")")"
+  started_at="$(trim "$(monitor_field_value "$run_log" "started-at-utc")")"
+  last_progress_at="$(trim "$(monitor_field_value "$run_log" "last-progress-at-utc")")"
+  last_progress="$(normalize_line "$(monitor_field_value "$run_log" "last-progress")")"
+
+  case "$status" in
+    ""|QUEUED|DONE|BLOCKED)
+      show_monitor "$feature_id"
+      return
+      ;;
+    RUNNING|AT_RISK)
+      ;;
+    *)
+      show_monitor "$feature_id"
+      return
+      ;;
+  esac
+
+  if [[ -z "$role" || -z "$started_at" || -z "$last_progress_at" ]]; then
+    show_monitor "$feature_id"
+    return
+  fi
+
+  last_progress_epoch="$(utc_to_epoch "$last_progress_at")"
+  if [[ -z "$last_progress_epoch" ]]; then
+    show_monitor "$feature_id"
+    return
+  fi
+
+  now_epoch_value="$(now_epoch)"
+  age_seconds="$(( now_epoch_value - last_progress_epoch ))"
+  interrupt_after="$(format_utc_from_epoch "$(( last_progress_epoch + $(interrupt_threshold_seconds) ))")"
+  update_monitor_field "$run_log" "interrupt-after-utc" "$interrupt_after"
+
+  if (( age_seconds >= $(interrupt_threshold_seconds) )); then
+    update_monitor_field "$run_log" "current-status" "\`BLOCKED\`"
+  elif (( age_seconds >= $(risk_threshold_seconds) )) && [[ "$status" == "RUNNING" ]]; then
+    update_monitor_field "$run_log" "current-status" "\`AT_RISK\`"
+  fi
+
+  if [[ -n "$last_progress" ]]; then
+    update_monitor_field "$run_log" "last-progress" "$last_progress"
+  fi
 
   show_monitor "$feature_id"
 }
@@ -261,6 +401,9 @@ main() {
         exit 1
       fi
       update_monitor "$command" "$role" "$message" "$FEATURE_ID"
+      ;;
+    guard)
+      guard_monitor "$FEATURE_ID"
       ;;
     show)
       show_monitor "$FEATURE_ID"

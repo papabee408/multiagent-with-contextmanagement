@@ -13,6 +13,7 @@ mkdir -p \
   "$TMP_DIR/.context"
 
 cp "$ROOT_DIR/scripts/sync-handoffs.sh" "$TMP_DIR/scripts/sync-handoffs.sh"
+cp "$ROOT_DIR/scripts/_git_change_helpers.sh" "$TMP_DIR/scripts/_git_change_helpers.sh"
 cp "$ROOT_DIR/scripts/gates/_helpers.sh" "$TMP_DIR/scripts/gates/_helpers.sh"
 chmod +x "$TMP_DIR/scripts/sync-handoffs.sh"
 
@@ -57,6 +58,10 @@ cat > "$TMP_DIR/docs/features/feature-sync/brief.md" <<'EOF'
 ## Workflow Mode
 - mode: `full`
 - rationale: sync should include reviewer/security handoffs for the default fixture.
+
+## Execution Mode
+- mode: `single`
+- rationale: one lead agent owns the fixture while helper sub-agents stay optional
 
 ## Requirement Notes
 - External dependencies: none
@@ -113,9 +118,11 @@ bash scripts/sync-handoffs.sh feature-sync >/dev/null
 
 grep -Fq '## Source Digest' docs/features/feature-sync/implementer-handoff.md
 grep -Fq -- '- workflow mode: full' docs/features/feature-sync/implementer-handoff.md
+grep -Fq -- '- execution mode: single' docs/features/feature-sync/implementer-handoff.md
 grep -Fq -- '- implementer mode: parallel' docs/features/feature-sync/implementer-handoff.md
 grep -Fq -- '- brief-sha:' docs/features/feature-sync/tester-handoff.md
 grep -Fq -- '- test edit policy: implementer owns baseline test updates; tester may strengthen `tests/**` only when coverage gaps remain after implementation' docs/features/feature-sync/tester-handoff.md
+grep -Fq -- '- approval target:' docs/features/feature-sync/reviewer-handoff.md
 grep -Fq -- '- reuse / componentization:' docs/features/feature-sync/reviewer-handoff.md
 grep -Fq -- '- performance / waste watchpoints:' docs/features/feature-sync/reviewer-handoff.md
 grep -Fq '| RQ-001 |' docs/features/feature-sync/test-matrix.md
@@ -132,7 +139,15 @@ grep -Fq -- '- status: `VERIFIED`' docs/features/feature-sync/test-matrix.md
 
 perl -0pi -e 's/shell-only fixture, no external services/shell-only fixture with changed dependency constraint/' docs/features/feature-sync/plan.md
 bash scripts/sync-handoffs.sh feature-sync >/dev/null
+grep -Fq -- '- status: `DRAFT`' docs/features/feature-sync/test-matrix.md
 plan_sha="$(shasum -a 256 docs/features/feature-sync/plan.md | awk '{print $1}')"
 grep -Fq -- "- plan-sha: $plan_sha" docs/features/feature-sync/tester-handoff.md
+
+perl -0pi -e 's/- status: `DRAFT`/- status: `VERIFIED`/' docs/features/feature-sync/test-matrix.md
+perl -0pi -e 's#\| RQ-001 \| covered \| covered \| covered \| tests/feature-sync.test.mjs \| VERIFIED \|#| RQ-001 | covered | covered | covered | tests/feature-sync.test.mjs | VERIFIED |#' \
+  docs/features/feature-sync/test-matrix.md
+perl -0pi -e 's/Keep handoff sync deterministic./Keep handoff sync deterministic even after brief updates./' docs/features/feature-sync/brief.md
+bash scripts/sync-handoffs.sh feature-sync >/dev/null
+grep -Fq -- '- status: `DRAFT`' docs/features/feature-sync/test-matrix.md
 
 echo "[PASS] sync-handoffs smoke"

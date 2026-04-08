@@ -7,13 +7,15 @@
 - plan-sha: e399a69c0ad3cf6a38350364e14274cd6ed854f903d6a6a538445094572baa17
 - project-context-sha: ecca12d92cc35ce868121156749e28d9e88d062a0da9d755e5b9c498b7d845ac
 - architecture-sha: 1c26799c1924e637673f787dcdc39b9629ed412be609d7e917ce0b668dd92be1
-- gates-sha: 4a5c2a3c55503e74a45ae00292f2f4aae6e5f13ac000fdad3f43bfdfc28f7773
-- sync-script-sha: 4d96b37385fb134061205d91aac52c6b1dfd9d12cc74bee3ef897c442e532bdd
-- generated-at-utc: 2026-03-15 20:00:11Z
+- gates-sha: 33bb0866e23e5f2331bf12fcebe12ad7ab87cd050102bec017f0dda24b44b5e4
+- sync-script-sha: 5275e9cbf78d8d5aea2d37ea4057a0810d9225b8a4377ac81fee61a8cdaccbbd
+- generated-at-utc: 2026-03-27 02:47:04Z
 
 ## Focus
 - workflow mode: full
+- execution mode: TBD
 - regression hotspots: .gitignore, AGENTS.md, README.md, UPGRADE_PROMPT.md, docs/agents/README.md, docs/agents/implementer.md, docs/agents/orchestrator.md, docs/agents/planner.md, docs/agents/reviewer.md, docs/agents/security.md, docs/agents/tester.md, docs/context/ARCHITECTURE.md, docs/context/CODEX_RESUME.md, docs/context/CODEX_WORKFLOW.md, docs/context/CONVENTIONS.md, docs/context/DECISIONS.md, docs/context/DECISIONS_ARCHIVE.md, docs/context/GATES.md, docs/context/HANDOFF.md, docs/context/MAINTENANCE.md, docs/context/MULTI_AGENT_PROCESS.md, docs/context/PROJECT.md, docs/context/README.md, docs/context/RULES.md, docs/features/README.md, docs/features/_template/brief.md, docs/features/_template/implementer-handoff.md, docs/features/_template/plan.md, docs/features/_template/reviewer-handoff.md, docs/features/_template/run-log.md, docs/features/_template/security-handoff.md, docs/features/_template/test-matrix.md, docs/features/_template/tester-handoff.md, docs/features/template-ops-hardening/brief.md, docs/features/template-ops-hardening/implementer-handoff.md, docs/features/template-ops-hardening/plan.md, docs/features/template-ops-hardening/reviewer-handoff.md, docs/features/template-ops-hardening/run-log.md, docs/features/template-ops-hardening/security-handoff.md, docs/features/template-ops-hardening/test-matrix.md, docs/features/template-ops-hardening/tester-handoff.md, scripts/_role_receipt_helpers.sh, scripts/_run_log_helpers.sh, scripts/check-project-setup.sh, scripts/complete-feature.sh, scripts/context-log.sh, scripts/dispatch-heartbeat.sh, scripts/dispatch-role.sh, scripts/export-template.sh, scripts/feature-packet.sh, scripts/finish-role.sh, scripts/gates/_helpers.sh, scripts/gates/_validation_cache.sh, scripts/gates/check-brief.sh, scripts/gates/check-file-size.sh, scripts/gates/check-handoffs.sh, scripts/gates/check-packet.sh, scripts/gates/check-plan.sh, scripts/gates/check-project-context.sh, scripts/gates/check-role-chain.sh, scripts/gates/check-test-matrix.sh, scripts/gates/check-tests.sh, scripts/gates/run.sh, scripts/gates/size-exceptions.txt, scripts/implementer-subtasks.sh, scripts/record-role-result.sh, scripts/start-feature.sh, scripts/sync-handoffs.sh, scripts/workflow-mode.sh, tests/check-tests-modes.test.sh, tests/context-log.test.sh, tests/dispatch-heartbeat.test.sh, tests/gate-cache.test.sh, tests/gates.test.sh, tests/implementer-subtasks.test.sh, tests/run-log-ops.test.sh, tests/sync-handoffs.test.sh, tests/workflow-mode.test.sh
+- approval target: current final diff plus the current approval-target hash; reviewer `PASS` must match the final state that reaches gate completion
 - architecture / reuse focus: template docs stay under `docs/**`, bootstrap/export/orchestration helpers stay under `scripts/**`, gate enforcement stays under `scripts/gates/**`, and regression coverage stays under `tests/**`; current gate runner, feature packet templates, role contracts, dispatch heartbeat script; keep new validation logic inside existing gate helpers/scripts and reuse run-log or role-receipt helpers before adding new one-off flows
 - scope drift watchpoints: production code outside template operations/docs
 
@@ -24,6 +26,7 @@
 
 ## Acceptance
 - fail conditions: target files drift outside `plan.md` scope, dependency constraints are violated, reuse/componentization opportunities are ignored, centralized config is bypassed, or obvious performance waste is introduced
+- approval binding: reviewer receipt must record the current approval-target hash; any later approval-target change invalidates the reviewer approval automatically
 
 ## Manual Notes
 - Edit `plan.md` and rerun `scripts/sync-handoffs.sh` if generated defaults need to change.

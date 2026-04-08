@@ -2,7 +2,9 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+source "$ROOT_DIR/scripts/_git_change_helpers.sh"
 MANUAL_FEATURE_ID="${1:-}"
+STABLE_TEMPLATE_SENTINEL="__stable_ai_dev_template__"
 
 cd "$ROOT_DIR"
 
@@ -20,25 +22,28 @@ if [[ -n "$MANUAL_FEATURE_ID" ]]; then
 fi
 
 collect_changed_files() {
-  if [[ -n "${GITHUB_BASE_REF:-}" ]]; then
-    base_ref="origin/${GITHUB_BASE_REF}"
-    if git show-ref --verify --quiet "refs/remotes/${base_ref}"; then
-      git diff --name-only --relative "${base_ref}...HEAD"
-      return 0
-    fi
-  fi
-
-  {
-    git diff --name-only --relative
-    git diff --name-only --relative --cached
-    git ls-files --others --exclude-standard
-  } | sed '/^$/d' | sort -u
+  git_changed_files_for_repo "$ROOT_DIR" "${GATE_DIFF_RANGE:-}" "${GITHUB_BASE_REF:-}"
 }
 
 mapfile_output="$(collect_changed_files)"
 
+stable_template_change_count="$(printf '%s\n' "$mapfile_output" \
+  | awk '
+      /^stable-ai-dev-template\// { count += 1 }
+      END { print count + 0 }
+    ')"
+
+if [[ "$stable_template_change_count" -gt 0 ]]; then
+  printf '%s\n' "$STABLE_TEMPLATE_SENTINEL"
+  exit 0
+fi
+
 feature_ids="$(printf '%s\n' "$mapfile_output" \
-  | awk -F/ '/^docs\/features\/[^/]+\// { if ($3 != "_template") print $3 }' \
+  | awk -F/ '
+      index($0, "docs/features/") == 1 && NF >= 3 {
+        if ($3 != "_template") print $3
+      }
+    ' \
   | sort -u)"
 
 feature_count="$(printf '%s\n' "$feature_ids" | sed '/^$/d' | wc -l | tr -d '[:space:]')"

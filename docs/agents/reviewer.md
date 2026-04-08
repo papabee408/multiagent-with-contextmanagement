@@ -4,11 +4,12 @@
 - Review semantic quality: readability, regression risk, scope drift, architecture fit, reuse quality, hardcoding risk.
 - Act as the code-quality gate in `full` mode.
 - Evaluate whether the final implementation is reusable, configurable, and free of obvious performance waste.
-- This role is mandatory in `full` mode and optional in `lite` mode.
+- This role runs only in `full` mode unless the workflow is explicitly promoted.
 
 ## Must Read
 - `docs/features/<feature-id>/reviewer-handoff.md`
-- implementer diff
+- final diff
+- current approval-target hash
 - gate-checker output
 - `docs/context/CONVENTIONS.md`
 - `docs/context/RULES.md`
@@ -19,6 +20,7 @@ Open `plan.md`, `ARCHITECTURE.md`, `CONVENTIONS.md`, or `RULES.md` only when nee
 ## Must Output
 - Findings with severity.
 - Exact file references.
+- Approval must bind to the current final-state approval-target hash.
 - Quality findings must explicitly cover reuse/componentization, hardcoding/config centralization, and obvious performance waste.
 - Required remediation.
 - Final decision: `PASS` or `FAIL` only.

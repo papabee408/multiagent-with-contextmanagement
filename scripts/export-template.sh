@@ -11,6 +11,17 @@ copy_file() {
   cp "$src" "$dest"
 }
 
+prune_template_exclusions() {
+  local root="$1"
+
+  rm -f \
+    "$root/docs/context/HANDOFF.md" \
+    "$root/docs/context/CODEX_RESUME.md" \
+    "$root/docs/context/MAINTENANCE_STATUS.md"
+
+  rm -rf "$root/docs/context/sessions"
+}
+
 copy_dir() {
   local src="$1"
   local dest="$2"
@@ -30,6 +41,7 @@ copy_file "$ROOT_DIR/test-guide.md" "$OUTPUT_DIR/test-guide.md"
 copy_dir "$ROOT_DIR/.github" "$OUTPUT_DIR/.github"
 copy_dir "$ROOT_DIR/docs/agents" "$OUTPUT_DIR/docs/agents"
 copy_dir "$ROOT_DIR/docs/context" "$OUTPUT_DIR/docs/context"
+prune_template_exclusions "$OUTPUT_DIR"
 copy_dir "$ROOT_DIR/docs/features/_template" "$OUTPUT_DIR/docs/features/_template"
 copy_file "$ROOT_DIR/docs/features/README.md" "$OUTPUT_DIR/docs/features/README.md"
 copy_dir "$ROOT_DIR/scripts" "$OUTPUT_DIR/scripts"

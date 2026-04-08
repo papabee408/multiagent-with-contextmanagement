@@ -2,6 +2,19 @@
 
 ROOT_DIR_DEFAULT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
+role_requires_approval_binding() {
+  local role
+  role="$(printf '%s' "${1:-}" | tr '[:upper:]' '[:lower:]')"
+
+  case "$role" in
+    tester|gate-checker|reviewer|security)
+      return 0
+      ;;
+  esac
+
+  return 1
+}
+
 role_receipt_dir() {
   local root_dir="$ROOT_DIR_DEFAULT"
   local feature_id=""
@@ -144,6 +157,7 @@ write_role_receipt_json() {
   local next_action="$9"
   local touched_files="${10}"
   local input_digest="${11}"
+  local approval_target_hash="${12:-}"
 
   mkdir -p "$(dirname "$file")"
 
@@ -158,6 +172,7 @@ write_role_receipt_json() {
   NEXT_ACTION_VALUE="$next_action" \
   TOUCHED_FILES_VALUE="$touched_files" \
   INPUT_DIGEST_VALUE="$input_digest" \
+  APPROVAL_TARGET_HASH_VALUE="$approval_target_hash" \
   UPDATED_AT_UTC="$(perl -MPOSIX -e 'print strftime("%Y-%m-%d %H:%M:%SZ", gmtime(time()))')" \
   node <<'EOF'
 const fs = require("fs");
@@ -174,28 +189,36 @@ const parseTouchedFiles = (value) => {
     .filter(Boolean);
 };
 
+const optionalValue = (value) => {
+  const normalized = String(value || "").trim();
+  return normalized ? normalized : undefined;
+};
+
 const file = process.env.FILE;
+const payload = {
+  kind: "role-result",
+  role: process.env.ROLE_VALUE,
+  agent_id: process.env.AGENT_ID,
+  scope: process.env.SCOPE_VALUE,
+  rq_covered: process.env.RQ_COVERED_VALUE,
+  rq_missing: process.env.RQ_MISSING_VALUE,
+  result: process.env.RESULT_VALUE,
+  evidence: process.env.EVIDENCE_VALUE,
+  next_action: process.env.NEXT_ACTION_VALUE,
+  touched_files: parseTouchedFiles(process.env.TOUCHED_FILES_VALUE),
+  input_digest: process.env.INPUT_DIGEST_VALUE,
+  updated_at_utc: process.env.UPDATED_AT_UTC,
+};
+
+const approvalTargetHash = optionalValue(process.env.APPROVAL_TARGET_HASH_VALUE);
+if (approvalTargetHash) {
+  payload.approval_target_hash = approvalTargetHash;
+}
+
 fs.mkdirSync(path.dirname(file), { recursive: true });
 fs.writeFileSync(
   file,
-  JSON.stringify(
-    {
-      kind: "role-result",
-      role: process.env.ROLE_VALUE,
-      agent_id: process.env.AGENT_ID,
-      scope: process.env.SCOPE_VALUE,
-      rq_covered: process.env.RQ_COVERED_VALUE,
-      rq_missing: process.env.RQ_MISSING_VALUE,
-      result: process.env.RESULT_VALUE,
-      evidence: process.env.EVIDENCE_VALUE,
-      next_action: process.env.NEXT_ACTION_VALUE,
-      touched_files: parseTouchedFiles(process.env.TOUCHED_FILES_VALUE),
-      input_digest: process.env.INPUT_DIGEST_VALUE,
-      updated_at_utc: process.env.UPDATED_AT_UTC,
-    },
-    null,
-    2,
-  ) + "\n",
+  JSON.stringify(payload, null, 2) + "\n",
 );
 EOF
 }
@@ -211,6 +234,7 @@ write_role_receipt() {
   local evidence="$8"
   local next_action="$9"
   local touched_files="${10}"
+  local approval_target_hash="${11:-}"
   local file
 
   file="$(role_receipt_file "$feature_id" "$role")"
@@ -226,5 +250,6 @@ write_role_receipt() {
     "$evidence" \
     "$next_action" \
     "$touched_files" \
-    "$(role_input_digest "$ROOT_DIR_DEFAULT")"
+    "$(role_input_digest "$ROOT_DIR_DEFAULT")" \
+    "$approval_target_hash"
 }

@@ -21,6 +21,13 @@ Do not duplicate detailed role logic here.
 If conflicts exist, higher item wins.
 
 ## Session Bootstrap (Mandatory)
+0. For a new implementation request, classify the feature risk first in `brief.md`:
+   - `Standard` (recommended): starts in workflow mode `Lite`
+   - `Trivial`: starts in workflow mode `Trivial`
+   - `High-Risk`: starts in workflow mode `Full`
+   Use the `## Risk Signals` checklist in `brief.md` to justify the route. If one or more signals are `yes`, the feature must be treated as `high-risk` and start in `full`.
+   Default execution mode is `Single`.
+   Ask the user only when overriding the default workflow route or enabling `Multi-Agent`. `Multi-Agent` may be executed only after the user explicitly chooses it. Once chosen, workflow mode and execution mode are locked until the user explicitly asks to change them.
 1. Run `scripts/context-log.sh resume-lite`.
 2. Run setup check once when bootstrapping a new project copy:
    - `scripts/check-project-setup.sh`
@@ -48,14 +55,25 @@ If conflicts exist, higher item wins.
   - downstream roles should prefer role-specific `*-handoff.md` files as the distilled handoff.
   - downstream roles reopen upstream context docs only when a handoff file is insufficient, contradictory, or missing a required constraint.
 - Ownership rule:
+  - `brief.md` owns:
+    - risk class:
+      - `trivial`: lowest-risk route; may default to workflow mode `trivial`
+      - `standard`: default route; should start in workflow mode `lite`
+      - `high-risk`: requires workflow mode `full`
+    - workflow mode:
+      - `trivial`: `orchestrator -> planner -> implementer -> gate-checker`
+      - `lite`: `trivial` plus `tester`
+      - `full`: `lite` plus `reviewer -> security`
+    - execution mode:
+      - `single`: one lead agent may own multiple roles; bounded helper sub-agents are allowed
+      - `multi-agent`: explicit role-level delegation; role `agent-id` values must stay unique
   - `planner` exclusively owns `docs/features/<feature-id>/plan.md` authoring.
-  - `brief.md` owns the feature workflow mode:
-    - `lite`: `orchestrator -> planner -> implementer -> tester -> gate-checker`
-    - `full`: `lite` chain plus `reviewer -> security`
-  - `planner` refreshes `implementer-handoff.md`, `tester-handoff.md`, `reviewer-handoff.md`, `security-handoff.md` by running `scripts/sync-handoffs.sh <feature-id>` after updating `plan.md`.
-  - `scripts/sync-handoffs.sh <feature-id>` also re-seeds `docs/features/<feature-id>/test-matrix.md` rows from the RQ list and updates handoff source digests.
+  - `planner` refreshes workflow-relevant handoffs by running `scripts/sync-handoffs.sh <feature-id>` after updating `plan.md`.
+  - `scripts/sync-handoffs.sh <feature-id>` also re-seeds `docs/features/<feature-id>/test-matrix.md` rows from the RQ list, updates handoff source digests, and removes handoff files that are not required for the active workflow mode.
+  - Before dispatching `implementer` in any workflow mode, `bash scripts/gates/check-implementer-ready.sh --feature <feature-id>` must pass; until then code edits are not allowed.
   - `implementer` owns production/source/config edits and the baseline test updates needed for the feature.
   - `tester` never edits production code.
+  - `trivial` mode skips `tester`; in that mode `implementer` finalizes `test-matrix.md`.
   - `tester` may strengthen `tests/**` only in `full` mode when implementer coverage is insufficient; in `lite` mode tester should report gaps instead of editing tests.
   - `tester` finalizes `docs/features/<feature-id>/test-matrix.md` before returning `PASS`.
   - `reviewer` is the quality gate in `full` mode and must explicitly judge reuse/componentization, hardcoding/config centralization, and obvious performance waste.
@@ -71,8 +89,10 @@ If conflicts exist, higher item wins.
 - Runtime guard: if no meaningful progress signal appears within 45s, mark the role `AT_RISK` in `run-log.md` and notify the user.
 - Runtime guard: interrupt any role that stays in clarification mode >90s.
 - Runtime guard: mark role `BLOCKED` and re-dispatch if no actionable output by 120s.
-- Multi-agent integrity: every role output must include `agent-id`, and all 7 `agent-id` values must be unique.
-- Single-agent reuse across multiple roles is not allowed and must fail gate/CI.
+- Execution integrity:
+  - every role output must include `agent-id`
+  - in `multi-agent` execution mode, all dispatched role `agent-id` values must be unique
+  - in `single` execution mode, the same lead `agent-id` may appear across multiple roles
 
 ## Dispatch Visibility Rule (Mandatory)
 - Before dispatching a role, orchestrator updates the monitor with:
@@ -87,7 +107,7 @@ If conflicts exist, higher item wins.
 - `touched-files` policy:
   - `orchestrator`: feature/context docs only when non-empty
   - `planner`: current feature packet docs only
-  - `implementer`: `plan.md` target files only
+  - `implementer`: `plan.md` target files only, plus `docs/features/<feature-id>/test-matrix.md` in `trivial` mode
   - `tester`: `test-matrix.md`, plus `tests/**` only in `full` mode
   - `gate-checker`, `reviewer`, `security`: `[]`
 - To finish a role and queue the next one in one step, prefer:
@@ -109,16 +129,23 @@ If conflicts exist, higher item wins.
   - `docs/features/<feature-id>/brief.md`
   - `docs/features/<feature-id>/plan.md`
   - `docs/features/<feature-id>/implementer-handoff.md`
-  - `docs/features/<feature-id>/tester-handoff.md`
-  - `docs/features/<feature-id>/reviewer-handoff.md`
-  - `docs/features/<feature-id>/security-handoff.md`
   - `docs/features/<feature-id>/test-matrix.md`
   - `docs/features/<feature-id>/run-log.md`
+- Mode-specific packet files:
+  - `trivial`: no additional handoff files beyond `implementer-handoff.md`
+  - `lite`: additionally requires `docs/features/<feature-id>/tester-handoff.md`
+  - `full`: additionally requires `docs/features/<feature-id>/tester-handoff.md`, `docs/features/<feature-id>/reviewer-handoff.md`, `docs/features/<feature-id>/security-handoff.md`
 - If packet does not exist, create it from `docs/features/_template/`.
 - Use `scripts/start-feature.sh <feature-id>` as the only workflow entry.
 - To inspect or set workflow mode:
   - `scripts/workflow-mode.sh show --feature <feature-id>`
   - `scripts/workflow-mode.sh role-sequence --feature <feature-id>`
+- Before dispatching `implementer`:
+  - `bash scripts/gates/check-implementer-ready.sh --feature <feature-id>`
+- To inspect or set execution mode:
+  - `scripts/execution-mode.sh show --feature <feature-id>`
+- To promote a running feature in place:
+  - `scripts/promote-workflow.sh --feature <feature-id> <trivial|lite|full> --reason "<why>"`
 - `scripts/set-active-feature.sh <feature-id>` is allowed only for switching an existing packet.
 
 ## Context Logging Rule (Mandatory)
@@ -132,6 +159,9 @@ If conflicts exist, higher item wins.
 - Orchestrator publishes final summary: `RQ covered`, `RQ missing`, key evidence, next action.
 - Then run:
   - `scripts/complete-feature.sh <feature-id> "<summary>" "<next-step>"`
+- If the user asks for commit/PR/git cleanup, run `complete-feature.sh` before the final clean-tree check.
+- `complete-feature.sh` stages changed closeout files for the active feature and current completion session by default so `run-log.md`, role receipts, and context-log outputs do not leave a false dirty worktree after completion.
+- Use `scripts/complete-feature.sh --no-stage-closeout ...` only when the caller explicitly wants those closeout files left unstaged.
 
 ## CI Enforcement (Mandatory)
 - PR must pass `Gates` workflow.
@@ -141,7 +171,7 @@ If conflicts exist, higher item wins.
   - `plan`
   - `handoffs`
   - `packet`
-  - `role-chain` (including duplicated `agent-id`)
+  - `role-chain` (including execution-mode `agent-id` rules)
   - `test-matrix`
   - `scope`
   - `file-size`

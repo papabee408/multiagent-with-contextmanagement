@@ -63,11 +63,13 @@ validate_digest_block() {
   local expected_project_sha="$5"
   local expected_architecture_sha="$6"
   local expected_gates_sha="$7"
+  local expected_sync_script_sha="$8"
   local brief_sha
   local plan_sha
   local project_sha
   local architecture_sha
   local gates_sha
+  local sync_script_sha
   local generated_at
 
   brief_sha="$(section_value "$file" "## Source Digest" "brief-sha")"
@@ -75,6 +77,7 @@ validate_digest_block() {
   project_sha="$(section_value "$file" "## Source Digest" "project-context-sha")"
   architecture_sha="$(section_value "$file" "## Source Digest" "architecture-sha")"
   gates_sha="$(section_value "$file" "## Source Digest" "gates-sha")"
+  sync_script_sha="$(section_value "$file" "## Source Digest" "sync-script-sha")"
   generated_at="$(section_value "$file" "## Source Digest" "generated-at-utc")"
 
   if is_placeholder_text "$brief_sha"; then
@@ -107,6 +110,12 @@ validate_digest_block() {
     failures+=("$prefix:stale-gates-sha")
   fi
 
+  if is_placeholder_text "$sync_script_sha"; then
+    failures+=("$prefix:missing-sync-script-sha")
+  elif [[ "$sync_script_sha" != "$expected_sync_script_sha" ]]; then
+    failures+=("$prefix:stale-sync-script-sha")
+  fi
+
   if is_placeholder_text "$generated_at"; then
     failures+=("$prefix:missing-generated-at-utc")
   elif ! is_valid_utc_timestamp "$generated_at"; then
@@ -120,6 +129,7 @@ BRIEF_FILE="$FEATURE_DIR/brief.md"
 PROJECT_FILE="$ROOT_DIR/docs/context/PROJECT.md"
 ARCHITECTURE_FILE="$ROOT_DIR/docs/context/ARCHITECTURE.md"
 GATES_FILE="$ROOT_DIR/docs/context/GATES.md"
+SYNC_SCRIPT_FILE="$ROOT_DIR/scripts/sync-handoffs.sh"
 
 IMPLEMENTER_FILE="$FEATURE_DIR/implementer-handoff.md"
 TESTER_FILE="$FEATURE_DIR/tester-handoff.md"
@@ -131,6 +141,28 @@ EXPECTED_PLAN_SHA="$(file_digest_or_missing "$PLAN_FILE")"
 EXPECTED_PROJECT_SHA="$(file_digest_or_missing "$PROJECT_FILE")"
 EXPECTED_ARCHITECTURE_SHA="$(file_digest_or_missing "$ARCHITECTURE_FILE")"
 EXPECTED_GATES_SHA="$(file_digest_or_missing "$GATES_FILE")"
+EXPECTED_SYNC_SCRIPT_SHA="$(file_digest_or_missing "$SYNC_SCRIPT_FILE")"
+workflow_mode="$(workflow_mode_from_brief)"
+
+for entry in \
+  "tester-handoff.md:$TESTER_FILE" \
+  "reviewer-handoff.md:$REVIEWER_FILE" \
+  "security-handoff.md:$SECURITY_FILE"; do
+  label="${entry%%:*}"
+  file="${entry#*:}"
+  case "$workflow_mode" in
+    trivial)
+      if [[ -f "$file" ]]; then
+        failures+=("$label:unexpected-file-for-trivial")
+      fi
+      ;;
+    lite)
+      if [[ "$label" != "tester-handoff.md" && -f "$file" ]]; then
+        failures+=("$label:unexpected-file-for-lite")
+      fi
+      ;;
+  esac
+done
 
 if require_file "$IMPLEMENTER_FILE" "implementer-handoff.md"; then
   validate_digest_block "$IMPLEMENTER_FILE" "implementer-handoff" \
@@ -138,9 +170,11 @@ if require_file "$IMPLEMENTER_FILE" "implementer-handoff.md"; then
     "$EXPECTED_PLAN_SHA" \
     "$EXPECTED_PROJECT_SHA" \
     "$EXPECTED_ARCHITECTURE_SHA" \
-    "$EXPECTED_GATES_SHA"
+    "$EXPECTED_GATES_SHA" \
+    "$EXPECTED_SYNC_SCRIPT_SHA"
   validate_keys "$IMPLEMENTER_FILE" "## Scope" "implementer-handoff" \
     "rq_covered" \
+    "execution mode" \
     "target files" \
     "task order" \
     "out-of-scope reminders"
@@ -152,14 +186,16 @@ if require_file "$IMPLEMENTER_FILE" "implementer-handoff.md"; then
     "done when"
 fi
 
-if require_file "$TESTER_FILE" "tester-handoff.md"; then
+if [[ "$workflow_mode" == "lite" || "$workflow_mode" == "full" ]] && require_file "$TESTER_FILE" "tester-handoff.md"; then
   validate_digest_block "$TESTER_FILE" "tester-handoff" \
     "$EXPECTED_BRIEF_SHA" \
     "$EXPECTED_PLAN_SHA" \
     "$EXPECTED_PROJECT_SHA" \
     "$EXPECTED_ARCHITECTURE_SHA" \
-    "$EXPECTED_GATES_SHA"
+    "$EXPECTED_GATES_SHA" \
+    "$EXPECTED_SYNC_SCRIPT_SHA"
   validate_keys "$TESTER_FILE" "## Coverage" "tester-handoff" \
+    "execution mode" \
     "rq coverage" \
     "required scenarios" \
     "priority risks"
@@ -168,18 +204,22 @@ if require_file "$TESTER_FILE" "tester-handoff.md"; then
     "test edit policy" \
     "execution notes / commands"
   validate_keys "$TESTER_FILE" "## Acceptance" "tester-handoff" \
-    "matrix expectations"
+    "matrix expectations" \
+    "trivial-mode note"
 fi
 
-if require_file "$REVIEWER_FILE" "reviewer-handoff.md"; then
+if [[ "$workflow_mode" == "full" ]] && require_file "$REVIEWER_FILE" "reviewer-handoff.md"; then
   validate_digest_block "$REVIEWER_FILE" "reviewer-handoff" \
     "$EXPECTED_BRIEF_SHA" \
     "$EXPECTED_PLAN_SHA" \
     "$EXPECTED_PROJECT_SHA" \
     "$EXPECTED_ARCHITECTURE_SHA" \
-    "$EXPECTED_GATES_SHA"
+    "$EXPECTED_GATES_SHA" \
+    "$EXPECTED_SYNC_SCRIPT_SHA"
   validate_keys "$REVIEWER_FILE" "## Focus" "reviewer-handoff" \
+    "execution mode" \
     "regression hotspots" \
+    "approval target" \
     "architecture / reuse focus" \
     "scope drift watchpoints"
   validate_keys "$REVIEWER_FILE" "## Quality Checklist" "reviewer-handoff" \
@@ -187,22 +227,27 @@ if require_file "$REVIEWER_FILE" "reviewer-handoff.md"; then
     "hardcoding / config centralization" \
     "performance / waste watchpoints"
   validate_keys "$REVIEWER_FILE" "## Acceptance" "reviewer-handoff" \
-    "fail conditions"
+    "fail conditions" \
+    "approval binding"
 fi
 
-if require_file "$SECURITY_FILE" "security-handoff.md"; then
+if [[ "$workflow_mode" == "full" ]] && require_file "$SECURITY_FILE" "security-handoff.md"; then
   validate_digest_block "$SECURITY_FILE" "security-handoff" \
     "$EXPECTED_BRIEF_SHA" \
     "$EXPECTED_PLAN_SHA" \
     "$EXPECTED_PROJECT_SHA" \
     "$EXPECTED_ARCHITECTURE_SHA" \
-    "$EXPECTED_GATES_SHA"
+    "$EXPECTED_GATES_SHA" \
+    "$EXPECTED_SYNC_SCRIPT_SHA"
   validate_keys "$SECURITY_FILE" "## Focus" "security-handoff" \
+    "execution mode" \
     "validation / auth focus" \
+    "approval target" \
     "secrets / config touchpoints" \
     "abuse / failure paths"
   validate_keys "$SECURITY_FILE" "## Acceptance" "security-handoff" \
-    "fail conditions"
+    "fail conditions" \
+    "approval binding"
 fi
 
 if [[ ${#failures[@]} -gt 0 ]]; then

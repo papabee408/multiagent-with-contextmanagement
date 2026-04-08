@@ -38,36 +38,70 @@ EOF
 
 cd "$TMP_DIR"
 
-queue_output="$(bash scripts/dispatch-heartbeat.sh queue orchestrator "dispatching planner with brief.md" )"
+epoch_to_utc() {
+  perl -MPOSIX -e 'print strftime("%Y-%m-%d %H:%M:%SZ", gmtime($ARGV[0]))' "$1"
+}
+
+queue_epoch=1700000000
+start_epoch=1700000010
+progress_epoch=1700000050
+guard_risk_epoch=1700000105
+guard_block_epoch=1700000171
+done_epoch=1700000180
+tester_start_epoch=1700000300
+
+queue_output="$(DISPATCH_HEARTBEAT_NOW_EPOCH="$queue_epoch" bash scripts/dispatch-heartbeat.sh queue orchestrator "dispatching planner with brief.md" )"
 printf '%s\n' "$queue_output" | grep -Fq "feature-id: feature-1"
 printf '%s\n' "$queue_output" | grep -Fq 'current-role: orchestrator'
 printf '%s\n' "$queue_output" | grep -Fq 'current-status: `QUEUED`'
+printf '%s\n' "$queue_output" | grep -Eq '^started-at-utc:[[:space:]]*$'
+printf '%s\n' "$queue_output" | grep -Eq '^interrupt-after-utc:[[:space:]]*$'
 
-start_output="$(bash scripts/dispatch-heartbeat.sh start planner "reading docs/features/feature-1/brief.md" )"
+start_output="$(DISPATCH_HEARTBEAT_NOW_EPOCH="$start_epoch" bash scripts/dispatch-heartbeat.sh start planner "reading docs/features/feature-1/brief.md" )"
 printf '%s\n' "$start_output" | grep -Fq 'current-role: planner'
 printf '%s\n' "$start_output" | grep -Fq 'current-status: `RUNNING`'
+printf '%s\n' "$start_output" | grep -Fq "started-at-utc: $(epoch_to_utc "$start_epoch")"
+printf '%s\n' "$start_output" | grep -Fq "interrupt-after-utc: $(epoch_to_utc "$(( start_epoch + 120 ))")"
 printf '%s\n' "$start_output" | grep -Fq 'last-progress: reading docs/features/feature-1/brief.md'
 
-risk_output="$(bash scripts/dispatch-heartbeat.sh risk planner "waiting on missing target files in plan.md" )"
-printf '%s\n' "$risk_output" | grep -Fq 'current-status: `AT_RISK`'
-printf '%s\n' "$risk_output" | grep -Fq 'last-progress: waiting on missing target files in plan.md'
+progress_output="$(DISPATCH_HEARTBEAT_NOW_EPOCH="$progress_epoch" bash scripts/dispatch-heartbeat.sh progress planner "updated docs/features/feature-1/plan.md" )"
+printf '%s\n' "$progress_output" | grep -Fq 'current-status: `RUNNING`'
+printf '%s\n' "$progress_output" | grep -Fq "interrupt-after-utc: $(epoch_to_utc "$(( progress_epoch + 120 ))")"
+printf '%s\n' "$progress_output" | grep -Fq 'last-progress: updated docs/features/feature-1/plan.md'
 
-done_output="$(bash scripts/dispatch-heartbeat.sh done planner "plan.md and test-matrix.md updated" )"
+guard_risk_output="$(DISPATCH_HEARTBEAT_NOW_EPOCH="$guard_risk_epoch" bash scripts/dispatch-heartbeat.sh guard)"
+printf '%s\n' "$guard_risk_output" | grep -Fq 'current-status: `AT_RISK`'
+printf '%s\n' "$guard_risk_output" | grep -Fq "last-progress-at-utc: $(epoch_to_utc "$progress_epoch")"
+printf '%s\n' "$guard_risk_output" | grep -Fq "interrupt-after-utc: $(epoch_to_utc "$(( progress_epoch + 120 ))")"
+
+guard_block_output="$(DISPATCH_HEARTBEAT_NOW_EPOCH="$guard_block_epoch" bash scripts/dispatch-heartbeat.sh guard)"
+printf '%s\n' "$guard_block_output" | grep -Fq 'current-status: `BLOCKED`'
+printf '%s\n' "$guard_block_output" | grep -Fq "last-progress-at-utc: $(epoch_to_utc "$progress_epoch")"
+
+done_output="$(DISPATCH_HEARTBEAT_NOW_EPOCH="$done_epoch" bash scripts/dispatch-heartbeat.sh done planner "plan.md and test-matrix.md updated" )"
 printf '%s\n' "$done_output" | grep -Fq 'current-status: `DONE`'
+printf '%s\n' "$done_output" | grep -Fq "interrupt-after-utc: $(epoch_to_utc "$(( done_epoch + 120 ))")"
 printf '%s\n' "$done_output" | grep -Fq 'last-progress: plan.md and test-matrix.md updated'
+
+tester_start_output="$(DISPATCH_HEARTBEAT_NOW_EPOCH="$tester_start_epoch" bash scripts/dispatch-heartbeat.sh start tester "running tests for handoff" )"
+printf '%s\n' "$tester_start_output" | grep -Fq 'current-role: tester'
+printf '%s\n' "$tester_start_output" | grep -Fq 'current-status: `RUNNING`'
+printf '%s\n' "$tester_start_output" | grep -Fq "started-at-utc: $(epoch_to_utc "$tester_start_epoch")"
+printf '%s\n' "$tester_start_output" | grep -Fq "interrupt-after-utc: $(epoch_to_utc "$(( tester_start_epoch + 120 ))")"
+printf '%s\n' "$tester_start_output" | grep -Fq 'last-progress: running tests for handoff'
 
 show_output="$(bash scripts/dispatch-heartbeat.sh show)"
 printf '%s\n' "$show_output" | grep -Fq 'feature-id: feature-1'
-printf '%s\n' "$show_output" | grep -Fq 'current-role: planner'
+printf '%s\n' "$show_output" | grep -Fq 'current-role: tester'
 
 if bash scripts/dispatch-heartbeat.sh start invalid-role "bad role" >/dev/null 2>&1; then
   echo "[FAIL] expected invalid role to be rejected"
   exit 1
 fi
 
-grep -Eq '^- started-at-utc: [0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}Z$' \
+grep -Fq -- "- started-at-utc: $(epoch_to_utc "$tester_start_epoch")" \
   "$TMP_DIR/docs/features/feature-1/run-log.md"
-grep -Eq '^- interrupt-after-utc: [0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}Z$' \
+grep -Fq -- "- interrupt-after-utc: $(epoch_to_utc "$(( tester_start_epoch + 120 ))")" \
   "$TMP_DIR/docs/features/feature-1/run-log.md"
 
 echo "[PASS] dispatch-heartbeat smoke"

@@ -80,7 +80,7 @@ replace_role_section_or_exit() {
       in_role = 1
       next
     }
-    in_role && /^### / {
+    in_role && (/^### / || /^## /) {
       in_role = 0
     }
     !in_role {

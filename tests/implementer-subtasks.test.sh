@@ -13,6 +13,7 @@ mkdir -p \
 
 cp "$ROOT_DIR/scripts/implementer-subtasks.sh" "$TMP_DIR/scripts/implementer-subtasks.sh"
 cp "$ROOT_DIR/scripts/_run_log_helpers.sh" "$TMP_DIR/scripts/_run_log_helpers.sh"
+cp "$ROOT_DIR/scripts/_git_change_helpers.sh" "$TMP_DIR/scripts/_git_change_helpers.sh"
 cp "$ROOT_DIR/scripts/gates/_helpers.sh" "$TMP_DIR/scripts/gates/_helpers.sh"
 chmod +x \
   "$TMP_DIR/scripts/implementer-subtasks.sh"

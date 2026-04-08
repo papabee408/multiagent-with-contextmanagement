@@ -130,6 +130,8 @@ full_gate_fingerprint() {
     manifest_digest_line "scripts/gates/run.sh"
     manifest_digest_line "scripts/gates/check-tests.sh"
     manifest_digest_glob "scripts/gates/*.sh"
+    manifest_digest_glob "scripts/*.sh"
+    manifest_digest_glob "tests/*.test.sh"
     context_manifest
     packet_manifest "$feature_id"
     changed_file_manifest

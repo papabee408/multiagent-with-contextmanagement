@@ -69,9 +69,23 @@ if [[ "$declared_feature_id" != "$FEATURE_ID" ]]; then
   failures+=("feature-id-mismatch($declared_feature_id)")
 fi
 
+risk_class="$(risk_class_from_brief)"
+case "$risk_class" in
+  trivial|standard|high-risk)
+    ;;
+  *)
+    failures+=("invalid-risk-class($risk_class)")
+    ;;
+esac
+
+risk_rationale="$(risk_rationale_from_brief)"
+if is_placeholder_text "$risk_rationale"; then
+  failures+=("missing-risk-rationale")
+fi
+
 workflow_mode="$(workflow_mode_from_brief)"
 case "$workflow_mode" in
-  lite|full)
+  trivial|lite|full)
     ;;
   *)
     failures+=("invalid-workflow-mode($workflow_mode)")
@@ -83,7 +97,50 @@ if is_placeholder_text "$workflow_rationale"; then
   failures+=("missing-workflow-rationale")
 fi
 
-for section in "## Goal" "## Non-goals" "## Constraints" "## Acceptance" "## Workflow Mode" "## Requirement Notes"; do
+execution_mode="$(execution_mode_from_brief)"
+case "$execution_mode" in
+  single|multi-agent)
+    ;;
+  *)
+    failures+=("invalid-execution-mode($execution_mode)")
+    ;;
+esac
+
+execution_rationale="$(execution_rationale_from_brief)"
+if is_placeholder_text "$execution_rationale"; then
+  failures+=("missing-execution-rationale")
+fi
+
+if [[ "$risk_class" == "high-risk" && "$workflow_mode" != "full" ]]; then
+  failures+=("high-risk-requires-full-workflow")
+fi
+
+if ! brief_has_risk_signals_section; then
+  failures+=("missing-risk-signals-section")
+else
+  risk_signal_yes_count=0
+  while IFS= read -r key; do
+    [[ -n "$key" ]] || continue
+    value="$(risk_signal_value_from_brief "$key")"
+    if [[ -z "$value" ]]; then
+      failures+=("risk-signals:invalid-${key}")
+      continue
+    fi
+    if [[ "$value" == "yes" ]]; then
+      risk_signal_yes_count=$((risk_signal_yes_count + 1))
+    fi
+  done < <(risk_signal_keys)
+
+  if (( risk_signal_yes_count > 0 )) && [[ "$risk_class" != "high-risk" ]]; then
+    failures+=("high-risk-signals-require-high-risk-class")
+  fi
+
+  if (( risk_signal_yes_count > 0 )) && [[ "$workflow_mode" != "full" ]]; then
+    failures+=("high-risk-signals-require-full-workflow")
+  fi
+fi
+
+for section in "## Goal" "## Non-goals" "## Constraints" "## Acceptance" "## Risk Class" "## Workflow Mode" "## Execution Mode" "## Requirement Notes"; do
   value="$(section_first_line "$section")"
   if is_placeholder_text "$value"; then
     failures+=("missing-content(${section#\#\# })")

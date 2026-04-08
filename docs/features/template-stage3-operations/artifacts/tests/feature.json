@@ -1,0 +1,11 @@
+{
+  "kind": "feature-tests",
+  "feature_id": "template-stage3-operations",
+  "mode": "feature",
+  "fingerprint": "579a4168c933869ff8b2ffc6ac7222b51332953ad5d971b3f3270518c51e89b0",
+  "result": "PASS",
+  "command": "bash scripts/gates/check-tests.sh --feature --feature-id template-stage3-operations",
+  "executed_at_utc": "2026-03-27 06:08:25Z",
+  "script_sha": "c20a485c6b060b886f3fd4ba1b9cb73595f8432f03610d867ca96c1bf0e67f1e",
+  "node_version": "v22.20.0"
+}

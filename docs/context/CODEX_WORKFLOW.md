@@ -5,9 +5,10 @@ Use this flow to survive Codex context resets during long-term development.
 ## Start of Session
 
 1. Run `scripts/context-log.sh resume-lite`.
-2. Read `docs/context/HANDOFF.md` and `docs/context/CODEX_RESUME.md` first.
-3. Open deep-dive files only if needed (`DECISIONS.md`, latest session file, `DECISIONS_ARCHIVE.md`).
-4. Start a fresh session log:
+2. For a new implementation request, start from `standard -> lite -> single`, fill the brief risk-signal checklist, and only ask the user when overriding that route or enabling `Multi-Agent`.
+3. Read `docs/context/HANDOFF.md` and `docs/context/CODEX_RESUME.md` first.
+4. Open deep-dive files only if needed (`DECISIONS.md`, latest session file, `DECISIONS_ARCHIVE.md`).
+5. Start a fresh session log:
    `scripts/context-log.sh start "<session-title>"`
 
 ## During Session

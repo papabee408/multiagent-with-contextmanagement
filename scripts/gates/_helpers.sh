@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+source "$ROOT_DIR/scripts/_git_change_helpers.sh"
 FEATURE_ID="${1:-}"
 FEATURE_DIR="$ROOT_DIR/docs/features/$FEATURE_ID"
 PLAN_FILE="$FEATURE_DIR/plan.md"
@@ -92,13 +93,153 @@ normalize_mode_token() {
   local value="${1:-}"
   value="$(lower "$(trim "$value")")"
   case "$value" in
-    lite|full|serial|parallel)
+    single|multi-agent|trivial|lite|full|serial|parallel)
       printf '%s' "$value"
       ;;
     *)
-      printf '%s' "$value"
+      printf '%s' ""
       ;;
   esac
+}
+
+normalize_risk_class_token() {
+  local value="${1:-}"
+  value="$(lower "$(trim "$value")")"
+  case "$value" in
+    trivial|standard|high-risk)
+      printf '%s' "$value"
+      ;;
+    *)
+      printf '%s' ""
+      ;;
+  esac
+}
+
+risk_signal_keys() {
+  printf '%s\n' \
+    "auth-permissions" \
+    "payments-billing" \
+    "data-migration" \
+    "public-api" \
+    "infra-deploy" \
+    "secrets-sensitive-data" \
+    "blast-radius"
+}
+
+normalize_yes_no_token() {
+  local value="${1:-}"
+  value="$(lower "$(trim "$value")")"
+  case "$value" in
+    yes|y|true)
+      printf '%s' "yes"
+      ;;
+    no|n|false)
+      printf '%s' "no"
+      ;;
+    *)
+      printf '%s' ""
+      ;;
+  esac
+}
+
+brief_has_section() {
+  local file="$1"
+  local section="$2"
+
+  if [[ ! -f "$file" ]]; then
+    return 1
+  fi
+
+  awk -v section="$section" '
+    $0 == section { found = 1; exit }
+    END { exit(found ? 0 : 1) }
+  ' "$file"
+}
+
+brief_has_risk_signals_section() {
+  local brief_file="$FEATURE_DIR/brief.md"
+  brief_has_section "$brief_file" "## Risk Signals"
+}
+
+risk_signal_value_from_brief() {
+  local key="$1"
+  local brief_file="$FEATURE_DIR/brief.md"
+  local value
+
+  value="$(section_key_value "$brief_file" "## Risk Signals" "$key")"
+  normalize_yes_no_token "$value"
+}
+
+risk_signal_yes_keys_from_brief() {
+  local key
+  local value
+
+  if ! brief_has_risk_signals_section; then
+    return 0
+  fi
+
+  while IFS= read -r key; do
+    [[ -n "$key" ]] || continue
+    value="$(risk_signal_value_from_brief "$key")"
+    if [[ "$value" == "yes" ]]; then
+      printf '%s\n' "$key"
+    fi
+  done < <(risk_signal_keys)
+}
+
+high_risk_signals_count_from_brief() {
+  local count=0
+  while IFS= read -r _key; do
+    [[ -n "$_key" ]] || continue
+    count=$((count + 1))
+  done < <(risk_signal_yes_keys_from_brief)
+
+  printf '%s' "$count"
+}
+
+risk_class_from_brief() {
+  local brief_file="$FEATURE_DIR/brief.md"
+  local risk_class
+
+  risk_class="$(section_key_value "$brief_file" "## Risk Class" "class")"
+  risk_class="$(normalize_risk_class_token "$risk_class")"
+  printf '%s' "$risk_class"
+}
+
+risk_rationale_from_brief() {
+  local brief_file="$FEATURE_DIR/brief.md"
+  section_key_value "$brief_file" "## Risk Class" "rationale"
+}
+
+default_workflow_mode_for_risk_class() {
+  local risk_class
+
+  risk_class="$(normalize_risk_class_token "${1:-}")"
+  case "$risk_class" in
+    trivial)
+      printf '%s' "trivial"
+      ;;
+    high-risk)
+      printf '%s' "full"
+      ;;
+    *)
+      printf '%s' "lite"
+      ;;
+  esac
+}
+
+execution_mode_from_brief() {
+  local brief_file="$FEATURE_DIR/brief.md"
+  local mode
+
+  mode="$(section_key_value "$brief_file" "## Execution Mode" "mode")"
+  mode="$(normalize_mode_token "$mode")"
+  printf '%s' "$mode"
+}
+
+execution_rationale_from_brief() {
+  local brief_file="$FEATURE_DIR/brief.md"
+  section_key_value "$brief_file" "## Execution Mode" "rationale"
 }
 
 workflow_mode_from_brief() {
@@ -107,11 +248,6 @@ workflow_mode_from_brief() {
 
   mode="$(section_key_value "$brief_file" "## Workflow Mode" "mode")"
   mode="$(normalize_mode_token "$mode")"
-  if [[ -z "$mode" ]]; then
-    printf '%s' "full"
-    return 0
-  fi
-
   printf '%s' "$mode"
 }
 
@@ -142,6 +278,13 @@ workflow_roles_for_mode() {
 
   mode="$(normalize_mode_token "${1:-}")"
   case "$mode" in
+    trivial)
+      printf '%s\n' \
+        "orchestrator" \
+        "planner" \
+        "implementer" \
+        "gate-checker"
+      ;;
     lite)
       printf '%s\n' \
         "orchestrator" \
@@ -163,52 +306,72 @@ workflow_roles_for_mode() {
   esac
 }
 
+required_handoff_files_for_mode() {
+  local mode
+
+  mode="$(normalize_mode_token "${1:-}")"
+  printf '%s\n' "implementer-handoff.md"
+  case "$mode" in
+    lite|full)
+      printf '%s\n' "tester-handoff.md"
+      ;;
+  esac
+  case "$mode" in
+    full)
+      printf '%s\n' "reviewer-handoff.md"
+      printf '%s\n' "security-handoff.md"
+      ;;
+  esac
+}
+
 changed_files() {
   local -a files=()
   local range="${GATE_DIFF_RANGE:-}"
 
-  if [[ -n "$range" ]]; then
-    git -C "$ROOT_DIR" diff --name-only --relative "$range"
-    return 0
-  fi
-
-  if [[ -n "${GITHUB_BASE_REF:-}" ]]; then
-    local base_ref="origin/${GITHUB_BASE_REF}"
-    if git -C "$ROOT_DIR" show-ref --verify --quiet "refs/remotes/${base_ref}"; then
-      git -C "$ROOT_DIR" diff --name-only --relative "${base_ref}...HEAD"
-      return 0
-    fi
-  fi
-
   while IFS= read -r f; do
     [[ -n "$f" ]] && files+=("$f")
-  done < <(git -C "$ROOT_DIR" diff --name-only --relative)
-
-  while IFS= read -r f; do
-    [[ -n "$f" ]] && files+=("$f")
-  done < <(git -C "$ROOT_DIR" diff --name-only --relative --cached)
-
-  while IFS= read -r f; do
-    [[ -n "$f" ]] && files+=("$f")
-  done < <(git -C "$ROOT_DIR" ls-files --others --exclude-standard)
-
-  if [[ ${#files[@]} -eq 0 && "$(git -C "$ROOT_DIR" rev-list --count HEAD)" -gt 1 ]]; then
-    git -C "$ROOT_DIR" diff --name-only --relative HEAD~1..HEAD
-    return 0
-  fi
+  done < <(git_changed_files_for_repo "$ROOT_DIR" "$range" "${GITHUB_BASE_REF:-}")
 
   if [[ -f "$BASELINE_FILE" ]]; then
     current_tmp="$(mktemp)"
     filtered_tmp="$(mktemp)"
 
-    printf '%s\n' "${files[@]}" | sort -u > "$current_tmp"
+    if [[ ${#files[@]} -gt 0 ]]; then
+      printf '%s\n' "${files[@]}" | sort -u > "$current_tmp"
+    else
+      : > "$current_tmp"
+    fi
     grep -Fxv -f "$BASELINE_FILE" "$current_tmp" > "$filtered_tmp" || true
     cat "$filtered_tmp"
     rm -f "$current_tmp" "$filtered_tmp"
     return 0
   fi
 
-  printf '%s\n' "${files[@]}" | sort -u
+  if [[ ${#files[@]} -gt 0 ]]; then
+    printf '%s\n' "${files[@]}" | sort -u
+  fi
+}
+
+approval_target_path_is_excluded() {
+  local path="$1"
+
+  case "$path" in
+    "docs/features/$FEATURE_ID/run-log.md"|"docs/features/$FEATURE_ID/artifacts/"*|"docs/context/HANDOFF.md"|"docs/context/CODEX_RESUME.md"|"docs/context/MAINTENANCE_STATUS.md"|"docs/context/sessions/"*)
+      return 0
+      ;;
+  esac
+
+  return 1
+}
+
+approval_target_files() {
+  changed_files | while IFS= read -r relative_path; do
+    [[ -n "$relative_path" ]] || continue
+    if approval_target_path_is_excluded "$relative_path"; then
+      continue
+    fi
+    printf '%s\n' "$relative_path"
+  done | sort -u
 }
 
 # Extract backtick-wrapped file paths from plan.md target files section.
@@ -231,9 +394,22 @@ allowed_files_from_plan() {
   ' "$PLAN_FILE" | sed '/^$/d' | sort -u
 }
 
-is_doc_file() {
+is_workflow_internal_file() {
   local path="$1"
-  [[ "$path" == docs/* || "$path" == "AGENTS.md" || "$path" == "README.md" ]]
+
+  case "$path" in
+    "docs/features/$FEATURE_ID/"* \
+    |"docs/context/HANDOFF.md" \
+    |"docs/context/CODEX_RESUME.md" \
+    |"docs/context/MAINTENANCE_STATUS.md" \
+    |"docs/context/DECISIONS.md" \
+    |"docs/context/DECISIONS_ARCHIVE.md" \
+    |"docs/context/sessions/"*)
+      return 0
+      ;;
+  esac
+
+  return 1
 }
 
 utc_now() {
@@ -243,6 +419,21 @@ utc_now() {
 sha256_file() {
   local path="$1"
   shasum -a 256 "$path" | awk '{print $1}'
+}
+
+sha256_stdin() {
+  if command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 | awk '{print $1}'
+    return 0
+  fi
+
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum | awk '{print $1}'
+    return 0
+  fi
+
+  echo "[ERROR] sha256 tool not found" >&2
+  exit 1
 }
 
 file_digest_or_missing() {
@@ -257,6 +448,23 @@ file_digest_or_missing() {
 is_sha256() {
   local value="${1:-}"
   [[ "$value" =~ ^[0-9a-f]{64}$ ]]
+}
+
+approval_target_hash() {
+  local has_files=0
+
+  {
+    echo "feature-id=$FEATURE_ID"
+    while IFS= read -r relative_path; do
+      [[ -n "$relative_path" ]] || continue
+      has_files=1
+      printf '%s\t%s\n' "$relative_path" "$(file_digest_or_missing "$ROOT_DIR/$relative_path")"
+    done < <(approval_target_files)
+
+    if [[ "$has_files" == "0" ]]; then
+      echo "__empty__"
+    fi
+  } | sha256_stdin
 }
 
 is_valid_utc_timestamp() {

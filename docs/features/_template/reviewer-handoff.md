@@ -11,6 +11,7 @@
 ## Focus
 - workflow mode:
 - regression hotspots:
+- approval target:
 - architecture / reuse focus:
 - scope drift watchpoints:
 
@@ -21,6 +22,7 @@
 
 ## Acceptance
 - fail conditions:
+- approval binding:
 
 ## Manual Notes
 - Add role-specific notes here when generated defaults are insufficient.

@@ -1,0 +1,14 @@
+{
+  "kind": "role-result",
+  "role": "gate-checker",
+  "agent_id": "lead-codex-20260327",
+  "scope": "scripts/gates/run.sh --fast template-review-hardening-followup",
+  "rq_covered": "[RQ-001, RQ-002, RQ-003, RQ-004]",
+  "rq_missing": "[]",
+  "result": "PASS",
+  "evidence": "reran bash scripts/sync-handoffs.sh template-review-hardening-followup to refresh generator digests, then passed bash scripts/gates/check-handoffs.sh template-review-hardening-followup and bash scripts/gates/run.sh --fast template-review-hardening-followup",
+  "next_action": "reviewer",
+  "touched_files": [],
+  "input_digest": "f2fbeb911eb600b287258762e3aae050e8719f439fd88cdc6dada8894ff452b5",
+  "updated_at_utc": "2026-03-27 07:58:37Z"
+}

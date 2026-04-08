@@ -1,0 +1,7 @@
+docs/context/CODEX_RESUME.md
+docs/context/sessions/20260327-030154-template-review-remediation.md
+docs/features/template-ops-hardening/implementer-handoff.md
+docs/features/template-ops-hardening/reviewer-handoff.md
+docs/features/template-ops-hardening/security-handoff.md
+docs/features/template-ops-hardening/tester-handoff.md
+docs/features/workflow-speed-and-mode-upgrade/artifacts/tests/feature.json

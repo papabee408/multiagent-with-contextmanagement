@@ -7,6 +7,7 @@ trap 'rm -rf "$TMP_DIR"' EXIT
 
 mkdir -p "$TMP_DIR/scripts"
 cp "$ROOT_DIR/scripts/context-log.sh" "$TMP_DIR/scripts/context-log.sh"
+cp "$ROOT_DIR/scripts/report-template-kpis.sh" "$TMP_DIR/scripts/report-template-kpis.sh"
 chmod +x "$TMP_DIR/scripts/context-log.sh"
 
 cd "$TMP_DIR"
@@ -34,6 +35,11 @@ bash scripts/context-log.sh resume-lite >/dev/null
   exit 1
 }
 
+[[ -f "$TMP_DIR/docs/context/MAINTENANCE_STATUS.md" ]] || {
+  echo "[FAIL] expected docs/context/MAINTENANCE_STATUS.md"
+  exit 1
+}
+
 if grep -q "Discord Bot" "$TMP_DIR/docs/context/PROJECT.md"; then
   echo "[FAIL] expected generic project brief, found stale project content"
   exit 1
@@ -43,5 +49,8 @@ if ! grep -q "repo-slug: $(basename "$TMP_DIR")" "$TMP_DIR/docs/context/PROJECT.
   echo "[FAIL] expected repo-slug to match temp repo directory"
   exit 1
 fi
+
+grep -Fq '## Workflow KPIs' "$TMP_DIR/docs/context/MAINTENANCE_STATUS.md"
+grep -Fq 'Feature packets: 0' "$TMP_DIR/docs/context/MAINTENANCE_STATUS.md"
 
 echo "[PASS] context-log smoke"

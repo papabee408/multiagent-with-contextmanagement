@@ -1,0 +1,10 @@
+{
+  "kind": "full-gate",
+  "feature_id": "template-stage3-operations",
+  "fingerprint": "c8a2c078b9c881ae61ad6dc65e59ae0b3e863705dd04ba5ef735385fcb22ddf1",
+  "result": "PASS",
+  "tests_fingerprint": "f827b50c0d9197808d5e5ed60502011a3f6bae3ba9bb3b2cfe530ae38426cb70",
+  "command": "scripts/gates/run.sh template-stage3-operations",
+  "executed_at_utc": "2026-03-27 05:26:31Z",
+  "script_sha": "8314e7665b292655357d779cc3c9092e6773fc767557891cd35ad351790aad18"
+}

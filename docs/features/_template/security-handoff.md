@@ -10,11 +10,13 @@
 
 ## Focus
 - validation / auth focus:
+- approval target:
 - secrets / config touchpoints:
 - abuse / failure paths:
 
 ## Acceptance
 - fail conditions:
+- approval binding:
 
 ## Manual Notes
 - Add role-specific notes here when generated defaults are insufficient.

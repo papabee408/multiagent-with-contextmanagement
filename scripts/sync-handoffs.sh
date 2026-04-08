@@ -146,12 +146,17 @@ tester_required_scenarios() {
 }
 
 tester_test_edit_policy() {
-  if [[ "$(workflow_mode_from_brief)" == "full" ]]; then
-    printf '%s' "implementer owns baseline test updates; tester may strengthen \`tests/**\` only when coverage gaps remain after implementation"
-    return 0
-  fi
-
-  printf '%s' "implementer owns all test edits in lite mode; tester reports coverage gaps back to implementer instead of editing tests"
+  case "$(workflow_mode_from_brief)" in
+    trivial)
+      printf '%s' "trivial mode skips tester; implementer owns feature test execution, \`test-matrix.md\` finalization, and any required test edits"
+      ;;
+    full)
+      printf '%s' "implementer owns baseline test updates; tester may strengthen \`tests/**\` only when coverage gaps remain after implementation"
+      ;;
+    *)
+      printf '%s' "implementer owns all test edits in lite mode; tester reports coverage gaps back to implementer instead of editing tests"
+      ;;
+  esac
 }
 
 plan_section_value() {
@@ -210,11 +215,26 @@ task_card_done_whens() {
     /^## Task Cards/ { in_cards = 1; next }
     /^## / && in_cards { in_cards = 0 }
     in_cards {
+      if (capture && /^[[:space:]]*-[[:space:]]+/) {
+        line = $0
+        sub(/^[[:space:]]*-[[:space:]]*/, "", line)
+        gsub(/^[[:space:]]+|[[:space:]]+$/, "", line)
+        if (line != "") {
+          print line
+        }
+        next
+      }
+      if (capture && ($0 ~ /^### / || $0 ~ /^## / || $0 ~ /^[^[:space:]]/)) {
+        capture = 0
+      }
       if (index($0, "- done when:") == 1) {
         line = substr($0, length("- done when:") + 1)
         gsub(/^[[:space:]]+|[[:space:]]+$/, "", line)
         if (line != "") {
           print line
+          capture = 0
+        } else {
+          capture = 1
         }
       }
     }
@@ -261,6 +281,7 @@ $(render_source_digest)
 ## Scope
 - rq_covered: $(value_or_tbd "$(brief_rq_ids_inline)")
 - workflow mode: $(value_or_tbd "$(workflow_mode_from_brief)")
+- execution mode: $(value_or_tbd "$(execution_mode_from_brief)")
 - target files: $(value_or_tbd "$(allowed_files_from_plan | join_lines ', ')")
 - task order: $(value_or_tbd "$(task_card_titles | join_lines ' -> ')")
 - out-of-scope reminders: $(value_or_tbd "$(scope_out_of_scope_lines | join_lines '; ')")
@@ -295,6 +316,7 @@ $(render_source_digest)
 
 ## Coverage
 - workflow mode: $(value_or_tbd "$(workflow_mode_from_brief)")
+- execution mode: $(value_or_tbd "$(execution_mode_from_brief)")
 - rq coverage: $(value_or_tbd "$(brief_rq_summary | join_lines '; ')")
 - required scenarios: $(value_or_tbd "$(tester_required_scenarios | join_lines '; ')")
 - priority risks: $(value_or_tbd "$(printf '%s\n' \
@@ -310,7 +332,8 @@ $(render_source_digest)
 - execution notes / commands: Run \`scripts/gates/check-tests.sh\`, then update \`test-matrix.md\` with the concrete test files you executed.
 
 ## Acceptance
-- matrix expectations: every brief RQ must have a \`test-matrix.md\` row with concrete normal/error/boundary coverage, test file, and \`VERIFIED\` status before tester returns \`PASS\`
+- matrix expectations: every brief RQ must have a \`test-matrix.md\` row with concrete normal/error/boundary coverage, test file, and \`VERIFIED\` status before tester returns \`PASS\`; tester \`PASS\` also binds to the current approval-target hash and must be rerun after relevant target changes
+- trivial-mode note: $(value_or_tbd "$(if [[ "$(workflow_mode_from_brief)" == "trivial" ]]; then printf '%s' "tester role is skipped; implementer must complete feature tests and finalize \`test-matrix.md\` before gate-checker"; else printf '%s' "tester role remains active for this workflow mode"; fi)")
 
 ## Manual Notes
 - Edit \`brief.md\` or \`plan.md\` and rerun \`scripts/sync-handoffs.sh\` if generated defaults need to change.
@@ -327,7 +350,9 @@ $(render_source_digest)
 
 ## Focus
 - workflow mode: $(value_or_tbd "$(workflow_mode_from_brief)")
+- execution mode: $(value_or_tbd "$(execution_mode_from_brief)")
 - regression hotspots: $(value_or_tbd "$(allowed_files_from_plan | join_lines ', ')")
+- approval target: current final diff plus the current approval-target hash; reviewer \`PASS\` must match the final state that reaches gate completion
 - architecture / reuse focus: $(value_or_tbd "$(printf '%s\n' \
     "$(plan_section_value "## Architecture Notes" "target layer / owning module")" \
     "$(plan_section_value "## Reuse and Config Plan" "existing abstractions to reuse")" \
@@ -346,6 +371,7 @@ $(render_source_digest)
 
 ## Acceptance
 - fail conditions: target files drift outside \`plan.md\` scope, dependency constraints are violated, reuse/componentization opportunities are ignored, centralized config is bypassed, or obvious performance waste is introduced
+- approval binding: reviewer receipt must record the current approval-target hash; any later approval-target change invalidates the reviewer approval automatically
 
 ## Manual Notes
 - Edit \`plan.md\` and rerun \`scripts/sync-handoffs.sh\` if generated defaults need to change.
@@ -362,7 +388,9 @@ $(render_source_digest)
 
 ## Focus
 - workflow mode: $(value_or_tbd "$(workflow_mode_from_brief)")
+- execution mode: $(value_or_tbd "$(execution_mode_from_brief)")
 - validation / auth focus: $(value_or_tbd "$(section_first_line "$BRIEF_FILE" "## Constraints")")
+- approval target: current final diff plus the same approval-target hash reviewed by reviewer; stale approvals must fail before completion
 - secrets / config touchpoints: $(value_or_tbd "$(printf '%s\n' \
     "$(brief_section_value "## Requirement Notes" "Values/config that must not be hardcoded")" \
     "$(plan_section_value "## Reuse and Config Plan" "constants/config/env to centralize")" | join_lines '; ')")
@@ -373,6 +401,7 @@ $(render_source_digest)
 
 ## Acceptance
 - fail conditions: hardcoded values violate brief requirement notes, centralized config is bypassed, or forbidden dependency paths from \`plan.md\` are introduced
+- approval binding: security receipt must record the current approval-target hash; any later approval-target change invalidates the security approval automatically
 
 ## Manual Notes
 - Edit \`brief.md\` or \`plan.md\` and rerun \`scripts/sync-handoffs.sh\` if generated defaults need to change.
@@ -415,12 +444,36 @@ matrix_last_updated_value() {
   ' "$TEST_MATRIX_FILE"
 }
 
+matrix_source_digest_value() {
+  local key="$1"
+
+  if [[ ! -f "$TEST_MATRIX_FILE" ]]; then
+    return 0
+  fi
+
+  awk -v key="$key" '
+    $0 == "## Status" { in_status = 1; next }
+    in_status && /^## / { in_status = 0 }
+    in_status && index($0, "- " key ":") == 1 {
+      line = substr($0, length("- " key ":") + 1)
+      gsub(/`/, "", line)
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", line)
+      print line
+      exit
+    }
+  ' "$TEST_MATRIX_FILE"
+}
+
 render_test_matrix() {
   local existing_rows_tmp
   local new_rows_tmp
   local preserve_verified=1
   local existing_status
   local existing_last_updated
+  local existing_brief_sha
+  local existing_plan_sha
+  local current_brief_sha
+  local current_plan_sha
 
   existing_rows_tmp="$(mktemp)"
   new_rows_tmp="$(mktemp)"
@@ -448,7 +501,14 @@ render_test_matrix() {
 
   existing_status="$(normalize_inline "$(matrix_status_value)")"
   existing_last_updated="$(normalize_inline "$(matrix_last_updated_value)")"
+  existing_brief_sha="$(normalize_inline "$(matrix_source_digest_value "source-brief-sha")")"
+  existing_plan_sha="$(normalize_inline "$(matrix_source_digest_value "source-plan-sha")")"
+  current_brief_sha="$(hash_or_tbd "$BRIEF_FILE")"
+  current_plan_sha="$(hash_or_tbd "$PLAN_FILE")"
   if [[ "$(printf '%s' "$existing_status" | tr '[:lower:]' '[:upper:]')" != "VERIFIED" ]]; then
+    preserve_verified=0
+  fi
+  if [[ "$existing_brief_sha" != "$current_brief_sha" || "$existing_plan_sha" != "$current_plan_sha" ]]; then
     preserve_verified=0
   fi
 
@@ -506,7 +566,11 @@ render_test_matrix() {
     echo ""
     echo "## Status"
     echo "- owner-init: \`planner\`"
-    echo "- owner-verify: \`tester\`"
+    if [[ "$(workflow_mode_from_brief)" == "trivial" ]]; then
+      echo "- owner-verify: \`implementer\`"
+    else
+      echo "- owner-verify: \`tester\`"
+    fi
     echo "- status: \`$status_value\`"
     echo "- last-updated-utc: $last_updated_value"
     echo "- source-brief-sha: $(hash_or_tbd "$BRIEF_FILE")"
@@ -528,7 +592,11 @@ render_test_matrix() {
     echo ""
     echo "## Notes"
     echo "- Generated and refreshed by \`scripts/sync-handoffs.sh\` from \`brief.md\`."
-    echo "- Planner owns RQ row shape. Tester owns concrete coverage and final \`VERIFIED\` transition."
+    if [[ "$(workflow_mode_from_brief)" == "trivial" ]]; then
+      echo "- Planner owns RQ row shape. Implementer owns concrete coverage and final \`VERIFIED\` transition in trivial mode."
+    else
+      echo "- Planner owns RQ row shape. Tester owns concrete coverage and final \`VERIFIED\` transition."
+    fi
   } > "$TEST_MATRIX_FILE"
 }
 
@@ -538,9 +606,25 @@ if [[ ! -f "$BRIEF_FILE" || ! -f "$PLAN_FILE" ]]; then
 fi
 
 render_implementer_handoff
-render_tester_handoff
-render_reviewer_handoff
-render_security_handoff
+case "$(workflow_mode_from_brief)" in
+  trivial)
+    rm -f "$TESTER_FILE" "$REVIEWER_FILE" "$SECURITY_FILE"
+    ;;
+  lite)
+    render_tester_handoff
+    rm -f "$REVIEWER_FILE" "$SECURITY_FILE"
+    ;;
+  full)
+    render_tester_handoff
+    render_reviewer_handoff
+    render_security_handoff
+    ;;
+  *)
+    render_tester_handoff
+    render_reviewer_handoff
+    render_security_handoff
+    ;;
+esac
 render_test_matrix
 
 echo "[OK] handoffs synced for feature: $FEATURE_ID"

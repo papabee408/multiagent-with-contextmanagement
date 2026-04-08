@@ -1,0 +1,11 @@
+{
+  "kind": "feature-tests",
+  "feature_id": "workflow-speed-and-mode-upgrade",
+  "mode": "feature",
+  "fingerprint": "a3f8fa06ac327371e7ab3b44390595735060fa31cc3e8ebe946d7f494baaf91b",
+  "result": "PASS",
+  "command": "bash scripts/gates/check-tests.sh --feature --feature-id workflow-speed-and-mode-upgrade",
+  "executed_at_utc": "2026-03-27 02:46:05Z",
+  "script_sha": "7b40cfeb06f1a26238d838356b8b387844047097c659bd458c565299ef311cdb",
+  "node_version": "v22.20.0"
+}
