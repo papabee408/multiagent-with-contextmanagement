@@ -1,6 +1,6 @@
 # Current Snapshot
 
-- last-updated-utc: 2026-04-08 03:34:37Z
+- last-updated-utc: 2026-04-08 04:34:13Z
 - active-task: sync-stable-template-bundle
 - active-task-file: docs/tasks/sync-stable-template-bundle.md
 
@@ -18,15 +18,15 @@
 - task-state: done
 - risk-level: standard
 - approval: approved by user at 2026-04-08 03:00:58Z
-- current focus: task completed; ready to publish from the task branch
-- next action: update PR #3, push the branch, wait for AI Gate, then merge and sync local main
-- known risks: the diff is large, CI task detection is strict about changed task files, and root/nested parity must stay exact
+- current focus: task completed; PR is waiting on AI Gate with refreshed task metadata
+- next action: wait for AI Gate on the published PR, then merge and sync local main
+- known risks: root and nested template files must stay exactly mirrored, and AI Gate requires the task summary fingerprint to match the current diff
 
 ## Git / PR
 - base-branch: main
 - branch-strategy: publish-late
 - current-branch: task/sync-stable-template-bundle
-- ahead-of-origin-base: 3
+- ahead-of-origin-base: 1
 - behind-origin-base: 0
 - pr-status: none
 - pr-number: none
@@ -36,12 +36,12 @@
 ## Effective Changed Files
 - `.gitignore`
 - `AGENTS.md`
-- `MIGRATE_EXISTING_PROJECT.md`
-- `MIGRATION_ROLLOUT_PLAYBOOK.md`
 - `README.md`
+- `docs/context/ARCHITECTURE.md`
 - `docs/context/CONVENTIONS.md`
 - `docs/context/CURRENT.md`
 - `docs/context/DECISIONS.md`
+- `docs/context/PROJECT.md`
 - `docs/tasks/README.md`
 - `docs/tasks/sync-stable-template-bundle.md`
 - `migration-archive/old-ai-template/.github/workflows/gates.yml`
@@ -333,7 +333,9 @@
 - `scripts/ci/run-ai-gate.sh`
 - `scripts/merge-task-pr.sh`
 - `stable-ai-dev-template/.gitignore`
+- `stable-ai-dev-template/MIGRATE_EXISTING_PROJECT.md`
 - `stable-ai-dev-template/MIGRATION_REPORT.md`
+- `stable-ai-dev-template/MIGRATION_ROLLOUT_PLAYBOOK.md`
 - `stable-ai-dev-template/README.md`
 - `stable-ai-dev-template/docs/context/ARCHITECTURE.md`
 - `stable-ai-dev-template/docs/context/CI_PROFILE.md`
@@ -352,13 +354,13 @@
 
 ## Verification
 - verification-status: pass
-- verification-at-utc: 2026-04-08 03:33:48Z
-- verification-fingerprint: 45bca1af4b720fc837998c5159de4d6cc0407cff1a2b8c296e0653b3861325ca
+- verification-at-utc: 2026-04-08 04:33:03Z
+- verification-fingerprint: 8adc51e63781374c8f2b06c5da8fce4143c26b4c81a54c7b9ea78301b0bbb603
 
 ## Reviews
 - scope-review-status: pass
-- scope-review-at-utc: 2026-04-08 03:34:05Z
-- scope-review-fingerprint: 45bca1af4b720fc837998c5159de4d6cc0407cff1a2b8c296e0653b3861325ca
+- scope-review-at-utc: 2026-04-08 04:33:03Z
+- scope-review-fingerprint: 8adc51e63781374c8f2b06c5da8fce4143c26b4c81a54c7b9ea78301b0bbb603
 - quality-review-status: pass
-- quality-review-at-utc: 2026-04-08 03:34:19Z
-- quality-review-fingerprint: 45bca1af4b720fc837998c5159de4d6cc0407cff1a2b8c296e0653b3861325ca
+- quality-review-at-utc: 2026-04-08 04:33:03Z
+- quality-review-fingerprint: 8adc51e63781374c8f2b06c5da8fce4143c26b4c81a54c7b9ea78301b0bbb603

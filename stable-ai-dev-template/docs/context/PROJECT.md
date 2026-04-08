@@ -21,4 +21,4 @@
 ## Critical Flows
 - Bootstrap one task, approve it, implement only inside target files, run verification and reviews, then publish from the task branch.
 - Validate pull requests through `AI Gate` using the task file plus repo-specific smoke coverage.
-- Migrate older repos by keeping `stable-ai-dev-template/` as a discovery bundle and following `stable-ai-dev-template/MIGRATE_EXISTING_PROJECT.md`.
+- Bootstrap new repos from the live root template or the mirrored `stable-ai-dev-template/` bundle; existing-repo migration docs are no longer part of the supported surface.

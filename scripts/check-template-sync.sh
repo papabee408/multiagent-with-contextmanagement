@@ -18,8 +18,6 @@ PATHS=(
   ".github"
   ".gitignore"
   "AGENTS.md"
-  "MIGRATE_EXISTING_PROJECT.md"
-  "MIGRATION_ROLLOUT_PLAYBOOK.md"
   "README.md"
   "docs"
   "scripts"
