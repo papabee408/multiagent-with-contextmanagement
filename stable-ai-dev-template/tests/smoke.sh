@@ -577,6 +577,9 @@ assert_branch_absent() {
 assert_split_guidance_present() {
   assert_file_contains "$TEMPLATE_DIR/AGENTS.md" "이 요청은 기능이 여러 개 섞여 있어서 한 번에 묶는 것보다 나눠서 처리하는 편이 더 빠릅니다."
   assert_file_contains "$TEMPLATE_DIR/README.md" "이유는 검증, PR 리뷰, merge, 후속 수정까지 전체 리드타임이 줄기 때문입니다."
+  assert_file_contains "$TEMPLATE_DIR/AGENTS.md" "Never append a new follow-up request to a task already in"
+  assert_file_contains "$TEMPLATE_DIR/AGENTS.md" "open a new task instead."
+  assert_file_contains "$TEMPLATE_DIR/README.md" "When unsure, open a new task. That is usually faster than fixing the wrong task and PR later."
 }
 
 scenario_scope_and_approval() {

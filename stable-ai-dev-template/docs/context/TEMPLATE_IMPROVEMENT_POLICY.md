@@ -45,3 +45,4 @@ When a report shows recurring friction:
 - Do not hide a template change inside a product feature task.
 - Do not widen a product task just because the report suggests a workflow fix.
 - If the template itself is the blocker, open a separate stabilization or template-improvement task.
+- If a follow-up workflow improvement request arrives after a task is already in `review` or `done`, do not reopen that task; open a dedicated improvement task.

@@ -30,6 +30,14 @@ Keep one live user request mapped to one task file and one PR flow while minimiz
 - Recommend splitting when changes touch different screens, domains, risks, verification paths, rollout paths, or likely follow-up paths.
 - If the user explicitly insists on bundling, record that in the task intake fields, raise review depth, and avoid `trivial` risk.
 
+## Follow-up Request Rule
+
+- If the current task is `planning`, `awaiting_approval`, `approved`, or `in_progress`, decide whether the follow-up is still the same change cluster before writing code.
+- Update the current task first if the follow-up keeps the same goal and PR flow, and only after revising goal, target files, verification commands, and risk when needed.
+- Open a new task if the follow-up changes the goal, verification path, risk profile, rollout path, or likely review path in a material way.
+- Never append a new follow-up request to a task already in `review` or `done`; open a new task instead.
+- When uncertain, default to a new task. Extra task setup is cheaper than reworking the wrong PR later.
+
 ## User-Facing Split Copy
 
 Use short guidance like:
