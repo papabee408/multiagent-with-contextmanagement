@@ -43,6 +43,11 @@
 - Step 4: Expand smoke coverage for branch-name and active-task fallback, missing metadata recovery, delete-only cleanup scope, and CI/local parity.
 
 ## Target Files
+- `AGENTS.md`
+- `README.md`
+- `docs/context/ARCHITECTURE.md`
+- `docs/context/CONVENTIONS.md`
+- `docs/tasks/README.md`
 - `docs/tasks/_template.md`
 - `docs/tasks/migrate-stable-ai-template.md`
 - `docs/tasks/sync-stable-template-bundle.md`
@@ -60,6 +65,11 @@
 - `stable-ai-dev-template/docs/tasks/_template.md`
 - `stable-ai-dev-template/docs/tasks/migrate-stable-ai-template.md`
 - `stable-ai-dev-template/docs/tasks/sync-stable-template-bundle.md`
+- `stable-ai-dev-template/AGENTS.md`
+- `stable-ai-dev-template/README.md`
+- `stable-ai-dev-template/docs/context/ARCHITECTURE.md`
+- `stable-ai-dev-template/docs/context/CONVENTIONS.md`
+- `stable-ai-dev-template/docs/tasks/README.md`
 - `stable-ai-dev-template/.github/workflows/ai-gate.yml`
 - `stable-ai-dev-template/scripts/_lib.sh`
 - `stable-ai-dev-template/scripts/check-scope.sh`
