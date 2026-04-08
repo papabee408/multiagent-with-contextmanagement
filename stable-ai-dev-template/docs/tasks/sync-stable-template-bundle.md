@@ -6,7 +6,7 @@
 - state: done
 - owner: ai
 - risk-level: standard
-- updated-at-utc: 2026-04-08 03:34:34Z
+- updated-at-utc: 2026-04-08 04:33:03Z
 
 ## Approval
 - approved-by: user
@@ -383,19 +383,19 @@
 
 ## Verification Status
 - verification-status: pass
-- verification-note: verification passed; see .context/tasks/sync-stable-template-bundle/verification.log
-- verification-at-utc: 2026-04-08 03:33:48Z
-- verification-fingerprint: 45bca1af4b720fc837998c5159de4d6cc0407cff1a2b8c296e0653b3861325ca
+- verification-note: verification passed for the migration guide cleanup; see .context/tasks/sync-stable-template-bundle/verification.log
+- verification-at-utc: 2026-04-08 04:33:03Z
+- verification-fingerprint: 8adc51e63781374c8f2b06c5da8fce4143c26b4c81a54c7b9ea78301b0bbb603
 
 ## Review Status
 - scope-review-status: pass
-- scope-review-note: scope matches the approved root and bundle sync cleanup, including the CI gate parity fix
-- scope-review-at-utc: 2026-04-08 03:34:05Z
-- scope-review-fingerprint: 45bca1af4b720fc837998c5159de4d6cc0407cff1a2b8c296e0653b3861325ca
+- scope-review-note: scope matches the approved migration guide cleanup and mirrored bundle parity update
+- scope-review-at-utc: 2026-04-08 04:33:03Z
+- scope-review-fingerprint: 8adc51e63781374c8f2b06c5da8fce4143c26b4c81a54c7b9ea78301b0bbb603
 - quality-review-status: pass
-- quality-review-note: quality checks passed for the canonical bundle sync cleanup and CI gate parity fix
-- quality-review-at-utc: 2026-04-08 03:34:19Z
-- quality-review-fingerprint: 45bca1af4b720fc837998c5159de4d6cc0407cff1a2b8c296e0653b3861325ca
+- quality-review-note: quality checks passed for dropping the legacy migration guides and keeping the root and bundle docs in sync
+- quality-review-at-utc: 2026-04-08 04:33:03Z
+- quality-review-fingerprint: 8adc51e63781374c8f2b06c5da8fce4143c26b4c81a54c7b9ea78301b0bbb603
 - reuse-review: pass
 - hardcoding-review: pass
 - tests-review: pass
@@ -408,10 +408,10 @@
 - pr-metadata-policy: required
 
 ## Session Resume
-- current focus: task completed; ready to publish from the task branch
-- next action: update PR #3, push the branch, wait for AI Gate, then merge and sync local main
-- known risks: the diff is large, CI task detection is strict about changed task files, and root/nested parity must stay exact
+- current focus: task completed; PR is waiting on AI Gate with refreshed task metadata
+- next action: wait for AI Gate on the published PR, then merge and sync local main
+- known risks: root and nested template files must stay exactly mirrored, and AI Gate requires the task summary fingerprint to match the current diff
 
 ## Completion
-- summary: made the nested stable bundle canonical, kept the root mirrored to it, removed the legacy template trees, and aligned CI scope handling with the parity rules
-- follow-up: update PR #3, push the branch, wait for AI Gate, then merge and sync local main
+- summary: removed the duplicated migration guides from the root and mirrored bundle, and updated the live docs plus sync guard to treat the template as new-project bootstrap only
+- follow-up: merge the published PR after AI Gate passes, then sync local main and delete the task branch
