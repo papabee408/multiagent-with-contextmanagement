@@ -580,6 +580,8 @@ assert_split_guidance_present() {
   assert_file_contains "$TEMPLATE_DIR/AGENTS.md" "Never append a new follow-up request to a task already in"
   assert_file_contains "$TEMPLATE_DIR/AGENTS.md" "open a new task instead."
   assert_file_contains "$TEMPLATE_DIR/README.md" "When unsure, open a new task. That is usually faster than fixing the wrong task and PR later."
+  assert_file_contains "$TEMPLATE_DIR/AGENTS.md" "Report the trigger briefly in the final task update"
+  assert_file_contains "$TEMPLATE_DIR/README.md" "wait for the user to choose discussion, defer, or a dedicated improvement task"
 }
 
 scenario_scope_and_approval() {

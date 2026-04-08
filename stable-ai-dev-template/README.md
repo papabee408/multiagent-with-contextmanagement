@@ -114,3 +114,12 @@ When a small extra request appears during a task, make the routing decision befo
 - Before absorbing the follow-up, revisit `Goal`, `Target Files`, `Verification Commands`, and `risk-level`.
 - If the task is already `review` or `done`, or the follow-up materially changes verification, risk, or review path, bootstrap a new task.
 - When unsure, open a new task. That is usually faster than fixing the wrong task and PR later.
+
+## Improvement Trigger Reporting
+
+If a workflow or template improvement trigger shows up during delivery:
+
+- finish the current approved task first
+- report the trigger briefly in the final update with `trigger`, `impact`, and `proposal`
+- wait for the user to choose discussion, defer, or a dedicated improvement task
+- do not start the improvement work until the user explicitly chooses to proceed

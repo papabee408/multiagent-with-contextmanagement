@@ -19,6 +19,12 @@ Create one task file per live user request:
 - If the task is already `review` or `done`, or the follow-up materially changes verification, risk, or review path, open a new task instead of widening the old one.
 - When uncertain, choose a new task.
 
+## Improvement Trigger Reporting
+
+- If a workflow or template improvement trigger appears during delivery, finish the approved task first unless the user redirects.
+- In the final update, report only `trigger`, `impact`, and `proposal`.
+- Do not open or start an improvement task until the user explicitly decides to proceed.
+
 ## State Machine
 
 `planning -> awaiting_approval -> approved -> in_progress -> review -> done`
