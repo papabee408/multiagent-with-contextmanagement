@@ -582,6 +582,8 @@ assert_split_guidance_present() {
   assert_file_contains "$TEMPLATE_DIR/README.md" "When unsure, open a new task. That is usually faster than fixing the wrong task and PR later."
   assert_file_contains "$TEMPLATE_DIR/AGENTS.md" "Report the trigger briefly in the final task update"
   assert_file_contains "$TEMPLATE_DIR/README.md" "wait for the user to choose discussion, defer, or a dedicated improvement task"
+  assert_file_contains "$TEMPLATE_DIR/AGENTS.md" "When a user gives a new requirement, draft or update the task plan first."
+  assert_file_contains "$TEMPLATE_DIR/README.md" "write the task plan first, get explicit user approval, and only then implement."
 }
 
 scenario_scope_and_approval() {
