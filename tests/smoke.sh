@@ -14,6 +14,8 @@ fail() {
   exit 1
 }
 
+bash "$TEMPLATE_DIR/scripts/check-template-sync.sh" >/dev/null
+
 assert_file_contains() {
   local file="$1"
   local needle="$2"
@@ -971,9 +973,17 @@ EOF
   HEAD_SHA="$(gh pr view "$PR_NUMBER" --json headRefOid | jq -r '.headRefOid')"
   mark_check_success "$HEAD_SHA" "AI Gate"
 
-  bash scripts/merge-task-pr.sh publish-late-flow >/dev/null
+  gh pr merge "$PR_NUMBER" --squash --delete-branch >/dev/null
+  git restore --staged --worktree --source=HEAD -- docs/context/CURRENT.md >/dev/null 2>&1 || \
+    git restore --worktree --source=HEAD -- docs/context/CURRENT.md >/dev/null 2>&1 || true
+  git switch main >/dev/null
+  git fetch origin main >/dev/null
+  git merge --ff-only origin/main >/dev/null
+  git branch -d task/publish-late-flow >/dev/null 2>&1 || true
+  rm -f .context/active_task
+  bash scripts/refresh-current.sh >/dev/null
 
-  [[ "$(git branch --show-current)" == "main" ]] || fail "expected merge-task-pr to return to main"
+  [[ "$(git branch --show-current)" == "main" ]] || fail "expected manual merge flow to return to main"
   [[ "$(git rev-parse main)" == "$(git rev-parse origin/main)" ]] || fail "expected local main to sync with origin/main"
   assert_branch_absent "$CURRENT_SMOKE_REPO" "task/publish-late-flow"
   assert_file_contains docs/context/CURRENT.md "active-task: none"

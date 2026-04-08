@@ -1,5 +1,0 @@
-# path max_lines
-# Add repo-relative file paths here only when an existing legacy file needs a higher cap.
-# Example:
-# src/legacy/big-file.ts 1200
-scripts/context-log.sh 900

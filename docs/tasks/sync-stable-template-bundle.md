@@ -1,49 +1,56 @@
-# Current Snapshot
+# Task: sync-stable-template-bundle
 
-- last-updated-utc: 2026-04-08 03:34:37Z
-- active-task: sync-stable-template-bundle
-- active-task-file: docs/tasks/sync-stable-template-bundle.md
+> Normal PR rule: one PR should map to one live task file.
 
-## Read This First
-1. `docs/context/CURRENT.md`
-2. `.context/active_task`
-3. `docs/tasks/sync-stable-template-bundle.md`
-4. `docs/context/PROJECT.md`
-5. `docs/context/ARCHITECTURE.md`
-6. `docs/context/CONVENTIONS.md`
-7. `docs/context/CI_PROFILE.md` only if needed
-8. `docs/context/DECISIONS.md` only if needed
-
-## Current State
-- task-state: done
+## Status
+- state: done
+- owner: ai
 - risk-level: standard
-- approval: approved by user at 2026-04-08 03:00:58Z
-- current focus: task completed; ready to publish from the task branch
-- next action: update PR #3, push the branch, wait for AI Gate, then merge and sync local main
-- known risks: the diff is large, CI task detection is strict about changed task files, and root/nested parity must stay exact
+- updated-at-utc: 2026-04-08 03:34:34Z
 
-## Git / PR
-- base-branch: main
-- branch-strategy: publish-late
-- current-branch: task/sync-stable-template-bundle
-- ahead-of-origin-base: 3
-- behind-origin-base: 0
-- pr-status: none
-- pr-number: none
-- pr-url: none
-- latest-published-head-sha: none
+## Approval
+- approved-by: user
+- approved-at-utc: 2026-04-08 03:00:58Z
+- approval-note: Approved in chat on 2026-04-07 America/Los_Angeles for stable bundle sync and legacy cleanup.
 
-## Effective Changed Files
+## Intake
+- user-visible-change-clusters: 1
+- split-decision: single-task
+- split-rationale: the requested work is one cleanup cluster that makes the nested stable bundle canonical, keeps root mirrored to it, and removes legacy template leftovers
+- bundle-override-approved: no
+
+## Goal
+- Make `stable-ai-dev-template/` the canonical copyable bundle, keep the root template mirrored to it, and remove obsolete legacy template trees that should no longer ship with the repo.
+
+## Non-goals
+- Do not redesign the stable task-driven workflow semantics beyond what is required to keep the bundle and root in sync.
+- Do not keep the deleted legacy folders as live runtime dependencies or merge-time references.
+- Do not reintroduce automatic merge wrappers.
+
+## Requirements
+- RQ-001: `stable-ai-dev-template/` and the repository root must stay in sync for all live template files.
+- RQ-002: The old multi-agent archive tree and export bundle leftovers must be removed from the repository.
+- RQ-003: The live context docs must stay valid for this repository so `AI Gate` can evaluate the PR.
+- RQ-004: Add a sync guard so future drift between root and nested bundle fails fast.
+
+## Implementation Plan
+- Step 1: Restore valid live context docs, recover retained task history, and add a new cleanup task contract for this PR.
+- Step 2: Mirror the canonical bundle and root files, including the latest script and smoke-test fixes.
+- Step 3: Remove legacy archive/export leftovers and keep the manual merge flow only.
+- Step 4: Run smoke coverage, record reviews, and publish the PR with task metadata.
+
+## Target Files
 - `.gitignore`
 - `AGENTS.md`
 - `MIGRATE_EXISTING_PROJECT.md`
 - `MIGRATION_ROLLOUT_PLAYBOOK.md`
 - `README.md`
+- `docs/context/ARCHITECTURE.md`
+- `docs/context/CI_PROFILE.md`
 - `docs/context/CONVENTIONS.md`
-- `docs/context/CURRENT.md`
-- `docs/context/DECISIONS.md`
+- `docs/context/PROJECT.md`
 - `docs/tasks/README.md`
-- `docs/tasks/sync-stable-template-bundle.md`
+- `docs/tasks/migrate-stable-ai-template.md`
 - `migration-archive/old-ai-template/.github/workflows/gates.yml`
 - `migration-archive/old-ai-template/UPGRADE_PROMPT.md`
 - `migration-archive/old-ai-template/docs/agents/README.md`
@@ -329,36 +336,82 @@
 - `migration-archive/old-ai-template/tests/unit/smoke.test.mjs`
 - `migration-archive/old-ai-template/tests/workflow-mode.test.sh`
 - `scripts/_lib.sh`
-- `scripts/check-template-sync.sh`
 - `scripts/ci/run-ai-gate.sh`
+- `scripts/check-template-sync.sh`
 - `scripts/merge-task-pr.sh`
 - `stable-ai-dev-template/.gitignore`
 - `stable-ai-dev-template/MIGRATION_REPORT.md`
 - `stable-ai-dev-template/README.md`
 - `stable-ai-dev-template/docs/context/ARCHITECTURE.md`
 - `stable-ai-dev-template/docs/context/CI_PROFILE.md`
-- `stable-ai-dev-template/docs/context/CURRENT.md`
 - `stable-ai-dev-template/docs/context/PROJECT.md`
 - `stable-ai-dev-template/docs/tasks/README.md`
 - `stable-ai-dev-template/docs/tasks/migrate-stable-ai-template.md`
-- `stable-ai-dev-template/docs/tasks/sync-stable-template-bundle.md`
 - `stable-ai-dev-template/scripts/_lib.sh`
-- `stable-ai-dev-template/scripts/check-template-sync.sh`
 - `stable-ai-dev-template/scripts/ci/run-ai-gate.sh`
+- `stable-ai-dev-template/scripts/check-template-sync.sh`
 - `stable-ai-dev-template/scripts/merge-task-pr.sh`
 - `stable-ai-dev-template/tests/smoke.sh`
 - `test-guide.md`
 - `tests/smoke.sh`
 
-## Verification
+## Out of Scope
+- Any product-level feature work outside the template/bundle cleanup.
+
+## Scope Guardrails
+- unrelated changes allowed: no
+- incidental refactors allowed: no
+
+## Reuse And Constraints
+- existing abstractions to reuse: reuse the root task scripts, shared shell helpers in `scripts/_lib.sh`, and the bundle mirror instead of introducing parallel workflow surfaces
+- config/constants to centralize: keep root-versus-bundle parity enforcement inside `scripts/check-template-sync.sh`
+- side effects to avoid: avoid reintroducing legacy workflow dependencies, hidden merge automation, or root/bundle drift
+
+## Risk Controls
+- sensitive areas touched: AI Gate inputs, task scope enforcement, root-versus-bundle parity, and large tracked deletions
+- extra checks before merge: rerun root smoke, rerun the CI-style smoke env case, rerun nested smoke, and wait for GitHub AI Gate to pass
+
+## Acceptance
+- Root and `stable-ai-dev-template/` match for the live template files.
+- Legacy archive/export folders are no longer present in the repository.
+- `AI Gate` passes using the new cleanup task contract and smoke coverage.
+
+## Verification Commands
+- `bash tests/smoke.sh`
+- `CI_EVENT_NAME=pull_request CI_REF_NAME='2/merge' CI_DIFF_BASE='1111111111111111111111111111111111111111' CI_DIFF_HEAD='2222222222222222222222222222222222222222' CI_PR_BODY='dummy' bash tests/smoke.sh`
+- `bash stable-ai-dev-template/tests/smoke.sh`
+
+## Verification Status
 - verification-status: pass
+- verification-note: verification passed; see .context/tasks/sync-stable-template-bundle/verification.log
 - verification-at-utc: 2026-04-08 03:33:48Z
 - verification-fingerprint: 45bca1af4b720fc837998c5159de4d6cc0407cff1a2b8c296e0653b3861325ca
 
-## Reviews
+## Review Status
 - scope-review-status: pass
+- scope-review-note: scope matches the approved root and bundle sync cleanup, including the CI gate parity fix
 - scope-review-at-utc: 2026-04-08 03:34:05Z
 - scope-review-fingerprint: 45bca1af4b720fc837998c5159de4d6cc0407cff1a2b8c296e0653b3861325ca
 - quality-review-status: pass
+- quality-review-note: quality checks passed for the canonical bundle sync cleanup and CI gate parity fix
 - quality-review-at-utc: 2026-04-08 03:34:19Z
 - quality-review-fingerprint: 45bca1af4b720fc837998c5159de4d6cc0407cff1a2b8c296e0653b3861325ca
+- reuse-review: pass
+- hardcoding-review: pass
+- tests-review: pass
+- request-scope-review: pass
+- risk-controls-review: n/a
+
+## Git / PR
+- base-branch: main
+- branch-strategy: publish-late
+- pr-metadata-policy: required
+
+## Session Resume
+- current focus: task completed; ready to publish from the task branch
+- next action: update PR #3, push the branch, wait for AI Gate, then merge and sync local main
+- known risks: the diff is large, CI task detection is strict about changed task files, and root/nested parity must stay exact
+
+## Completion
+- summary: made the nested stable bundle canonical, kept the root mirrored to it, removed the legacy template trees, and aligned CI scope handling with the parity rules
+- follow-up: update PR #3, push the branch, wait for AI Gate, then merge and sync local main

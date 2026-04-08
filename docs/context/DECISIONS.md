@@ -1,11 +1,11 @@
-# Decision Log
+# Decisions
 
-Use this file for active architecture, tooling, and policy decisions.
-Archive older entries with `scripts/context-log.sh archive-decisions [keep-count]`.
+Use this file only for durable decisions that future sessions must understand.
 
-## Entry Template
+## Entry Format
 
-### YYYY-MM-DD HH:MM:SSZ | Decision title
-- Decision:
-- Reason:
-- Impact:
+```text
+## 2026-01-01 10:00:00Z - short-title
+- decision: what changed
+- reason: why it changed
+```

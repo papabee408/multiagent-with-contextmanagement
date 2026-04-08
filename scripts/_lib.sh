@@ -420,9 +420,12 @@ is_workflow_internal_file() {
   case "$relative_path" in
     "docs/tasks/$task_id.md"|\
     "docs/context/CURRENT.md"|\
+    "stable-ai-dev-template/docs/tasks/$task_id.md"|\
+    "stable-ai-dev-template/docs/context/CURRENT.md"|\
     ".context/active_task"|\
     ".context/tasks/$task_id/"*|\
-    "docs/context/DECISIONS.md")
+    "docs/context/DECISIONS.md"|\
+    "stable-ai-dev-template/docs/context/DECISIONS.md")
       return 0
       ;;
   esac

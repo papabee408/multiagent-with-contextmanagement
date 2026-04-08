@@ -1,1 +1,9 @@
+.DS_Store
+
+# Local workflow state
 .context/
+
+# Local environment overrides
+.env
+.env.*
+!.env.example

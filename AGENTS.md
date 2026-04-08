@@ -4,12 +4,6 @@
 
 Keep one live user request mapped to one task file and one PR flow while minimizing manual git and PR work.
 
-## Repo Note
-
-- The live workflow is now the root task-driven template.
-- `migration-archive/old-ai-template/` is historical reference only and must not be treated as active workflow state.
-- `stable-ai-dev-template/` remains as the nested source bundle during migration stabilization.
-
 ## Read Order
 
 1. `docs/context/CURRENT.md`

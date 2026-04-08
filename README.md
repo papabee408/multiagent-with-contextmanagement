@@ -1,68 +1,22 @@
 # Stable Task-Driven AI Dev Template
 
-This repository now treats the root as the live stable template.
+This template is for long-running AI-assisted product development where sessions reset often, scope discipline matters, and git/PR operations should stay fast without blurring task boundaries.
 
-## What Is Live
+## What It Optimizes For
 
-- root `AGENTS.md`
-- root `docs/tasks/*`
-- root `docs/context/*`
-- root `scripts/*`
-- root `.github/workflows/ai-gate.yml`
+- Fast resume after a brand new AI session
+- One live request mapped to one task file and one PR flow
+- Explicit approval before implementation starts
+- Narrow file scope and narrow request intent
+- Runtime-only receipts with fresh verification and review gating
+- Minimal operator git work through explicit publish and explicit manual merge
 
-## What Is Historical
+## Core Model
 
-- `migration-archive/old-ai-template/`
-  - archived multi-agent packet workflow
-  - reference only
-  - not part of the live runtime
-
-## What Is Still Nested On Purpose
-
-- `stable-ai-dev-template/`
-  - the source bundle used for this migration
-  - kept temporarily during stabilization
-  - can be removed in a later cleanup PR after the root workflow is trusted
-
-## Default Flow
-
-1. Bootstrap a task
-
-```bash
-bash scripts/bootstrap-task.sh <task-id>
-```
-
-2. Fill and submit the task contract
-
-```bash
-bash scripts/submit-task-plan.sh <task-id>
-```
-
-3. After approval, start work
-
-```bash
-bash scripts/approve-task.sh <task-id> --by "<approver>" --note "<approval note>"
-bash scripts/start-task.sh <task-id>
-```
-
-4. Verify and review
-
-```bash
-bash scripts/run-task-checks.sh <task-id>
-bash scripts/review-scope.sh <task-id> --summary "<scope note>"
-bash scripts/review-quality.sh <task-id> --summary "<quality note>" --reuse pass --hardcoding pass --tests pass --request-scope pass
-bash scripts/complete-task.sh <task-id> "<summary>" "<next-step>"
-```
-
-5. Publish and merge
-
-```bash
-git switch -c task/<task-id>
-git add <approved-files>
-git commit -m "task(<task-id>): <summary>"
-bash scripts/open-task-pr.sh <task-id>
-bash scripts/merge-task-pr.sh <task-id>
-```
+- one live request = one `docs/tasks/<task-id>.md`
+- one task = one PR flow
+- one active task pointer = `.context/active_task`
+- one resume surface = `docs/context/CURRENT.md`
 
 ## Read Order
 
@@ -72,17 +26,81 @@ bash scripts/merge-task-pr.sh <task-id>
 4. `docs/context/PROJECT.md`
 5. `docs/context/ARCHITECTURE.md`
 6. `docs/context/CONVENTIONS.md`
-7. `docs/context/CI_PROFILE.md` when git, PR, CI, or merge policy matters
-8. `docs/context/DECISIONS.md` when a past decision matters
+7. `docs/context/CI_PROFILE.md` only when needed
+8. `docs/context/DECISIONS.md` only when needed
 
-## User-Facing Split Copy
+## Branch Strategy
+
+Default strategy: `publish-late`
+
+- uncommitted task work on the base branch is allowed
+- local commits on the base branch are not allowed
+- before the first commit, explicitly create or switch to the task branch
+- `open-task-pr` is publish-only; it does not create branches, stage files, or create commits
+
+Use `early-branch` when the task is long-running, checkpoint-heavy, mixed, or likely to need parallel work.
+
+## Runtime State
+
+- runtime receipts and task-local state live only under `.context/tasks/<task-id>/*`
+- `.context/` is ignored by git
+- the task file and `CURRENT.md` keep human-readable summary status
+
+## Workflow
+
+1. Bootstrap the task
+
+```bash
+bash scripts/bootstrap-task.sh <task-id>
+```
+
+2. Fill the task contract
+3. Submit and approve the plan
+
+```bash
+bash scripts/submit-task-plan.sh <task-id>
+bash scripts/approve-task.sh <task-id> --by "<approver>" --note "<approval note>"
+bash scripts/start-task.sh <task-id>
+```
+
+4. Implement only inside `## Target Files`
+5. Verify and review
+
+```bash
+bash scripts/run-task-checks.sh <task-id>
+bash scripts/review-scope.sh <task-id> --summary "<scope note>"
+bash scripts/review-quality.sh <task-id> --summary "<quality note>" ...
+bash scripts/complete-task.sh <task-id> "<summary>" "<next-step>"
+```
+
+6. Publish
+
+```bash
+git switch -c task/<task-id>
+git add <approved-files>
+git commit -m "task(<task-id>): <summary>"
+bash scripts/open-task-pr.sh <task-id>
+```
+
+7. Merge manually
+
+```bash
+gh pr merge <pr-number> --squash --delete-branch
+git restore --staged --worktree --source=HEAD -- docs/context/CURRENT.md 2>/dev/null || git restore --worktree --source=HEAD -- docs/context/CURRENT.md
+git switch main
+git fetch origin main
+git merge --ff-only origin/main
+git branch -d task/<task-id> 2>/dev/null || true
+rm -f .context/active_task
+bash scripts/refresh-current.sh
+```
+
+## Intake Policy
+
+Default policy: one user-visible change cluster per task.
+
+If a request mixes multiple independent features, recommend splitting first. Use short guidance like:
 
 - "이 요청은 기능이 여러 개 섞여 있어서 한 번에 묶는 것보다 나눠서 처리하는 편이 더 빠릅니다."
 - "이유는 검증, PR 리뷰, merge, 후속 수정까지 전체 리드타임이 줄기 때문입니다."
 - "원하면 제가 작업 단위를 1. 2. 3.으로 나눠서 첫 번째부터 바로 진행하겠습니다."
-
-## Migration Notes
-
-- discovery report: `stable-ai-dev-template/MIGRATION_REPORT.md`
-- legacy workflow archive: `migration-archive/old-ai-template/`
-- migration stabilization should prove root `tests/smoke.sh` and root `AI Gate`

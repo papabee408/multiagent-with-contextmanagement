@@ -1,49 +1,55 @@
-# Current Snapshot
+# Task: migrate-stable-ai-template
 
-- last-updated-utc: 2026-04-08 03:34:37Z
-- active-task: sync-stable-template-bundle
-- active-task-file: docs/tasks/sync-stable-template-bundle.md
+> Normal PR rule: one PR should map to one live task file.
 
-## Read This First
-1. `docs/context/CURRENT.md`
-2. `.context/active_task`
-3. `docs/tasks/sync-stable-template-bundle.md`
-4. `docs/context/PROJECT.md`
-5. `docs/context/ARCHITECTURE.md`
-6. `docs/context/CONVENTIONS.md`
-7. `docs/context/CI_PROFILE.md` only if needed
-8. `docs/context/DECISIONS.md` only if needed
-
-## Current State
-- task-state: done
+## Status
+- state: done
+- owner: ai
 - risk-level: standard
-- approval: approved by user at 2026-04-08 03:00:58Z
-- current focus: task completed; ready to publish from the task branch
-- next action: update PR #3, push the branch, wait for AI Gate, then merge and sync local main
-- known risks: the diff is large, CI task detection is strict about changed task files, and root/nested parity must stay exact
+- updated-at-utc: 2026-04-08 01:31:15Z
 
-## Git / PR
-- base-branch: main
-- branch-strategy: publish-late
-- current-branch: task/sync-stable-template-bundle
-- ahead-of-origin-base: 3
-- behind-origin-base: 0
-- pr-status: none
-- pr-number: none
-- pr-url: none
-- latest-published-head-sha: none
+## Approval
+- approved-by: user
+- approved-at-utc: 2026-04-08 00:37:37Z
+- approval-note: Approved in chat on 2026-04-07 America/Los_Angeles for the stable template cutover.
 
-## Effective Changed Files
-- `.gitignore`
+## Intake
+- user-visible-change-clusters: 1
+- split-decision: single-task
+- split-rationale: the requested work is one workflow cutover cluster that replaces the live root template and archives the old one together
+- bundle-override-approved: no
+
+## Goal
+- Cut over the repository root from the legacy multi-agent packet workflow to the stable task-driven template while preserving the old workflow as archived reference.
+
+## Non-goals
+- Do not delete the nested `stable-ai-dev-template/` source bundle in this migration task.
+- Do not redesign the stable task-driven workflow semantics beyond what is required for this repository cutover.
+- Do not keep the archived multi-agent files as live runtime dependencies.
+
+## Requirements
+- RQ-001: Install the stable task-driven runtime at the repository root, including task docs, scripts, and `AI Gate`.
+- RQ-002: Archive the old multi-agent workflow files under `migration-archive/old-ai-template/` instead of leaving them live at root.
+- RQ-003: Rewrite the root context docs so the new workflow is explicit and the repository can resume from `CURRENT.md` plus the active task.
+- RQ-004: Add a concrete migration task and root smoke validation so the cutover can be verified locally.
+
+## Implementation Plan
+- Step 1: Archive the old workflow files, feature packets, tests, and CI workflow under `migration-archive/old-ai-template/`.
+- Step 2: Install the stable task-driven runtime files at the root from `stable-ai-dev-template/`.
+- Step 3: Rewrite root docs and create the migration task contract for this cutover diff.
+- Step 4: Run root smoke and workflow checks, then record verification and review results.
+
+## Target Files
+- `.github/workflows/ai-gate.yml`
 - `AGENTS.md`
-- `MIGRATE_EXISTING_PROJECT.md`
-- `MIGRATION_ROLLOUT_PLAYBOOK.md`
 - `README.md`
+- `docs/context/ARCHITECTURE.md`
+- `docs/context/CI_PROFILE.md`
 - `docs/context/CONVENTIONS.md`
-- `docs/context/CURRENT.md`
-- `docs/context/DECISIONS.md`
+- `docs/context/PROJECT.md`
+- `docs/context/TEMPLATE_IMPROVEMENT_POLICY.md`
 - `docs/tasks/README.md`
-- `docs/tasks/sync-stable-template-bundle.md`
+- `docs/tasks/_template.md`
 - `migration-archive/old-ai-template/.github/workflows/gates.yml`
 - `migration-archive/old-ai-template/UPGRADE_PROMPT.md`
 - `migration-archive/old-ai-template/docs/agents/README.md`
@@ -329,36 +335,88 @@
 - `migration-archive/old-ai-template/tests/unit/smoke.test.mjs`
 - `migration-archive/old-ai-template/tests/workflow-mode.test.sh`
 - `scripts/_lib.sh`
-- `scripts/check-template-sync.sh`
+- `scripts/approve-task.sh`
+- `scripts/bootstrap-task.sh`
+- `scripts/check-context.sh`
+- `scripts/check-scope.sh`
+- `scripts/check-task.sh`
+- `scripts/ci/project-checks.sh`
 - `scripts/ci/run-ai-gate.sh`
+- `scripts/complete-task.sh`
+- `scripts/log-decision.sh`
 - `scripts/merge-task-pr.sh`
-- `stable-ai-dev-template/.gitignore`
+- `scripts/open-task-pr.sh`
+- `scripts/record-task-feedback.sh`
+- `scripts/record-task-metrics.sh`
+- `scripts/refresh-current.sh`
+- `scripts/report-template-health.sh`
+- `scripts/review-independent.sh`
+- `scripts/review-quality.sh`
+- `scripts/review-scope.sh`
+- `scripts/run-task-checks.sh`
+- `scripts/setup-ci-profile.sh`
+- `scripts/start-task.sh`
+- `scripts/submit-task-plan.sh`
 - `stable-ai-dev-template/MIGRATION_REPORT.md`
-- `stable-ai-dev-template/README.md`
-- `stable-ai-dev-template/docs/context/ARCHITECTURE.md`
-- `stable-ai-dev-template/docs/context/CI_PROFILE.md`
-- `stable-ai-dev-template/docs/context/CURRENT.md`
-- `stable-ai-dev-template/docs/context/PROJECT.md`
-- `stable-ai-dev-template/docs/tasks/README.md`
-- `stable-ai-dev-template/docs/tasks/migrate-stable-ai-template.md`
-- `stable-ai-dev-template/docs/tasks/sync-stable-template-bundle.md`
-- `stable-ai-dev-template/scripts/_lib.sh`
-- `stable-ai-dev-template/scripts/check-template-sync.sh`
-- `stable-ai-dev-template/scripts/ci/run-ai-gate.sh`
-- `stable-ai-dev-template/scripts/merge-task-pr.sh`
-- `stable-ai-dev-template/tests/smoke.sh`
-- `test-guide.md`
 - `tests/smoke.sh`
 
-## Verification
-- verification-status: pass
-- verification-at-utc: 2026-04-08 03:33:48Z
-- verification-fingerprint: 45bca1af4b720fc837998c5159de4d6cc0407cff1a2b8c296e0653b3861325ca
+## Out of Scope
+- Removing `stable-ai-dev-template/` after the root cutover stabilizes.
+- Further pruning or deleting the archive contents after this migration task lands.
+- Adding new product features unrelated to the workflow migration.
 
-## Reviews
+## Scope Guardrails
+- unrelated changes allowed: no
+- incidental refactors allowed: no
+
+## Reuse And Constraints
+- existing abstractions to reuse: reuse the stable task-driven bundle files as the source for new root scripts and docs
+- config/constants to centralize: keep live git and CI policy only in `docs/context/CI_PROFILE.md`
+- side effects to avoid: do not keep root runtime dependent on archived multi-agent files or stale `.context/active_feature` state
+
+## Risk Controls
+- sensitive areas touched: none
+- extra checks before merge: root smoke plus context and task validation must pass before completion
+
+## Acceptance
+- The repository root runs on the stable task-driven template with `AI Gate`, task docs, and root smoke coverage.
+- The legacy multi-agent workflow lives only under `migration-archive/old-ai-template/`.
+- `CURRENT.md` and the migration task together explain the active cutover state and next action.
+
+## Verification Commands
+- `bash tests/smoke.sh`
+
+## Verification Status
+- verification-status: pass
+- verification-note: verification passed; see .context/tasks/migrate-stable-ai-template/verification.log
+- verification-at-utc: 2026-04-08 01:29:28Z
+- verification-fingerprint: 05b41de07c35ef1a8f761b21f8198d8814c997ca8138022cb84eec115a680f14
+
+## Review Status
 - scope-review-status: pass
-- scope-review-at-utc: 2026-04-08 03:34:05Z
-- scope-review-fingerprint: 45bca1af4b720fc837998c5159de4d6cc0407cff1a2b8c296e0653b3861325ca
+- scope-review-note: scope still matches the approved stable-template cutover and the merge-task-pr CLI compatibility fix stays inside task-owned files
+- scope-review-at-utc: 2026-04-08 01:30:07Z
+- scope-review-fingerprint: 05b41de07c35ef1a8f761b21f8198d8814c997ca8138022cb84eec115a680f14
 - quality-review-status: pass
-- quality-review-at-utc: 2026-04-08 03:34:19Z
-- quality-review-fingerprint: 45bca1af4b720fc837998c5159de4d6cc0407cff1a2b8c296e0653b3861325ca
+- quality-review-note: quality review passed: merge-task-pr now uses gh CLI fields supported by the installed version, and smoke proves publish, CI gate, and merge still complete end to end
+- quality-review-at-utc: 2026-04-08 01:30:39Z
+- quality-review-fingerprint: 05b41de07c35ef1a8f761b21f8198d8814c997ca8138022cb84eec115a680f14
+- reuse-review: pass
+- hardcoding-review: pass
+- tests-review: pass
+- request-scope-review: pass
+- risk-controls-review: n/a
+
+## Git / PR
+- base-branch: main
+- branch-strategy: publish-late
+- pr-metadata-policy: required
+
+## Session Resume
+- current focus: task completed; ready to publish from the task branch
+- next action: push task/migrate-stable-ai-template to update PR #2, confirm AI Gate passes, then merge the PR
+- known risks: the archive-heavy diff makes the task scope large and the root smoke must prove the new runtime works end to end
+
+## Completion
+- summary: Cut over the repo root to the stable task-driven template, archived the legacy workflow, and hardened AI Gate plus merge-task automation for CI, clean checkouts, inherited diff refs, and current gh CLI behavior.
+- follow-up: push task/migrate-stable-ai-template to update PR #2, confirm AI Gate passes, then merge the PR

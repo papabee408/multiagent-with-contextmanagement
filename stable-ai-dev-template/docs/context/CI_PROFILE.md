@@ -1,10 +1,10 @@
 # CI Profile
 
 ## Project Profile
-- platform: <replace>
-- stack: <replace>
-- package-manager: <replace>
-- setup-status: draft
+- platform: internal-tooling
+- stack: bash-github-actions-template
+- package-manager: none
+- setup-status: reviewed
 
 ## Git / PR Policy
 - git-host: github
@@ -18,14 +18,15 @@
 - `AI Gate`
 
 ## PR Fast Checks
-- `replace with the fastest reliable lint/typecheck/test command`
+- `bash tests/smoke.sh`
 
 ## High-Risk Checks
-- `replace with extra commands only for sensitive changes`
+- `bash tests/smoke.sh`
 
 ## Full Project Checks
-- `replace with slower full regression commands`
+- `bash tests/smoke.sh`
 
 ## Notes
-- Keep command sections command-only: `- \`actual command\``
-- Put explanations and caveats in `## Notes`, not inside command sections.
+- `AI Gate` already runs `bash scripts/check-context.sh`, `bash scripts/check-task.sh <task-id>`, scope checks, and task verification commands before these project checks.
+- This repository is a shell-driven template repo, so `setup-ci-profile.sh` auto-detection is only a starting point and should not replace explicit review.
+- The live required regression check is the root `tests/smoke.sh`, not the archived multi-agent shell tests.
