@@ -174,6 +174,9 @@ check_ci_scope() {
 
   while IFS= read -r relative_path; do
     [[ -n "$relative_path" ]] || continue
+    if is_workflow_internal_file "$task_id" "$relative_path"; then
+      continue
+    fi
     if grep -Fxq "$relative_path" "$allowed_tmp"; then
       continue
     fi

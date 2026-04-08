@@ -1,6 +1,6 @@
 # Current Snapshot
 
-- last-updated-utc: 2026-04-08 03:12:35Z
+- last-updated-utc: 2026-04-08 03:34:37Z
 - active-task: sync-stable-template-bundle
 - active-task-file: docs/tasks/sync-stable-template-bundle.md
 
@@ -26,7 +26,7 @@
 - base-branch: main
 - branch-strategy: publish-late
 - current-branch: task/sync-stable-template-bundle
-- ahead-of-origin-base: 2
+- ahead-of-origin-base: 3
 - behind-origin-base: 0
 - pr-status: none
 - pr-number: none
@@ -330,6 +330,7 @@
 - `migration-archive/old-ai-template/tests/workflow-mode.test.sh`
 - `scripts/_lib.sh`
 - `scripts/check-template-sync.sh`
+- `scripts/ci/run-ai-gate.sh`
 - `scripts/merge-task-pr.sh`
 - `stable-ai-dev-template/.gitignore`
 - `stable-ai-dev-template/MIGRATION_REPORT.md`
@@ -343,6 +344,7 @@
 - `stable-ai-dev-template/docs/tasks/sync-stable-template-bundle.md`
 - `stable-ai-dev-template/scripts/_lib.sh`
 - `stable-ai-dev-template/scripts/check-template-sync.sh`
+- `stable-ai-dev-template/scripts/ci/run-ai-gate.sh`
 - `stable-ai-dev-template/scripts/merge-task-pr.sh`
 - `stable-ai-dev-template/tests/smoke.sh`
 - `test-guide.md`
@@ -350,13 +352,13 @@
 
 ## Verification
 - verification-status: pass
-- verification-at-utc: 2026-04-08 03:11:39Z
-- verification-fingerprint: 560110698b20befc7aa04975b810aaeac5439814670a17b277672fe48a0fd3e1
+- verification-at-utc: 2026-04-08 03:33:48Z
+- verification-fingerprint: 45bca1af4b720fc837998c5159de4d6cc0407cff1a2b8c296e0653b3861325ca
 
 ## Reviews
 - scope-review-status: pass
-- scope-review-at-utc: 2026-04-08 03:11:59Z
-- scope-review-fingerprint: 560110698b20befc7aa04975b810aaeac5439814670a17b277672fe48a0fd3e1
+- scope-review-at-utc: 2026-04-08 03:34:05Z
+- scope-review-fingerprint: 45bca1af4b720fc837998c5159de4d6cc0407cff1a2b8c296e0653b3861325ca
 - quality-review-status: pass
-- quality-review-at-utc: 2026-04-08 03:12:13Z
-- quality-review-fingerprint: 560110698b20befc7aa04975b810aaeac5439814670a17b277672fe48a0fd3e1
+- quality-review-at-utc: 2026-04-08 03:34:19Z
+- quality-review-fingerprint: 45bca1af4b720fc837998c5159de4d6cc0407cff1a2b8c296e0653b3861325ca

@@ -6,7 +6,7 @@
 - state: done
 - owner: ai
 - risk-level: standard
-- updated-at-utc: 2026-04-08 03:12:32Z
+- updated-at-utc: 2026-04-08 03:34:34Z
 
 ## Approval
 - approved-by: user
@@ -336,6 +336,7 @@
 - `migration-archive/old-ai-template/tests/unit/smoke.test.mjs`
 - `migration-archive/old-ai-template/tests/workflow-mode.test.sh`
 - `scripts/_lib.sh`
+- `scripts/ci/run-ai-gate.sh`
 - `scripts/check-template-sync.sh`
 - `scripts/merge-task-pr.sh`
 - `stable-ai-dev-template/.gitignore`
@@ -347,6 +348,7 @@
 - `stable-ai-dev-template/docs/tasks/README.md`
 - `stable-ai-dev-template/docs/tasks/migrate-stable-ai-template.md`
 - `stable-ai-dev-template/scripts/_lib.sh`
+- `stable-ai-dev-template/scripts/ci/run-ai-gate.sh`
 - `stable-ai-dev-template/scripts/check-template-sync.sh`
 - `stable-ai-dev-template/scripts/merge-task-pr.sh`
 - `stable-ai-dev-template/tests/smoke.sh`
@@ -382,18 +384,18 @@
 ## Verification Status
 - verification-status: pass
 - verification-note: verification passed; see .context/tasks/sync-stable-template-bundle/verification.log
-- verification-at-utc: 2026-04-08 03:11:39Z
-- verification-fingerprint: 560110698b20befc7aa04975b810aaeac5439814670a17b277672fe48a0fd3e1
+- verification-at-utc: 2026-04-08 03:33:48Z
+- verification-fingerprint: 45bca1af4b720fc837998c5159de4d6cc0407cff1a2b8c296e0653b3861325ca
 
 ## Review Status
 - scope-review-status: pass
-- scope-review-note: scope matches the approved root and bundle sync cleanup
-- scope-review-at-utc: 2026-04-08 03:11:59Z
-- scope-review-fingerprint: 560110698b20befc7aa04975b810aaeac5439814670a17b277672fe48a0fd3e1
+- scope-review-note: scope matches the approved root and bundle sync cleanup, including the CI gate parity fix
+- scope-review-at-utc: 2026-04-08 03:34:05Z
+- scope-review-fingerprint: 45bca1af4b720fc837998c5159de4d6cc0407cff1a2b8c296e0653b3861325ca
 - quality-review-status: pass
-- quality-review-note: quality checks passed for the canonical bundle sync cleanup
-- quality-review-at-utc: 2026-04-08 03:12:13Z
-- quality-review-fingerprint: 560110698b20befc7aa04975b810aaeac5439814670a17b277672fe48a0fd3e1
+- quality-review-note: quality checks passed for the canonical bundle sync cleanup and CI gate parity fix
+- quality-review-at-utc: 2026-04-08 03:34:19Z
+- quality-review-fingerprint: 45bca1af4b720fc837998c5159de4d6cc0407cff1a2b8c296e0653b3861325ca
 - reuse-review: pass
 - hardcoding-review: pass
 - tests-review: pass
@@ -411,5 +413,5 @@
 - known risks: the diff is large, CI task detection is strict about changed task files, and root/nested parity must stay exact
 
 ## Completion
-- summary: made the nested stable bundle canonical, kept the root mirrored to it, and removed the legacy template trees
+- summary: made the nested stable bundle canonical, kept the root mirrored to it, removed the legacy template trees, and aligned CI scope handling with the parity rules
 - follow-up: update PR #3, push the branch, wait for AI Gate, then merge and sync local main
