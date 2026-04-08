@@ -46,7 +46,7 @@ replace_key_value_or_exit "$TASK_FILE" "## Review Status" "scope-review-at-utc" 
 replace_key_value_or_exit "$TASK_FILE" "## Status" "state" "review"
 touch_task_updated_at "$TASK_ID"
 replace_key_value_or_exit "$TASK_FILE" "## Session Resume" "current focus" "scope review recorded; finish the remaining review work"
-replace_key_value_or_exit "$TASK_FILE" "## Session Resume" "next action" "run bash scripts/review-quality.sh $TASK_ID --summary \"<quality note>\" ..."
+replace_key_value_or_exit "$TASK_FILE" "## Session Resume" "next action" "run bash scripts/review-quality.sh $TASK_ID --summary \"<quality note>\" --architecture pass ..."
 
 bash "$ROOT_DIR/scripts/refresh-current.sh" "$TASK_ID" >/dev/null
 

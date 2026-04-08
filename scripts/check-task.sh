@@ -281,7 +281,7 @@ if [[ "$state" == "done" ]]; then
   fi
   case "$risk_level" in
     standard)
-      for key in "reuse-review" "hardcoding-review" "tests-review" "request-scope-review"; do
+      for key in "reuse-review" "hardcoding-review" "tests-review" "request-scope-review" "architecture-review"; do
         value="$(lower "$(section_key_value "$TASK_FILE" "## Review Status" "$key")")"
         if [[ "$value" != "pass" ]]; then
           failures+=("done-task-requires-$key-pass")
@@ -289,7 +289,7 @@ if [[ "$state" == "done" ]]; then
       done
       ;;
     high-risk)
-      for key in "reuse-review" "hardcoding-review" "tests-review" "request-scope-review" "risk-controls-review"; do
+      for key in "reuse-review" "hardcoding-review" "tests-review" "request-scope-review" "architecture-review" "risk-controls-review"; do
         value="$(lower "$(section_key_value "$TASK_FILE" "## Review Status" "$key")")"
         if [[ "$value" != "pass" ]]; then
           failures+=("done-task-requires-$key-pass")

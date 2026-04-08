@@ -11,6 +11,7 @@ REUSE=""
 HARDCODING=""
 TESTS=""
 REQUEST_SCOPE=""
+ARCHITECTURE=""
 RISK_CONTROLS=""
 
 while [[ $# -gt 0 ]]; do
@@ -35,12 +36,16 @@ while [[ $# -gt 0 ]]; do
       REQUEST_SCOPE="${2:-}"
       shift 2
       ;;
+    --architecture)
+      ARCHITECTURE="${2:-}"
+      shift 2
+      ;;
     --risk-controls)
       RISK_CONTROLS="${2:-}"
       shift 2
       ;;
     *)
-      echo "Usage: bash scripts/review-quality.sh <task-id> --summary \"<review note>\" [--reuse pass|fail] [--hardcoding pass|fail] [--tests pass|fail] [--request-scope pass|fail] [--risk-controls pass|fail]" >&2
+      echo "Usage: bash scripts/review-quality.sh <task-id> --summary \"<review note>\" [--reuse pass|fail] [--hardcoding pass|fail] [--tests pass|fail] [--request-scope pass|fail] [--architecture pass|fail] [--risk-controls pass|fail]" >&2
       exit 1
       ;;
   esac
@@ -57,7 +62,7 @@ if [[ ! -f "$TASK_FILE" ]]; then
 fi
 
 if [[ -z "$SUMMARY" ]]; then
-  echo "Usage: bash scripts/review-quality.sh <task-id> --summary \"<review note>\" [--reuse pass|fail] [--hardcoding pass|fail] [--tests pass|fail] [--request-scope pass|fail] [--risk-controls pass|fail]" >&2
+  echo "Usage: bash scripts/review-quality.sh <task-id> --summary \"<review note>\" [--reuse pass|fail] [--hardcoding pass|fail] [--tests pass|fail] [--request-scope pass|fail] [--architecture pass|fail] [--risk-controls pass|fail]" >&2
   exit 1
 fi
 
@@ -67,7 +72,7 @@ ensure_publish_late_base_branch_safe "$TASK_ID" "warn"
 ensure_runtime_receipt_pass_and_fresh "$TASK_ID" "$(verification_receipt_file "$TASK_ID")" "verification"
 bash "$ROOT_DIR/scripts/check-scope.sh" "$TASK_ID" >/dev/null
 
-for value in "$REUSE" "$HARDCODING" "$TESTS" "$REQUEST_SCOPE" "$RISK_CONTROLS"; do
+for value in "$REUSE" "$HARDCODING" "$TESTS" "$REQUEST_SCOPE" "$ARCHITECTURE" "$RISK_CONTROLS"; do
   if [[ -n "$value" ]]; then
     case "$(lower "$value")" in
       pass|fail)
@@ -85,23 +90,30 @@ reuse_record="${REUSE:-n/a}"
 hardcoding_record="${HARDCODING:-n/a}"
 tests_record="${TESTS:-n/a}"
 request_scope_record="${REQUEST_SCOPE:-n/a}"
+architecture_record="${ARCHITECTURE:-n/a}"
 risk_controls_record="${RISK_CONTROLS:-n/a}"
 
 declare -a failures=()
+declare -a warnings=()
 case "$RISK_LEVEL" in
   trivial)
+    if [[ "$(lower "$ARCHITECTURE")" != "pass" ]]; then
+      warnings+=("architecture (warning-only for trivial)")
+    fi
     ;;
   standard)
     [[ "$(lower "$REUSE")" == "pass" ]] || failures+=("reuse")
     [[ "$(lower "$HARDCODING")" == "pass" ]] || failures+=("hardcoding")
     [[ "$(lower "$TESTS")" == "pass" ]] || failures+=("tests")
     [[ "$(lower "$REQUEST_SCOPE")" == "pass" ]] || failures+=("request-scope")
+    [[ "$(lower "$ARCHITECTURE")" == "pass" ]] || failures+=("architecture")
     ;;
   high-risk)
     [[ "$(lower "$REUSE")" == "pass" ]] || failures+=("reuse")
     [[ "$(lower "$HARDCODING")" == "pass" ]] || failures+=("hardcoding")
     [[ "$(lower "$TESTS")" == "pass" ]] || failures+=("tests")
     [[ "$(lower "$REQUEST_SCOPE")" == "pass" ]] || failures+=("request-scope")
+    [[ "$(lower "$ARCHITECTURE")" == "pass" ]] || failures+=("architecture")
     [[ "$(lower "$RISK_CONTROLS")" == "pass" ]] || failures+=("risk-controls")
     ;;
 esac
@@ -122,6 +134,7 @@ replace_key_value_or_exit "$TASK_FILE" "## Review Status" "reuse-review" "$(lowe
 replace_key_value_or_exit "$TASK_FILE" "## Review Status" "hardcoding-review" "$(lower "$hardcoding_record")"
 replace_key_value_or_exit "$TASK_FILE" "## Review Status" "tests-review" "$(lower "$tests_record")"
 replace_key_value_or_exit "$TASK_FILE" "## Review Status" "request-scope-review" "$(lower "$request_scope_record")"
+replace_key_value_or_exit "$TASK_FILE" "## Review Status" "architecture-review" "$(lower "$architecture_record")"
 replace_key_value_or_exit "$TASK_FILE" "## Review Status" "risk-controls-review" "$(lower "$risk_controls_record")"
 replace_key_value_or_exit "$TASK_FILE" "## Status" "state" "review"
 touch_task_updated_at "$TASK_ID"
@@ -145,4 +158,7 @@ bash "$ROOT_DIR/scripts/refresh-current.sh" "$TASK_ID" >/dev/null
 
 echo "[PASS] quality-review"
 echo " - task=$TASK_ID"
+if [[ ${#warnings[@]} -gt 0 ]]; then
+  printf ' - warning: %s\n' "${warnings[@]}"
+fi
 echo " - receipt=.context/tasks/$TASK_ID/quality-review.receipt"
