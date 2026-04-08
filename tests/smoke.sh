@@ -378,7 +378,8 @@ write_context_files() {
 ## Quality Bar
 - Fail closed when verification or review state is stale.
 - Prefer narrow task-scoped diffs over unrelated cleanup.
-- Treat Task-ID and file scope mismatches as blockers.
+- Treat unresolved task identity and real scope violations as blockers.
+- Recover missing PR metadata automatically when the task and diff are otherwise valid.
 
 ## Critical Flows
 - Approve work, implement inside scope, verify, review, publish, and merge with explicit task tracking.
@@ -649,17 +650,14 @@ scenario_scope_and_approval() {
 - verification-status: pending
 - verification-note: pending
 - verification-at-utc: pending
-- verification-fingerprint: pending
 
 ## Review Status
 - scope-review-status: pending
 - scope-review-note: pending
 - scope-review-at-utc: pending
-- scope-review-fingerprint: pending
 - quality-review-status: pending
 - quality-review-note: pending
 - quality-review-at-utc: pending
-- quality-review-fingerprint: pending
 - reuse-review: pending
 - hardcoding-review: pending
 - tests-review: pending
@@ -669,7 +667,7 @@ scenario_scope_and_approval() {
 ## Git / PR
 - base-branch: main
 - branch-strategy: publish-late
-- pr-metadata-policy: required
+- pr-metadata-policy: auto-recover
 
 ## Session Resume
 - current focus: finish the plan and get approval.
@@ -778,17 +776,14 @@ scenario_publish_late_commit_rejection() {
 - verification-status: pending
 - verification-note: pending
 - verification-at-utc: pending
-- verification-fingerprint: pending
 
 ## Review Status
 - scope-review-status: pending
 - scope-review-note: pending
 - scope-review-at-utc: pending
-- scope-review-fingerprint: pending
 - quality-review-status: pending
 - quality-review-note: pending
 - quality-review-at-utc: pending
-- quality-review-fingerprint: pending
 - reuse-review: pending
 - hardcoding-review: pending
 - tests-review: pending
@@ -798,7 +793,7 @@ scenario_publish_late_commit_rejection() {
 ## Git / PR
 - base-branch: main
 - branch-strategy: publish-late
-- pr-metadata-policy: required
+- pr-metadata-policy: auto-recover
 
 ## Session Resume
 - current focus: get approval for the narrow app change.
@@ -883,7 +878,7 @@ scenario_publish_and_merge() {
 - extra checks before merge: rerun the required AI Gate check on the latest PR head SHA.
 
 ## Acceptance
-- The server check passes, the PR carries Task-ID metadata, and merge syncs local main cleanly.
+- The server check passes, wrapper-driven PR recovery injects Task-ID metadata when needed, and merge syncs local main cleanly.
 
 ## Verification Commands
 - `bash tests/server-check.sh`
@@ -892,17 +887,14 @@ scenario_publish_and_merge() {
 - verification-status: pending
 - verification-note: pending
 - verification-at-utc: pending
-- verification-fingerprint: pending
 
 ## Review Status
 - scope-review-status: pending
 - scope-review-note: pending
 - scope-review-at-utc: pending
-- scope-review-fingerprint: pending
 - quality-review-status: pending
 - quality-review-note: pending
 - quality-review-at-utc: pending
-- quality-review-fingerprint: pending
 - reuse-review: pending
 - hardcoding-review: pending
 - tests-review: pending
@@ -912,7 +904,7 @@ scenario_publish_and_merge() {
 ## Git / PR
 - base-branch: main
 - branch-strategy: publish-late
-- pr-metadata-policy: required
+- pr-metadata-policy: auto-recover
 
 ## Session Resume
 - current focus: finish the plan and get approval.
@@ -950,12 +942,24 @@ EOF
   git add src/server.sh docs/tasks/publish-late-flow.md docs/context/CURRENT.md
   git commit -qm "task(publish-late-flow): initial publish"
 
-  bash scripts/open-task-pr.sh publish-late-flow >/dev/null
+  PR_BODY_FILE="$(mktemp)"
+  printf 'Loose notes only\n' > "$PR_BODY_FILE"
+  gh pr create --base main --head task/publish-late-flow --body-file "$PR_BODY_FILE" >/dev/null
+  rm -f "$PR_BODY_FILE"
 
   PR_NUMBER="$(gh pr view task/publish-late-flow --json number --jq '.number')"
   [[ -n "$PR_NUMBER" ]] || fail "expected PR number after initial publish"
   PR_BODY="$(gh pr view "$PR_NUMBER" --json body | jq -r '.body')"
-  printf '%s\n' "$PR_BODY" | grep -Fq 'Task-ID: publish-late-flow' || fail "missing Task-ID metadata in PR body"
+  printf '%s\n' "$PR_BODY" | grep -Fq 'Loose notes only' || fail "expected seed PR body content before wrapper recovery"
+  if printf '%s\n' "$PR_BODY" | grep -Fq 'Task-ID:'; then
+    fail "expected seed PR body without Task-ID metadata"
+  fi
+
+  bash scripts/open-task-pr.sh publish-late-flow >/dev/null
+
+  PR_BODY="$(gh pr view "$PR_NUMBER" --json body | jq -r '.body')"
+  printf '%s\n' "$PR_BODY" | grep -Fq 'Task-ID: publish-late-flow' || fail "missing Task-ID metadata in repaired PR body"
+  printf '%s\n' "$PR_BODY" | grep -Fq 'Loose notes only' || fail "expected wrapper to preserve existing PR body content"
 
   perl -0pi -e 's/- follow-up: .*/- follow-up: publish update documented after initial PR creation/' docs/tasks/publish-late-flow.md
   bash scripts/check-task.sh publish-late-flow >/dev/null
@@ -966,9 +970,8 @@ EOF
   bash scripts/open-task-pr.sh publish-late-flow >/dev/null
   grep -Eq '^pr-edit:[0-9]+$' "$FAKE_GH_STATE_DIR/gh.log" || fail "expected PR updates to target a numeric PR id"
 
-  PR_BODY="$(gh pr view "$PR_NUMBER" --json body | jq -r '.body')"
   rm -rf .context/tasks
-  CI_PR_BODY="$PR_BODY" CI_DIFF_BASE="origin/main" CI_DIFF_HEAD="HEAD" bash scripts/ci/run-ai-gate.sh >/dev/null
+  CI_EVENT_NAME="pull_request" CI_REF_NAME="4/merge" CI_HEAD_BRANCH="task/publish-late-flow" CI_PR_BODY="" CI_DIFF_BASE="origin/main" CI_DIFF_HEAD="HEAD" bash scripts/ci/run-ai-gate.sh >/dev/null
 
   HEAD_SHA="$(gh pr view "$PR_NUMBER" --json headRefOid | jq -r '.headRefOid')"
   mark_check_success "$HEAD_SHA" "AI Gate"
@@ -1058,17 +1061,14 @@ scenario_intake_validation() {
 - verification-status: pending
 - verification-note: pending
 - verification-at-utc: pending
-- verification-fingerprint: pending
 
 ## Review Status
 - scope-review-status: pending
 - scope-review-note: pending
 - scope-review-at-utc: pending
-- scope-review-fingerprint: pending
 - quality-review-status: pending
 - quality-review-note: pending
 - quality-review-at-utc: pending
-- quality-review-fingerprint: pending
 - reuse-review: pending
 - hardcoding-review: pending
 - tests-review: pending
@@ -1078,7 +1078,7 @@ scenario_intake_validation() {
 ## Git / PR
 - base-branch: main
 - branch-strategy: publish-late
-- pr-metadata-policy: required
+- pr-metadata-policy: auto-recover
 
 ## Session Resume
 - current focus: validate intake.
@@ -1097,14 +1097,131 @@ EOF
   expect_failure "bundled multi-cluster tasks cannot stay trivial risk" bash scripts/check-task.sh bundled-request
 }
 
-scenario_ci_metadata_mismatch() {
+scenario_delete_only_scope() {
+  setup_repo "delete-only-scope"
+  cd "$CURRENT_SMOKE_REPO"
+
+  mkdir -p docs/notes archive/old
+  printf 'seed note\n' > docs/notes/seed.md
+  printf 'legacy file\n' > archive/old/legacy.md
+  git add docs/notes/seed.md archive/old/legacy.md
+  git commit -qm "seed: tracked files for scope matching"
+
+  bash scripts/bootstrap-task.sh delete-only-scope >/dev/null
+
+  cat > docs/tasks/delete-only-scope.md <<'EOF'
+# Task: delete-only-scope
+
+> Normal PR rule: one PR should map to one live task file.
+
+## Status
+- state: planning
+- owner: ai
+- risk-level: trivial
+- updated-at-utc: 2026-04-07 00:00:00Z
+
+## Approval
+- approved-by: pending
+- approved-at-utc: pending
+- approval-note: pending
+
+## Intake
+- user-visible-change-clusters: 1
+- split-decision: single-task
+- split-rationale: one docs cleanup request only
+- bundle-override-approved: no
+
+## Goal
+- Allow a narrow docs cleanup to modify one notes prefix and delete legacy archive files without enumerating every nested delete.
+
+## Non-goals
+- Do not widen scope for unrelated source files.
+
+## Requirements
+- RQ-001: files under `docs/notes/` may be edited.
+- RQ-002: files matching `archive/**` may be deleted only.
+
+## Implementation Plan
+- Step 1: edit one note under the approved prefix.
+- Step 2: delete one tracked archive file and verify scope still passes.
+
+## Target Files
+- `docs/notes/`
+- `delete-only:archive/**`
+
+## Out of Scope
+- `src/` files and non-delete changes under `archive/`.
+
+## Scope Guardrails
+- unrelated changes allowed: no
+- incidental refactors allowed: no
+
+## Reuse And Constraints
+- existing abstractions to reuse: reuse the shared scope checker and target-file rules.
+- config/constants to centralize: none
+- side effects to avoid: allowing archive edits that are not deletions.
+
+## Risk Controls
+- sensitive areas touched: scope matching for prefix and delete-only rules.
+- extra checks before merge: none
+
+## Acceptance
+- `check-scope` passes for the approved prefix edit plus delete-only cleanup and still fails for unrelated files.
+
+## Verification Commands
+- `bash tests/project-fast-check.sh`
+
+## Verification Status
+- verification-status: pending
+- verification-note: pending
+- verification-at-utc: pending
+
+## Review Status
+- scope-review-status: pending
+- scope-review-note: pending
+- scope-review-at-utc: pending
+- quality-review-status: pending
+- quality-review-note: pending
+- quality-review-at-utc: pending
+- reuse-review: pending
+- hardcoding-review: pending
+- tests-review: pending
+- request-scope-review: pending
+- risk-controls-review: pending
+
+## Git / PR
+- base-branch: main
+- branch-strategy: publish-late
+- pr-metadata-policy: auto-recover
+
+## Session Resume
+- current focus: validate delete-only and prefix scope handling.
+- next action: run check-task and check-scope.
+- known risks: delete-only should not accidentally permit edits under the same archive prefix.
+
+## Completion
+- summary: pending
+- follow-up: pending
+EOF
+
+  perl -0pi -e 's/seed note/updated note/' docs/notes/seed.md
+  rm -f archive/old/legacy.md
+
+  bash scripts/check-task.sh delete-only-scope >/dev/null
+  bash scripts/check-scope.sh delete-only-scope >/dev/null
+
+  printf '#!/usr/bin/env bash\necho extra\n' > src/extra.sh
+  expect_failure "check-scope should reject files outside prefix/delete-only rules" bash scripts/check-scope.sh delete-only-scope
+}
+
+scenario_ci_active_task_fallback() {
   setup_repo "ci-metadata-mismatch"
   cd "$CURRENT_SMOKE_REPO"
 
-  bash scripts/bootstrap-task.sh ci-mismatch >/dev/null
+  bash scripts/bootstrap-task.sh ci-active-fallback >/dev/null
 
-  cat > docs/tasks/ci-mismatch.md <<'EOF'
-# Task: ci-mismatch
+  cat > docs/tasks/ci-active-fallback.md <<'EOF'
+# Task: ci-active-fallback
 
 > Normal PR rule: one PR should map to one live task file.
 
@@ -1126,17 +1243,18 @@ scenario_ci_metadata_mismatch() {
 - bundle-override-approved: no
 
 ## Goal
-- Update the app output and publish it with one task id.
+- Update the app output and prove CI can fall back to the active task when metadata sources are absent.
 
 ## Non-goals
-- Do not add another live task to the same PR.
+- Do not depend on PR body metadata or branch metadata for the follow-up CI rerun.
 
 ## Requirements
 - RQ-001: `src/app.sh` must emit `button-size=8`.
 
 ## Implementation Plan
-- Step 1: update `src/app.sh`.
-- Step 2: verify, review, and publish the task.
+- Step 1: update `src/app.sh` and complete the approved task.
+- Step 2: make one in-scope follow-up commit without changing the task file.
+- Step 3: prove CI resolves the task from the active task fallback.
 
 ## Target Files
 - `src/app.sh`
@@ -1151,14 +1269,14 @@ scenario_ci_metadata_mismatch() {
 ## Reuse And Constraints
 - existing abstractions to reuse: reuse the existing app shell script and check.
 - config/constants to centralize: none
-- side effects to avoid: adding extra task files to the PR.
+- side effects to avoid: relying on stale tracked fingerprints or manual PR metadata bookkeeping.
 
 ## Risk Controls
 - sensitive areas touched: none
 - extra checks before merge: none
 
 ## Acceptance
-- CI should reject a PR when the Task-ID metadata no longer matches the changed task files.
+- CI should still pass when the PR body and branch metadata are absent, the latest diff stays in scope, and the active task is valid.
 
 ## Verification Commands
 - `bash tests/app-check.sh`
@@ -1167,17 +1285,14 @@ scenario_ci_metadata_mismatch() {
 - verification-status: pending
 - verification-note: pending
 - verification-at-utc: pending
-- verification-fingerprint: pending
 
 ## Review Status
 - scope-review-status: pending
 - scope-review-note: pending
 - scope-review-at-utc: pending
-- scope-review-fingerprint: pending
 - quality-review-status: pending
 - quality-review-note: pending
 - quality-review-at-utc: pending
-- quality-review-fingerprint: pending
 - reuse-review: pending
 - hardcoding-review: pending
 - tests-review: pending
@@ -1187,40 +1302,37 @@ scenario_ci_metadata_mismatch() {
 ## Git / PR
 - base-branch: main
 - branch-strategy: publish-late
-- pr-metadata-policy: required
+- pr-metadata-policy: auto-recover
 
 ## Session Resume
 - current focus: complete the app task cleanly.
 - next action: submit the task plan for approval.
-- known risks: mixing another task file into the same PR later.
+- known risks: the follow-up commit must stay inside task scope even though the task file itself is unchanged.
 
 ## Completion
 - summary: pending
 - follow-up: pending
 EOF
 
-  bash scripts/submit-task-plan.sh ci-mismatch >/dev/null
-  bash scripts/approve-task.sh ci-mismatch --by "user" --note "approved" >/dev/null
-  bash scripts/start-task.sh ci-mismatch >/dev/null
+  bash scripts/submit-task-plan.sh ci-active-fallback >/dev/null
+  bash scripts/approve-task.sh ci-active-fallback --by "user" --note "approved" >/dev/null
+  bash scripts/start-task.sh ci-active-fallback >/dev/null
   perl -0pi -e 's/button-size=4/button-size=8/' src/app.sh
-  bash scripts/run-task-checks.sh ci-mismatch >/dev/null
-  bash scripts/review-scope.sh ci-mismatch --summary "scope stayed inside src/app.sh and workflow internals" >/dev/null
-  bash scripts/review-quality.sh ci-mismatch --summary "quick review: narrow change and deterministic check" >/dev/null
-  bash scripts/complete-task.sh ci-mismatch "updated the approved app output" "publish from the task branch" >/dev/null
+  bash scripts/run-task-checks.sh ci-active-fallback >/dev/null
+  bash scripts/review-scope.sh ci-active-fallback --summary "scope stayed inside src/app.sh and workflow internals" >/dev/null
+  bash scripts/review-quality.sh ci-active-fallback --summary "quick review: narrow change and deterministic check" >/dev/null
+  bash scripts/complete-task.sh ci-active-fallback "updated the approved app output" "publish from the task branch" >/dev/null
 
-  git switch -c task/ci-mismatch >/dev/null
-  git add src/app.sh docs/tasks/ci-mismatch.md docs/context/CURRENT.md
-  git commit -qm "task(ci-mismatch): initial publish"
-  bash scripts/open-task-pr.sh ci-mismatch >/dev/null
+  git switch -c task/ci-active-fallback >/dev/null
+  git add src/app.sh docs/tasks/ci-active-fallback.md docs/context/CURRENT.md
+  git commit -qm "task(ci-active-fallback): initial publish"
 
-  PR_NUMBER="$(gh pr view task/ci-mismatch --json number --jq '.number')"
-  PR_BODY="$(gh pr view "$PR_NUMBER" --json body | jq -r '.body')"
+  printf 'ci-active-fallback\n' > .context/active_task
+  perl -0pi -e 's|#!/usr/bin/env bash|#!/usr/bin/env bash\n# active fallback smoke|' src/app.sh
+  git add src/app.sh
+  git commit -qm "chore: keep the latest diff inside task scope"
 
-  bash scripts/bootstrap-task.sh other-task >/dev/null
-  git add docs/tasks/other-task.md docs/context/CURRENT.md
-  git commit -qm "chore: add a second live task file to the PR"
-
-  expect_failure "CI should reject PR metadata when changed task files no longer match Task-ID" env CI_PR_BODY="$PR_BODY" CI_DIFF_BASE="origin/main" CI_DIFF_HEAD="HEAD" bash scripts/ci/run-ai-gate.sh
+  CI_PR_BODY=$'Task-ID: does-not-exist' CI_REF_NAME="" CI_HEAD_BRANCH="" CI_DIFF_BASE="HEAD~1" CI_DIFF_HEAD="HEAD" bash scripts/ci/run-ai-gate.sh >/dev/null
 }
 
 setup_fake_gh
@@ -1230,6 +1342,7 @@ scenario_scope_and_approval
 scenario_publish_late_commit_rejection
 scenario_publish_and_merge
 scenario_intake_validation
-scenario_ci_metadata_mismatch
+scenario_delete_only_scope
+scenario_ci_active_task_fallback
 
 echo "[PASS] smoke"

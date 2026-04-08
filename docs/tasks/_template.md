@@ -60,17 +60,14 @@
 - verification-status: pending
 - verification-note: pending
 - verification-at-utc: pending
-- verification-fingerprint: pending
 
 ## Review Status
 - scope-review-status: pending
 - scope-review-note: pending
 - scope-review-at-utc: pending
-- scope-review-fingerprint: pending
 - quality-review-status: pending
 - quality-review-note: pending
 - quality-review-at-utc: pending
-- quality-review-fingerprint: pending
 - reuse-review: pending
 - hardcoding-review: pending
 - tests-review: pending
@@ -80,7 +77,7 @@
 ## Git / PR
 - base-branch: main
 - branch-strategy: publish-late
-- pr-metadata-policy: required
+- pr-metadata-policy: auto-recover
 
 ## Session Resume
 - current focus: <replace>

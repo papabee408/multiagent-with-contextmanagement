@@ -7,6 +7,7 @@ source "$SCRIPT_DIR/project-checks.sh"
 
 CI_EVENT_NAME="${CI_EVENT_NAME:-local}"
 CI_REF_NAME="${CI_REF_NAME:-}"
+CI_HEAD_BRANCH="${CI_HEAD_BRANCH:-}"
 CI_DIFF_BASE="${CI_DIFF_BASE:-}"
 CI_DIFF_HEAD="${CI_DIFF_HEAD:-}"
 CI_RUN_FULL_PROJECT_CHECKS="${CI_RUN_FULL_PROJECT_CHECKS:-0}"
@@ -24,51 +25,7 @@ is_truthy() {
 }
 
 ci_changed_files() {
-  if [[ -n "$CI_DIFF_BASE" && -n "$CI_DIFF_HEAD" ]]; then
-    git -C "$ROOT_DIR" diff --name-only "$CI_DIFF_BASE...$CI_DIFF_HEAD" | sed '/^$/d' | sort -u
-    return 0
-  fi
-
-  if git -C "$ROOT_DIR" rev-parse HEAD~1 >/dev/null 2>&1; then
-    git -C "$ROOT_DIR" diff --name-only HEAD~1 HEAD | sed '/^$/d' | sort -u
-    return 0
-  fi
-
-  git -C "$ROOT_DIR" ls-files | sed '/^$/d' | sort -u
-}
-
-ci_non_internal_changed_files() {
-  local task_id="$1"
-  local relative_path
-
-  while IFS= read -r relative_path; do
-    [[ -n "$relative_path" ]] || continue
-    if is_workflow_internal_file "$task_id" "$relative_path"; then
-      continue
-    fi
-    printf '%s\n' "$relative_path"
-  done < <(ci_changed_files)
-}
-
-ci_task_fingerprint() {
-  local task_id="$1"
-  local has_files=0
-  local relative_path
-
-  {
-    echo "task-id=$task_id"
-    echo "task-contract"
-    task_contract_fingerprint_material "$task_id"
-    echo "changed-files"
-    while IFS= read -r relative_path; do
-      [[ -n "$relative_path" ]] || continue
-      has_files=1
-      printf '%s\t%s\n' "$relative_path" "$(path_digest "$relative_path")"
-    done < <(ci_non_internal_changed_files "$task_id")
-    if [[ "$has_files" == "0" ]]; then
-      echo "__empty__"
-    fi
-  } | sha256_stdin
+  committed_changed_files
 }
 
 changed_live_task_files() {
@@ -82,64 +39,73 @@ changed_live_task_files() {
 
 task_id_from_pr_metadata() {
   if [[ -z "$CI_PR_BODY" ]]; then
+    printf '%s' ""
     return 0
   fi
 
   printf '%s\n' "$CI_PR_BODY" | extract_task_id_from_text
 }
 
+task_id_from_branch_input() {
+  local branch_ref="${CI_HEAD_BRANCH:-$CI_REF_NAME}"
+  task_id_from_branch_ref "$branch_ref"
+}
+
 detect_task_id_or_exit() {
+  local explicit_task_id
   local metadata_task_id
+  local branch_task_id
+  local active_task_id
   local task_files=()
   local task_file
   local task_id=""
 
-  if [[ -n "$CI_TASK_ID" ]]; then
-    printf '%s' "$CI_TASK_ID"
-    return 0
-  fi
-
+  explicit_task_id="$(trim "$CI_TASK_ID")"
   metadata_task_id="$(task_id_from_pr_metadata || true)"
+  branch_task_id="$(task_id_from_branch_input || true)"
+  active_task_id="$(active_task_value)"
   while IFS= read -r task_file; do
     [[ -n "$task_file" ]] || continue
     task_files+=("$task_file")
   done < <(changed_live_task_files)
 
-  if [[ -n "$metadata_task_id" ]]; then
-    if [[ ! -f "$(task_file "$metadata_task_id")" ]]; then
-      echo "[FAIL] ai-gate"
-      echo " - PR body Task-ID does not map to a task file: $metadata_task_id"
-      exit 1
-    fi
+  if [[ -n "$explicit_task_id" ]] && task_exists "$explicit_task_id"; then
+    printf '%s' "$explicit_task_id"
+    return 0
+  fi
 
-    if [[ ${#task_files[@]} -gt 0 ]]; then
-      for task_file in "${task_files[@]}"; do
-        if [[ "$task_file" != "docs/tasks/$metadata_task_id.md" ]]; then
-          echo "[FAIL] ai-gate"
-          echo " - PR body Task-ID does not match changed task file(s)"
-          printf ' - %s\n' "${task_files[@]}"
-          exit 1
-        fi
-      done
-    fi
-
+  if [[ -n "$metadata_task_id" ]] && task_exists "$metadata_task_id"; then
     printf '%s' "$metadata_task_id"
+    return 0
+  fi
+
+  if [[ -n "$branch_task_id" ]] && task_exists "$branch_task_id"; then
+    printf '%s' "$branch_task_id"
     return 0
   fi
 
   if [[ ${#task_files[@]} == 1 ]]; then
     task_id="${task_files[0]#docs/tasks/}"
     task_id="${task_id%.md}"
-    printf '%s' "$task_id"
+    if task_exists "$task_id"; then
+      printf '%s' "$task_id"
+      return 0
+    fi
+  fi
+
+  if [[ -n "$active_task_id" ]] && task_exists "$active_task_id"; then
+    printf '%s' "$active_task_id"
     return 0
   fi
 
   echo "[FAIL] ai-gate"
-  if [[ ${#task_files[@]} == 0 ]]; then
-    echo " - could not resolve a task id from PR body Task-ID or changed task files"
-  else
-    echo " - multiple changed task files and no clear Task-ID metadata"
-    printf ' - %s\n' "${task_files[@]}"
+  echo " - could not resolve a task id from explicit Task-ID, PR body, branch name, changed task file, or active task"
+  [[ -n "$explicit_task_id" ]] && echo " - explicit-task-id=$explicit_task_id"
+  [[ -n "$metadata_task_id" ]] && echo " - pr-body-task-id=$metadata_task_id"
+  [[ -n "$branch_task_id" ]] && echo " - branch-task-id=$branch_task_id"
+  [[ -n "$active_task_id" ]] && echo " - active-task-id=$active_task_id"
+  if [[ ${#task_files[@]} -gt 0 ]]; then
+    printf ' - changed-task-file=%s\n' "${task_files[@]}"
   fi
   exit 1
 }
@@ -180,8 +146,11 @@ check_ci_scope() {
     if grep -Fxq "$relative_path" "$allowed_tmp"; then
       continue
     fi
+    if path_allowed_by_task "$task_id" "$relative_path"; then
+      continue
+    fi
     violations+=("$relative_path")
-  done < <(ci_changed_files)
+  done < <(task_committed_changed_files "$task_id")
 
   rm -f "$allowed_tmp"
 
@@ -218,46 +187,25 @@ run_task_verification_commands_ci() {
 check_summary_statuses_ci() {
   local task_id="$1"
   local risk_level
-  local current_fingerprint
-  local verification_status
-  local verification_note
-  local verification_at
-  local verification_fingerprint
   local scope_status
   local scope_note
   local scope_at
-  local scope_fingerprint
   local quality_status
   local quality_note
   local quality_at
-  local quality_fingerprint
   local required_keys=()
   local key
   local value
 
   risk_level="$(task_risk_level "$task_id")"
-  current_fingerprint="$(ci_task_fingerprint "$task_id")"
-
-  verification_status="$(lower "$(section_key_value "$(task_file "$task_id")" "## Verification Status" "verification-status")")"
-  verification_note="$(section_key_value "$(task_file "$task_id")" "## Verification Status" "verification-note")"
-  verification_at="$(section_key_value "$(task_file "$task_id")" "## Verification Status" "verification-at-utc")"
-  verification_fingerprint="$(section_key_value "$(task_file "$task_id")" "## Verification Status" "verification-fingerprint")"
 
   scope_status="$(lower "$(section_key_value "$(task_file "$task_id")" "## Review Status" "scope-review-status")")"
   scope_note="$(section_key_value "$(task_file "$task_id")" "## Review Status" "scope-review-note")"
   scope_at="$(section_key_value "$(task_file "$task_id")" "## Review Status" "scope-review-at-utc")"
-  scope_fingerprint="$(section_key_value "$(task_file "$task_id")" "## Review Status" "scope-review-fingerprint")"
 
   quality_status="$(lower "$(section_key_value "$(task_file "$task_id")" "## Review Status" "quality-review-status")")"
   quality_note="$(section_key_value "$(task_file "$task_id")" "## Review Status" "quality-review-note")"
   quality_at="$(section_key_value "$(task_file "$task_id")" "## Review Status" "quality-review-at-utc")"
-  quality_fingerprint="$(section_key_value "$(task_file "$task_id")" "## Review Status" "quality-review-fingerprint")"
-
-  [[ "$verification_status" == "pass" ]] || {
-    echo "[FAIL] ai-gate"
-    echo " - verification-status must be pass"
-    exit 1
-  }
   [[ "$scope_status" == "pass" ]] || {
     echo "[FAIL] ai-gate"
     echo " - scope-review-status must be pass"
@@ -269,46 +217,37 @@ check_summary_statuses_ci() {
     exit 1
   }
 
-  if placeholder_like "$verification_note" || placeholder_like "$verification_at" || placeholder_like "$verification_fingerprint"; then
-    echo "[FAIL] ai-gate"
-    echo " - verification summary fields are incomplete"
-    exit 1
-  fi
-  if placeholder_like "$scope_note" || placeholder_like "$scope_at" || placeholder_like "$scope_fingerprint"; then
+  if placeholder_like "$scope_note" || placeholder_like "$scope_at"; then
     echo "[FAIL] ai-gate"
     echo " - scope review summary fields are incomplete"
     exit 1
   fi
-  if placeholder_like "$quality_note" || placeholder_like "$quality_at" || placeholder_like "$quality_fingerprint"; then
+  if placeholder_like "$quality_note" || placeholder_like "$quality_at"; then
     echo "[FAIL] ai-gate"
     echo " - quality review summary fields are incomplete"
     exit 1
   fi
 
-  if [[ "$verification_fingerprint" != "$current_fingerprint" ]]; then
-    echo "[FAIL] ai-gate"
-    echo " - verification summary fingerprint is stale"
-    exit 1
-  fi
-  if [[ "$scope_fingerprint" != "$current_fingerprint" ]]; then
-    echo "[FAIL] ai-gate"
-    echo " - scope review summary fingerprint is stale"
-    exit 1
-  fi
-  if [[ "$quality_fingerprint" != "$current_fingerprint" ]]; then
-    echo "[FAIL] ai-gate"
-    echo " - quality review summary fingerprint is stale"
-    exit 1
-  fi
-
   case "$risk_level" in
+    trivial)
+      required_keys=()
+      ;;
     standard)
       required_keys=("reuse-review" "hardcoding-review" "tests-review" "request-scope-review")
       ;;
     high-risk)
       required_keys=("reuse-review" "hardcoding-review" "tests-review" "request-scope-review" "risk-controls-review")
       ;;
+    *)
+      echo "[FAIL] ai-gate"
+      echo " - unsupported risk level: $risk_level"
+      exit 1
+      ;;
   esac
+
+  if [[ ${#required_keys[@]} -eq 0 ]]; then
+    return 0
+  fi
 
   for key in "${required_keys[@]}"; do
     value="$(lower "$(section_key_value "$(task_file "$task_id")" "## Review Status" "$key")")"

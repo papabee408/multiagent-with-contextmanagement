@@ -33,6 +33,9 @@ while IFS= read -r relative_path; do
   if grep -Fxq "$relative_path" "$allowed_tmp"; then
     continue
   fi
+  if path_allowed_by_task "$TASK_ID" "$relative_path"; then
+    continue
+  fi
   violations+=("$relative_path")
 done < <(effective_changed_files "$TASK_ID")
 
