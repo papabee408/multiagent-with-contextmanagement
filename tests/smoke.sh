@@ -85,6 +85,7 @@ emit_pr_json() {
     --argjson number "$number" \
     --argjson isOpen "$open" \
     --argjson isDraft "$draft" \
+    --arg state "$(if [[ "$open" == "true" ]]; then printf '%s' "OPEN"; else printf '%s' "CLOSED"; fi)" \
     --arg baseRefName "$base" \
     --arg headRefName "$head" \
     --arg headRefOid "$head_sha" \
@@ -94,6 +95,7 @@ emit_pr_json() {
       number: $number,
       isOpen: $isOpen,
       isDraft: $isDraft,
+      state: $state,
       baseRefName: $baseRefName,
       headRefName: $headRefName,
       headRefOid: $headRefOid,

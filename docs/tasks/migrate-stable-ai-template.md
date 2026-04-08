@@ -6,7 +6,7 @@
 - state: done
 - owner: ai
 - risk-level: standard
-- updated-at-utc: 2026-04-08 01:17:31Z
+- updated-at-utc: 2026-04-08 01:31:15Z
 
 ## Approval
 - approved-by: user
@@ -389,18 +389,18 @@
 ## Verification Status
 - verification-status: pass
 - verification-note: verification passed; see .context/tasks/migrate-stable-ai-template/verification.log
-- verification-at-utc: 2026-04-08 01:15:34Z
-- verification-fingerprint: 2a3ccc0a9e64d217dc5302667f23c1bb7aa312ff23a81faa7eff06e16cd70e26
+- verification-at-utc: 2026-04-08 01:29:28Z
+- verification-fingerprint: 05b41de07c35ef1a8f761b21f8198d8814c997ca8138022cb84eec115a680f14
 
 ## Review Status
 - scope-review-status: pass
-- scope-review-note: scope still matches the approved stable-template cutover and the verified CI SHA fallback fix stays inside task-owned files
-- scope-review-at-utc: 2026-04-08 01:16:14Z
-- scope-review-fingerprint: 2a3ccc0a9e64d217dc5302667f23c1bb7aa312ff23a81faa7eff06e16cd70e26
+- scope-review-note: scope still matches the approved stable-template cutover and the merge-task-pr CLI compatibility fix stays inside task-owned files
+- scope-review-at-utc: 2026-04-08 01:30:07Z
+- scope-review-fingerprint: 05b41de07c35ef1a8f761b21f8198d8814c997ca8138022cb84eec115a680f14
 - quality-review-status: pass
-- quality-review-note: quality review passed: verified but non-local CI SHAs now fall back safely to local task baselines, and smoke covers both inherited-real-SHA and bogus-SHA environments
-- quality-review-at-utc: 2026-04-08 01:16:46Z
-- quality-review-fingerprint: 2a3ccc0a9e64d217dc5302667f23c1bb7aa312ff23a81faa7eff06e16cd70e26
+- quality-review-note: quality review passed: merge-task-pr now uses gh CLI fields supported by the installed version, and smoke proves publish, CI gate, and merge still complete end to end
+- quality-review-at-utc: 2026-04-08 01:30:39Z
+- quality-review-fingerprint: 05b41de07c35ef1a8f761b21f8198d8814c997ca8138022cb84eec115a680f14
 - reuse-review: pass
 - hardcoding-review: pass
 - tests-review: pass
@@ -418,5 +418,5 @@
 - known risks: the archive-heavy diff makes the task scope large and the root smoke must prove the new runtime works end to end
 
 ## Completion
-- summary: Cut over the repo root to the stable task-driven template, archived the legacy workflow, and hardened AI Gate fingerprinting for CI, clean checkouts, invalid inherited CI diff refs, and non-local SHA-shaped CI refs.
+- summary: Cut over the repo root to the stable task-driven template, archived the legacy workflow, and hardened AI Gate plus merge-task automation for CI, clean checkouts, inherited diff refs, and current gh CLI behavior.
 - follow-up: push task/migrate-stable-ai-template to update PR #2, confirm AI Gate passes, then merge the PR

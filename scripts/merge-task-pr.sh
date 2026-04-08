@@ -30,14 +30,14 @@ if [[ -z "$PR_NUMBER" ]]; then
   exit 1
 fi
 
-PR_JSON="$(gh pr view "$PR_NUMBER" --json number,isOpen,baseRefName,headRefName,headRefOid,body,url)"
-PR_OPEN="$(printf '%s' "$PR_JSON" | jq -r '.isOpen')"
+PR_JSON="$(gh pr view "$PR_NUMBER" --json number,state,baseRefName,headRefName,headRefOid,body,url)"
+PR_STATE="$(printf '%s' "$PR_JSON" | jq -r '.state')"
 PR_BASE="$(printf '%s' "$PR_JSON" | jq -r '.baseRefName')"
 PR_HEAD="$(printf '%s' "$PR_JSON" | jq -r '.headRefName')"
 PR_HEAD_SHA="$(printf '%s' "$PR_JSON" | jq -r '.headRefOid')"
 PR_BODY="$(printf '%s' "$PR_JSON" | jq -r '.body')"
 
-[[ "$PR_OPEN" == "true" ]] || {
+[[ "$PR_STATE" == "OPEN" ]] || {
   echo "[FAIL] merge-task-pr"
   echo " - PR is not open"
   exit 1
