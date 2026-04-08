@@ -3,18 +3,18 @@
 ## Scope Discipline
 - No implementation work before approval and `start-task`.
 - Only change target files plus workflow internal files.
-- Archive and bundle directories are reference-only unless the task explicitly targets them.
+- A target file is not a license for unrelated cleanup.
 - If scope grows, update the task before editing new non-internal files.
 
 ## Reuse And Config
-- Reuse root task-driven scripts and helpers before creating parallel wrappers.
-- Centralize externally meaningful constants, task-state keys, and CLI defaults instead of scattering literals.
-- Keep repo-specific CI commands in `docs/context/CI_PROFILE.md`, not hidden in legacy or archived scripts.
+- Reuse existing modules before adding variants.
+- Centralize externally meaningful constants and config.
+- Do not scatter magic values across production code.
 
 ## Testing
-- Every behavior change needs explicit verification commands in the task file.
-- Use `tests/smoke.sh` as the root template regression check unless the task defines additional commands.
-- Keep tests deterministic, local, and independent from archived workflow state.
+- Every behavior change needs explicit verification commands in the task.
+- Cover normal, error, and boundary paths unless the task explicitly limits scope.
+- Keep tests deterministic and independent.
 
 ## Visual Changes
-- Preserve current documentation and operator-facing behavior unless the task explicitly changes them.
+- Preserve current visuals unless the request explicitly calls for visual change.

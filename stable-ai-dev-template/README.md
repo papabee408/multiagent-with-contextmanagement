@@ -9,7 +9,7 @@ This template is for long-running AI-assisted product development where sessions
 - Explicit approval before implementation starts
 - Narrow file scope and narrow request intent
 - Runtime-only receipts with fresh verification and review gating
-- Minimal operator git work through publish and merge wrappers
+- Minimal operator git work through explicit publish and explicit manual merge
 
 ## Core Model
 
@@ -82,10 +82,17 @@ git commit -m "task(<task-id>): <summary>"
 bash scripts/open-task-pr.sh <task-id>
 ```
 
-7. Merge
+7. Merge manually
 
 ```bash
-bash scripts/merge-task-pr.sh <task-id>
+gh pr merge <pr-number> --squash --delete-branch
+git restore --staged --worktree --source=HEAD -- docs/context/CURRENT.md 2>/dev/null || git restore --worktree --source=HEAD -- docs/context/CURRENT.md
+git switch main
+git fetch origin main
+git merge --ff-only origin/main
+git branch -d task/<task-id> 2>/dev/null || true
+rm -f .context/active_task
+bash scripts/refresh-current.sh
 ```
 
 ## Intake Policy

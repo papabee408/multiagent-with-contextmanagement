@@ -14,6 +14,8 @@ fail() {
   exit 1
 }
 
+bash "$TEMPLATE_DIR/scripts/check-template-sync.sh" >/dev/null
+
 assert_file_contains() {
   local file="$1"
   local needle="$2"
@@ -85,6 +87,7 @@ emit_pr_json() {
     --argjson number "$number" \
     --argjson isOpen "$open" \
     --argjson isDraft "$draft" \
+    --arg state "$(if [[ "$open" == "true" ]]; then printf '%s' "OPEN"; else printf '%s' "CLOSED"; fi)" \
     --arg baseRefName "$base" \
     --arg headRefName "$head" \
     --arg headRefOid "$head_sha" \
@@ -94,6 +97,7 @@ emit_pr_json() {
       number: $number,
       isOpen: $isOpen,
       isDraft: $isDraft,
+      state: $state,
       baseRefName: $baseRefName,
       headRefName: $headRefName,
       headRefOid: $headRefOid,
@@ -513,7 +517,20 @@ setup_repo() {
   local gh_state="$TMP_DIR/gh-state/$name"
 
   mkdir -p "$TMP_DIR/repos" "$TMP_DIR/remotes" "$gh_state"
-  cp -R "$TEMPLATE_DIR"/. "$repo"/
+  mkdir -p "$repo"
+  (
+    cd "$TEMPLATE_DIR"
+    tar \
+      --exclude=".git" \
+      --exclude=".context" \
+      --exclude="migration-archive" \
+      --exclude="stable-ai-dev-template" \
+      --exclude="codex-template-multi-agent-process" \
+      -cf - .
+  ) | (
+    cd "$repo"
+    tar -xf -
+  )
 
   (
     cd "$repo"
@@ -925,6 +942,8 @@ EOF
     "updated the approved server output" \
     "create or switch to task/publish-late-flow, commit the approved diff, then publish the PR" >/dev/null
 
+  CI_DIFF_BASE="1111111111111111111111111111111111111111" CI_DIFF_HEAD="2222222222222222222222222222222222222222" bash scripts/check-task.sh publish-late-flow >/dev/null
+
   git switch -c task/publish-late-flow >/dev/null
   expect_failure "open-task-pr should fail on a dirty task branch" bash scripts/open-task-pr.sh publish-late-flow
 
@@ -948,14 +967,23 @@ EOF
   grep -Eq '^pr-edit:[0-9]+$' "$FAKE_GH_STATE_DIR/gh.log" || fail "expected PR updates to target a numeric PR id"
 
   PR_BODY="$(gh pr view "$PR_NUMBER" --json body | jq -r '.body')"
+  rm -rf .context/tasks
   CI_PR_BODY="$PR_BODY" CI_DIFF_BASE="origin/main" CI_DIFF_HEAD="HEAD" bash scripts/ci/run-ai-gate.sh >/dev/null
 
   HEAD_SHA="$(gh pr view "$PR_NUMBER" --json headRefOid | jq -r '.headRefOid')"
   mark_check_success "$HEAD_SHA" "AI Gate"
 
-  bash scripts/merge-task-pr.sh publish-late-flow >/dev/null
+  gh pr merge "$PR_NUMBER" --squash --delete-branch >/dev/null
+  git restore --staged --worktree --source=HEAD -- docs/context/CURRENT.md >/dev/null 2>&1 || \
+    git restore --worktree --source=HEAD -- docs/context/CURRENT.md >/dev/null 2>&1 || true
+  git switch main >/dev/null
+  git fetch origin main >/dev/null
+  git merge --ff-only origin/main >/dev/null
+  git branch -d task/publish-late-flow >/dev/null 2>&1 || true
+  rm -f .context/active_task
+  bash scripts/refresh-current.sh >/dev/null
 
-  [[ "$(git branch --show-current)" == "main" ]] || fail "expected merge-task-pr to return to main"
+  [[ "$(git branch --show-current)" == "main" ]] || fail "expected manual merge flow to return to main"
   [[ "$(git rev-parse main)" == "$(git rev-parse origin/main)" ]] || fail "expected local main to sync with origin/main"
   assert_branch_absent "$CURRENT_SMOKE_REPO" "task/publish-late-flow"
   assert_file_contains docs/context/CURRENT.md "active-task: none"

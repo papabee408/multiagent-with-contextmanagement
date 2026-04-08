@@ -377,12 +377,22 @@ effective_changed_files() {
   local baseline_digest
   local current_digest
   local bootstrap_head
+  local base_branch
 
   bootstrap_head="$(bootstrap_head_sha "$task_id")"
+  base_branch="$(base_branch_from_task "$task_id")"
 
   {
-    if [[ -n "$bootstrap_head" ]] && git -C "$ROOT_DIR" rev-parse "$bootstrap_head" >/dev/null 2>&1; then
+    if [[ -n "${CI_DIFF_BASE:-}" && -n "${CI_DIFF_HEAD:-}" ]] &&
+      git -C "$ROOT_DIR" rev-parse --verify "${CI_DIFF_BASE}^{commit}" >/dev/null 2>&1 &&
+      git -C "$ROOT_DIR" rev-parse --verify "${CI_DIFF_HEAD}^{commit}" >/dev/null 2>&1; then
+      git -C "$ROOT_DIR" diff --name-only "$CI_DIFF_BASE...$CI_DIFF_HEAD" 2>/dev/null || true
+    elif [[ -n "$bootstrap_head" ]] && git -C "$ROOT_DIR" rev-parse "$bootstrap_head" >/dev/null 2>&1; then
       git -C "$ROOT_DIR" diff --name-only "$bootstrap_head...HEAD" 2>/dev/null || true
+    elif [[ -n "$base_branch" ]] && git -C "$ROOT_DIR" rev-parse "origin/$base_branch" >/dev/null 2>&1; then
+      git -C "$ROOT_DIR" diff --name-only "origin/$base_branch...HEAD" 2>/dev/null || true
+    elif [[ -n "$base_branch" ]] && git -C "$ROOT_DIR" rev-parse "$base_branch" >/dev/null 2>&1; then
+      git -C "$ROOT_DIR" diff --name-only "$base_branch...HEAD" 2>/dev/null || true
     fi
 
     git -C "$ROOT_DIR" diff --name-only --cached 2>/dev/null || true
