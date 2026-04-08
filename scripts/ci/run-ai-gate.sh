@@ -233,10 +233,10 @@ check_summary_statuses_ci() {
       required_keys=()
       ;;
     standard)
-      required_keys=("reuse-review" "hardcoding-review" "tests-review" "request-scope-review")
+      required_keys=("reuse-review" "hardcoding-review" "tests-review" "request-scope-review" "architecture-review")
       ;;
     high-risk)
-      required_keys=("reuse-review" "hardcoding-review" "tests-review" "request-scope-review" "risk-controls-review")
+      required_keys=("reuse-review" "hardcoding-review" "tests-review" "request-scope-review" "architecture-review" "risk-controls-review")
       ;;
     *)
       echo "[FAIL] ai-gate"

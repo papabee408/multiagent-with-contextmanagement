@@ -37,7 +37,7 @@ Use scripts for state transitions. Do not hand-edit state fields directly.
 6. implement only inside `## Target Files`
 7. `bash scripts/run-task-checks.sh <task-id>`
 8. `bash scripts/review-scope.sh <task-id> --summary "<note>"`
-9. `bash scripts/review-quality.sh <task-id> --summary "<note>" ...`
+9. `bash scripts/review-quality.sh <task-id> --summary "<note>" --architecture pass ...`
 10. `bash scripts/complete-task.sh <task-id> "<summary>" "<next-step>"`
 11. create or switch to the task branch, stage approved files explicitly, create the commit explicitly
 12. `bash scripts/open-task-pr.sh <task-id>`

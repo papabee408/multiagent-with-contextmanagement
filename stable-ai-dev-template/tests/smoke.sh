@@ -662,6 +662,7 @@ scenario_scope_and_approval() {
 - hardcoding-review: pending
 - tests-review: pending
 - request-scope-review: pending
+- architecture-review: pending
 - risk-controls-review: pending
 
 ## Git / PR
@@ -788,6 +789,7 @@ scenario_publish_late_commit_rejection() {
 - hardcoding-review: pending
 - tests-review: pending
 - request-scope-review: pending
+- architecture-review: pending
 - risk-controls-review: pending
 
 ## Git / PR
@@ -899,6 +901,7 @@ scenario_publish_and_merge() {
 - hardcoding-review: pending
 - tests-review: pending
 - request-scope-review: pending
+- architecture-review: pending
 - risk-controls-review: pending
 
 ## Git / PR
@@ -929,7 +932,8 @@ EOF
     --reuse pass \
     --hardcoding pass \
     --tests pass \
-    --request-scope pass >/dev/null
+    --request-scope pass \
+    --architecture pass >/dev/null
   bash scripts/complete-task.sh publish-late-flow \
     "updated the approved server output" \
     "create or switch to task/publish-late-flow, commit the approved diff, then publish the PR" >/dev/null
@@ -1073,6 +1077,7 @@ scenario_intake_validation() {
 - hardcoding-review: pending
 - tests-review: pending
 - request-scope-review: pending
+- architecture-review: pending
 - risk-controls-review: pending
 
 ## Git / PR
@@ -1187,6 +1192,7 @@ scenario_delete_only_scope() {
 - hardcoding-review: pending
 - tests-review: pending
 - request-scope-review: pending
+- architecture-review: pending
 - risk-controls-review: pending
 
 ## Git / PR
@@ -1297,6 +1303,7 @@ scenario_ci_active_task_fallback() {
 - hardcoding-review: pending
 - tests-review: pending
 - request-scope-review: pending
+- architecture-review: pending
 - risk-controls-review: pending
 
 ## Git / PR
