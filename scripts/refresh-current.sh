@@ -69,15 +69,12 @@ if [[ -z "$TASK_ID" || ! -f "$(task_file "$TASK_ID")" ]]; then
 ## Verification
 - verification-status: not-run
 - verification-at-utc: none
-- verification-fingerprint: none
 
 ## Reviews
 - scope-review-status: not-run
 - scope-review-at-utc: none
-- scope-review-fingerprint: none
 - quality-review-status: not-run
 - quality-review-at-utc: none
-- quality-review-fingerprint: none
 EOF
   echo "[OK] refreshed docs/context/CURRENT.md"
   exit 0
@@ -113,23 +110,17 @@ PR_HEAD_SHA="$(pr_state_value "$TASK_ID" "head_sha")"
 
 VERIFICATION_STATUS="$(section_key_value "$TASK_FILE" "## Verification Status" "verification-status")"
 VERIFICATION_AT="$(section_key_value "$TASK_FILE" "## Verification Status" "verification-at-utc")"
-VERIFICATION_FINGERPRINT="$(section_key_value "$TASK_FILE" "## Verification Status" "verification-fingerprint")"
 SCOPE_STATUS="$(section_key_value "$TASK_FILE" "## Review Status" "scope-review-status")"
 SCOPE_AT="$(section_key_value "$TASK_FILE" "## Review Status" "scope-review-at-utc")"
-SCOPE_FINGERPRINT="$(section_key_value "$TASK_FILE" "## Review Status" "scope-review-fingerprint")"
 QUALITY_STATUS="$(section_key_value "$TASK_FILE" "## Review Status" "quality-review-status")"
 QUALITY_AT="$(section_key_value "$TASK_FILE" "## Review Status" "quality-review-at-utc")"
-QUALITY_FINGERPRINT="$(section_key_value "$TASK_FILE" "## Review Status" "quality-review-fingerprint")"
 
 [[ -z "$VERIFICATION_STATUS" ]] && VERIFICATION_STATUS="not-run"
 [[ -z "$VERIFICATION_AT" ]] && VERIFICATION_AT="none"
-[[ -z "$VERIFICATION_FINGERPRINT" ]] && VERIFICATION_FINGERPRINT="none"
 [[ -z "$SCOPE_STATUS" ]] && SCOPE_STATUS="not-run"
 [[ -z "$SCOPE_AT" ]] && SCOPE_AT="none"
-[[ -z "$SCOPE_FINGERPRINT" ]] && SCOPE_FINGERPRINT="none"
 [[ -z "$QUALITY_STATUS" ]] && QUALITY_STATUS="not-run"
 [[ -z "$QUALITY_AT" ]] && QUALITY_AT="none"
-[[ -z "$QUALITY_FINGERPRINT" ]] && QUALITY_FINGERPRINT="none"
 
 APPROVAL_STATUS="pending"
 if ! placeholder_like "$APPROVED_BY" && ! placeholder_like "$APPROVED_AT"; then
@@ -178,15 +169,12 @@ $(render_changed_files "$TASK_ID")
 ## Verification
 - verification-status: $VERIFICATION_STATUS
 - verification-at-utc: $VERIFICATION_AT
-- verification-fingerprint: $VERIFICATION_FINGERPRINT
 
 ## Reviews
 - scope-review-status: $SCOPE_STATUS
 - scope-review-at-utc: $SCOPE_AT
-- scope-review-fingerprint: $SCOPE_FINGERPRINT
 - quality-review-status: $QUALITY_STATUS
 - quality-review-at-utc: $QUALITY_AT
-- quality-review-fingerprint: $QUALITY_FINGERPRINT
 EOF
 
 echo "[OK] refreshed docs/context/CURRENT.md"

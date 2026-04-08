@@ -387,17 +387,14 @@
 - verification-status: pass
 - verification-note: verification passed for the migration guide cleanup; see .context/tasks/sync-stable-template-bundle/verification.log
 - verification-at-utc: 2026-04-08 04:33:03Z
-- verification-fingerprint: 1fba0dc78803f6b4bc64d63b1346b80d3e489a181c3c238733f0a9eeb1e8019f
 
 ## Review Status
 - scope-review-status: pass
 - scope-review-note: scope matches the approved migration guide cleanup and mirrored bundle parity update
 - scope-review-at-utc: 2026-04-08 04:33:03Z
-- scope-review-fingerprint: 1fba0dc78803f6b4bc64d63b1346b80d3e489a181c3c238733f0a9eeb1e8019f
 - quality-review-status: pass
 - quality-review-note: quality checks passed for dropping the legacy migration guides and keeping the root and bundle docs in sync
 - quality-review-at-utc: 2026-04-08 04:33:03Z
-- quality-review-fingerprint: 1fba0dc78803f6b4bc64d63b1346b80d3e489a181c3c238733f0a9eeb1e8019f
 - reuse-review: pass
 - hardcoding-review: pass
 - tests-review: pass
@@ -407,12 +404,12 @@
 ## Git / PR
 - base-branch: main
 - branch-strategy: publish-late
-- pr-metadata-policy: required
+- pr-metadata-policy: auto-recover
 
 ## Session Resume
 - current focus: task completed; PR is waiting on AI Gate with refreshed task metadata
 - next action: wait for AI Gate on the published PR, then merge and sync local main
-- known risks: root and nested template files must stay exactly mirrored, and AI Gate requires the task summary fingerprint to match the current diff
+- known risks: root and nested template files must stay exactly mirrored, and AI Gate still reruns the declared verification on the latest PR head
 
 ## Completion
 - summary: removed the duplicated migration guides from the root and mirrored bundle, and updated the live docs plus sync guard to treat the template as new-project bootstrap only

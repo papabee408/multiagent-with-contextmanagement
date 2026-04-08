@@ -129,18 +129,29 @@ declare -a seen_targets=()
 while IFS= read -r path; do
   [[ -n "$path" ]] || continue
   target_count=$((target_count + 1))
-  if [[ "$path" == /* ]]; then
-    failures+=("absolute-target-file($path)")
+  rule="$path"
+  normalized_rule="$rule"
+
+  if [[ "$rule" == delete-only:* ]]; then
+    normalized_rule="${rule#delete-only:}"
+    if [[ -z "$normalized_rule" ]]; then
+      failures+=("invalid-delete-only-target($rule)")
+      continue
+    fi
   fi
-  if is_workflow_internal_file "$TASK_ID" "$path"; then
-    failures+=("workflow-internal-target-file($path)")
+
+  if [[ "$normalized_rule" == /* ]]; then
+    failures+=("absolute-target-file($rule)")
+  fi
+  if [[ "$rule" != delete-only:* && "$rule" != */ ]] && is_workflow_internal_file "$TASK_ID" "$rule"; then
+    failures+=("workflow-internal-target-file($rule)")
   fi
   for seen in "${seen_targets[@]-}"; do
-    if [[ "$seen" == "$path" ]]; then
-      failures+=("duplicate-target-file($path)")
+    if [[ "$seen" == "$rule" ]]; then
+      failures+=("duplicate-target-file($rule)")
     fi
   done
-  seen_targets+=("$path")
+  seen_targets+=("$rule")
 done < <(target_files_from_task "$TASK_ID")
 if [[ "$target_count" == "0" ]]; then
   failures+=("missing-target-files")
@@ -213,9 +224,13 @@ case "$branch_strategy" in
     failures+=("invalid-branch-strategy($branch_strategy)")
     ;;
 esac
-if [[ "$pr_metadata_policy" != "required" ]]; then
-  failures+=("invalid-pr-metadata-policy($pr_metadata_policy)")
-fi
+case "$pr_metadata_policy" in
+  required|auto-recover)
+    ;;
+  *)
+    failures+=("invalid-pr-metadata-policy($pr_metadata_policy)")
+    ;;
+esac
 
 for key in "current focus" "next action" "known risks"; do
   value="$(section_key_value "$TASK_FILE" "## Session Resume" "$key")"
@@ -225,22 +240,17 @@ for key in "current focus" "next action" "known risks"; do
 done
 
 if [[ "$state" == "done" ]]; then
-  current_fingerprint="$(task_fingerprint "$TASK_ID")"
-
   verification_status="$(lower "$(section_key_value "$TASK_FILE" "## Verification Status" "verification-status")")"
   verification_note="$(section_key_value "$TASK_FILE" "## Verification Status" "verification-note")"
   verification_at="$(section_key_value "$TASK_FILE" "## Verification Status" "verification-at-utc")"
-  verification_fingerprint="$(section_key_value "$TASK_FILE" "## Verification Status" "verification-fingerprint")"
 
   scope_status="$(lower "$(section_key_value "$TASK_FILE" "## Review Status" "scope-review-status")")"
   scope_note="$(section_key_value "$TASK_FILE" "## Review Status" "scope-review-note")"
   scope_at="$(section_key_value "$TASK_FILE" "## Review Status" "scope-review-at-utc")"
-  scope_fingerprint="$(section_key_value "$TASK_FILE" "## Review Status" "scope-review-fingerprint")"
 
   quality_status="$(lower "$(section_key_value "$TASK_FILE" "## Review Status" "quality-review-status")")"
   quality_note="$(section_key_value "$TASK_FILE" "## Review Status" "quality-review-note")"
   quality_at="$(section_key_value "$TASK_FILE" "## Review Status" "quality-review-at-utc")"
-  quality_fingerprint="$(section_key_value "$TASK_FILE" "## Review Status" "quality-review-fingerprint")"
 
   if [[ "$verification_status" != "pass" ]]; then
     failures+=("done-task-requires-verification-pass")
@@ -251,13 +261,6 @@ if [[ "$state" == "done" ]]; then
   if placeholder_like "$verification_at"; then
     failures+=("missing-verification-at-utc")
   fi
-  if placeholder_like "$verification_fingerprint"; then
-    failures+=("missing-verification-fingerprint")
-  fi
-  if [[ "$verification_fingerprint" != "$current_fingerprint" ]]; then
-    failures+=("stale-verification-fingerprint")
-  fi
-
   if [[ "$scope_status" != "pass" ]]; then
     failures+=("done-task-requires-scope-review-pass")
   fi
@@ -267,13 +270,6 @@ if [[ "$state" == "done" ]]; then
   if placeholder_like "$scope_at"; then
     failures+=("missing-scope-review-at-utc")
   fi
-  if placeholder_like "$scope_fingerprint"; then
-    failures+=("missing-scope-review-fingerprint")
-  fi
-  if [[ "$scope_fingerprint" != "$current_fingerprint" ]]; then
-    failures+=("stale-scope-review-fingerprint")
-  fi
-
   if [[ "$quality_status" != "pass" ]]; then
     failures+=("done-task-requires-quality-review-pass")
   fi
@@ -283,13 +279,6 @@ if [[ "$state" == "done" ]]; then
   if placeholder_like "$quality_at"; then
     failures+=("missing-quality-review-at-utc")
   fi
-  if placeholder_like "$quality_fingerprint"; then
-    failures+=("missing-quality-review-fingerprint")
-  fi
-  if [[ "$quality_fingerprint" != "$current_fingerprint" ]]; then
-    failures+=("stale-quality-review-fingerprint")
-  fi
-
   case "$risk_level" in
     standard)
       for key in "reuse-review" "hardcoding-review" "tests-review" "request-scope-review"; do

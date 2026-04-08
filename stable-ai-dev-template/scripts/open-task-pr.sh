@@ -25,6 +25,44 @@ BASE_BRANCH="$(base_branch_from_task "$TASK_ID")"
 CURRENT_BRANCH="$(current_branch_name)"
 EXPECTED_BRANCH="$(task_branch_name "$TASK_ID")"
 
+strip_task_metadata_block() {
+  awk '
+    $0 == "<!-- task-metadata:start -->" { skip = 1; next }
+    $0 == "<!-- task-metadata:end -->" { skip = 0; next }
+    skip { next }
+    { print }
+  '
+}
+
+write_default_pr_body() {
+  {
+    render_pr_metadata_block "$TASK_ID" "$BASE_BRANCH"
+    echo
+    echo "## Goal"
+    awk '/^## Goal/{flag=1;next}/^## /&&flag{exit}flag' "$TASK_FILE"
+    echo
+    echo "## Acceptance"
+    awk '/^## Acceptance/{flag=1;next}/^## /&&flag{exit}flag' "$TASK_FILE"
+  } > "$BODY_FILE"
+}
+
+write_recovered_pr_body() {
+  local existing_body="$1"
+  local stripped_body
+
+  stripped_body="$(printf '%s\n' "$existing_body" | strip_task_metadata_block | sed '1{/^$/d;}')"
+  if [[ -z "$(trim "$stripped_body")" ]]; then
+    write_default_pr_body
+    return 0
+  fi
+
+  {
+    render_pr_metadata_block "$TASK_ID" "$BASE_BRANCH"
+    echo
+    printf '%s\n' "$stripped_body"
+  } > "$BODY_FILE"
+}
+
 bash "$ROOT_DIR/scripts/check-task.sh" "$TASK_ID" >/dev/null
 ensure_clean_worktree || {
   echo "[FAIL] open-task-pr"
@@ -80,22 +118,15 @@ fi
 
 git -C "$ROOT_DIR" push -u origin "$CURRENT_BRANCH"
 
+PR_NUMBER="$(resolve_pr_number_for_head_branch "$CURRENT_BRANCH")"
 BODY_FILE="$(mktemp)"
 trap 'rm -f "$BODY_FILE"' EXIT
-{
-  render_pr_metadata_block "$TASK_ID" "$BASE_BRANCH"
-  echo
-  echo "## Goal"
-  awk '/^## Goal/{flag=1;next}/^## /&&flag{exit}flag' "$TASK_FILE"
-  echo
-  echo "## Acceptance"
-  awk '/^## Acceptance/{flag=1;next}/^## /&&flag{exit}flag' "$TASK_FILE"
-} > "$BODY_FILE"
-
-PR_NUMBER="$(resolve_pr_number_for_head_branch "$CURRENT_BRANCH")"
 if [[ -n "$PR_NUMBER" ]]; then
+  EXISTING_BODY="$(gh pr view "$PR_NUMBER" --json body | jq -r '.body')"
+  write_recovered_pr_body "$EXISTING_BODY"
   gh pr edit "$PR_NUMBER" --body-file "$BODY_FILE"
 else
+  write_default_pr_body
   if [[ "$DRAFT" == "1" ]]; then
     gh pr create --base "$BASE_BRANCH" --head "$CURRENT_BRANCH" --fill --draft --body-file "$BODY_FILE"
   else

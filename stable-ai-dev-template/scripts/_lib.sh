@@ -296,6 +296,49 @@ task_branch_name() {
   printf '%s' "${pattern//<task-id>/$task_id}"
 }
 
+task_exists() {
+  [[ -f "$(task_file "$1")" ]]
+}
+
+task_id_from_branch_ref() {
+  local ref="$1"
+  local pattern
+  local prefix
+  local suffix
+  local task_id
+
+  pattern="$(task_branch_pattern)"
+  if [[ -z "$ref" || -z "$pattern" || "$pattern" != *"<task-id>"* ]]; then
+    printf '%s' ""
+    return 0
+  fi
+
+  prefix="${pattern%%<task-id>*}"
+  suffix="${pattern#*<task-id>}"
+
+  [[ "$ref" == "$prefix"* ]] || {
+    printf '%s' ""
+    return 0
+  }
+
+  if [[ -n "$suffix" && "$ref" != *"$suffix" ]]; then
+    printf '%s' ""
+    return 0
+  fi
+
+  task_id="${ref#"$prefix"}"
+  if [[ -n "$suffix" ]]; then
+    task_id="${task_id%"$suffix"}"
+  fi
+
+  if [[ -z "$task_id" ]]; then
+    printf '%s' ""
+    return 0
+  fi
+
+  printf '%s' "$task_id"
+}
+
 merge_method_from_ci_profile() {
   section_key_value "$(ci_profile_file)" "## Git / PR Policy" "merge-method"
 }
@@ -319,6 +362,56 @@ git_changed_files() {
   ' | sed '/^$/d' | sort -u
 }
 
+git_ref_exists() {
+  git -C "$ROOT_DIR" rev-parse --verify "${1}^{commit}" >/dev/null 2>&1
+}
+
+diff_names_between() {
+  local base_ref="$1"
+  local head_ref="$2"
+
+  git -C "$ROOT_DIR" diff --name-only "$base_ref...$head_ref" 2>/dev/null || true
+}
+
+committed_changed_files() {
+  {
+    if [[ -n "${CI_DIFF_BASE:-}" && -n "${CI_DIFF_HEAD:-}" ]] &&
+      git_ref_exists "$CI_DIFF_BASE" &&
+      git_ref_exists "$CI_DIFF_HEAD"; then
+      diff_names_between "$CI_DIFF_BASE" "$CI_DIFF_HEAD"
+    elif git_ref_exists "HEAD~1"; then
+      diff_names_between "HEAD~1" "HEAD"
+    else
+      git -C "$ROOT_DIR" ls-files
+    fi
+  } | sed '/^$/d' | sort -u
+}
+
+task_committed_changed_files() {
+  local task_id="$1"
+  local bootstrap_head
+  local base_branch
+
+  bootstrap_head="$(bootstrap_head_sha "$task_id")"
+  base_branch="$(base_branch_from_task "$task_id")"
+
+  {
+    if [[ -n "${CI_DIFF_BASE:-}" && -n "${CI_DIFF_HEAD:-}" ]] &&
+      git_ref_exists "$CI_DIFF_BASE" &&
+      git_ref_exists "$CI_DIFF_HEAD"; then
+      diff_names_between "$CI_DIFF_BASE" "$CI_DIFF_HEAD"
+    elif [[ -n "$bootstrap_head" ]] && git_ref_exists "$bootstrap_head"; then
+      diff_names_between "$bootstrap_head" "HEAD"
+    elif [[ -n "$base_branch" ]] && git_ref_exists "origin/$base_branch"; then
+      diff_names_between "origin/$base_branch" "HEAD"
+    elif [[ -n "$base_branch" ]] && git_ref_exists "$base_branch"; then
+      diff_names_between "$base_branch" "HEAD"
+    else
+      committed_changed_files
+    fi
+  } | sed '/^$/d' | sort -u
+}
+
 path_digest() {
   local relative_path="$1"
   local absolute_path="$ROOT_DIR/$relative_path"
@@ -329,6 +422,10 @@ path_digest() {
   fi
 
   printf '%s' "__missing__"
+}
+
+path_is_deleted() {
+  [[ ! -e "$ROOT_DIR/$1" ]]
 }
 
 capture_baseline_snapshot() {
@@ -376,25 +473,9 @@ effective_changed_files() {
   local relative_path
   local baseline_digest
   local current_digest
-  local bootstrap_head
-  local base_branch
-
-  bootstrap_head="$(bootstrap_head_sha "$task_id")"
-  base_branch="$(base_branch_from_task "$task_id")"
 
   {
-    if [[ -n "${CI_DIFF_BASE:-}" && -n "${CI_DIFF_HEAD:-}" ]] &&
-      git -C "$ROOT_DIR" rev-parse --verify "${CI_DIFF_BASE}^{commit}" >/dev/null 2>&1 &&
-      git -C "$ROOT_DIR" rev-parse --verify "${CI_DIFF_HEAD}^{commit}" >/dev/null 2>&1; then
-      git -C "$ROOT_DIR" diff --name-only "$CI_DIFF_BASE...$CI_DIFF_HEAD" 2>/dev/null || true
-    elif [[ -n "$bootstrap_head" ]] && git -C "$ROOT_DIR" rev-parse "$bootstrap_head" >/dev/null 2>&1; then
-      git -C "$ROOT_DIR" diff --name-only "$bootstrap_head...HEAD" 2>/dev/null || true
-    elif [[ -n "$base_branch" ]] && git -C "$ROOT_DIR" rev-parse "origin/$base_branch" >/dev/null 2>&1; then
-      git -C "$ROOT_DIR" diff --name-only "origin/$base_branch...HEAD" 2>/dev/null || true
-    elif [[ -n "$base_branch" ]] && git -C "$ROOT_DIR" rev-parse "$base_branch" >/dev/null 2>&1; then
-      git -C "$ROOT_DIR" diff --name-only "$base_branch...HEAD" 2>/dev/null || true
-    fi
-
+    task_committed_changed_files "$task_id"
     git -C "$ROOT_DIR" diff --name-only --cached 2>/dev/null || true
     git -C "$ROOT_DIR" diff --name-only 2>/dev/null || true
     git -C "$ROOT_DIR" ls-files --others --exclude-standard 2>/dev/null || true
@@ -413,6 +494,27 @@ effective_changed_files() {
   done
 }
 
+target_rule_matches_path() {
+  local rule="$1"
+  local relative_path="$2"
+  local pattern=""
+
+  if [[ "$rule" == delete-only:* ]]; then
+    pattern="${rule#delete-only:}"
+    [[ -n "$pattern" ]] || return 1
+    path_is_deleted "$relative_path" || return 1
+    [[ "$relative_path" == $pattern ]]
+    return $?
+  fi
+
+  if [[ "$rule" == */ ]]; then
+    [[ "$relative_path" == "$rule"* ]]
+    return $?
+  fi
+
+  [[ "$relative_path" == "$rule" ]]
+}
+
 is_workflow_internal_file() {
   local task_id="$1"
   local relative_path="$2"
@@ -429,6 +531,21 @@ is_workflow_internal_file() {
       return 0
       ;;
   esac
+
+  return 1
+}
+
+path_allowed_by_task() {
+  local task_id="$1"
+  local relative_path="$2"
+  local rule
+
+  while IFS= read -r rule; do
+    [[ -n "$rule" ]] || continue
+    if target_rule_matches_path "$rule" "$relative_path"; then
+      return 0
+    fi
+  done < <(target_files_from_task "$task_id")
 
   return 1
 }

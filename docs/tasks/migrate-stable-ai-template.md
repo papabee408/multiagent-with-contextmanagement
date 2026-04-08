@@ -390,17 +390,14 @@
 - verification-status: pass
 - verification-note: verification passed; see .context/tasks/migrate-stable-ai-template/verification.log
 - verification-at-utc: 2026-04-08 01:29:28Z
-- verification-fingerprint: 05b41de07c35ef1a8f761b21f8198d8814c997ca8138022cb84eec115a680f14
 
 ## Review Status
 - scope-review-status: pass
 - scope-review-note: scope still matches the approved stable-template cutover and the merge-task-pr CLI compatibility fix stays inside task-owned files
 - scope-review-at-utc: 2026-04-08 01:30:07Z
-- scope-review-fingerprint: 05b41de07c35ef1a8f761b21f8198d8814c997ca8138022cb84eec115a680f14
 - quality-review-status: pass
 - quality-review-note: quality review passed: merge-task-pr now uses gh CLI fields supported by the installed version, and smoke proves publish, CI gate, and merge still complete end to end
 - quality-review-at-utc: 2026-04-08 01:30:39Z
-- quality-review-fingerprint: 05b41de07c35ef1a8f761b21f8198d8814c997ca8138022cb84eec115a680f14
 - reuse-review: pass
 - hardcoding-review: pass
 - tests-review: pass
@@ -410,7 +407,7 @@
 ## Git / PR
 - base-branch: main
 - branch-strategy: publish-late
-- pr-metadata-policy: required
+- pr-metadata-policy: auto-recover
 
 ## Session Resume
 - current focus: task completed; ready to publish from the task branch

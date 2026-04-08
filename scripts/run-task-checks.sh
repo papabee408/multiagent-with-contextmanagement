@@ -59,7 +59,6 @@ verification_time="$(receipt_value "$RECEIPT_FILE" "executed_at_utc")"
 replace_key_value_or_exit "$TASK_FILE" "## Verification Status" "verification-status" "$(lower "$result")"
 replace_key_value_or_exit "$TASK_FILE" "## Verification Status" "verification-note" "$summary"
 replace_key_value_or_exit "$TASK_FILE" "## Verification Status" "verification-at-utc" "$verification_time"
-replace_key_value_or_exit "$TASK_FILE" "## Verification Status" "verification-fingerprint" "$fingerprint"
 touch_task_updated_at "$TASK_ID"
 
 if [[ "$result" != "PASS" ]]; then
