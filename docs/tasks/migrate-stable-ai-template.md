@@ -6,7 +6,7 @@
 - state: done
 - owner: ai
 - risk-level: standard
-- updated-at-utc: 2026-04-08 01:00:02Z
+- updated-at-utc: 2026-04-08 01:08:35Z
 
 ## Approval
 - approved-by: user
@@ -389,18 +389,18 @@
 ## Verification Status
 - verification-status: pass
 - verification-note: verification passed; see .context/tasks/migrate-stable-ai-template/verification.log
-- verification-at-utc: 2026-04-08 00:58:50Z
-- verification-fingerprint: 76492580f6eaad8c3d67c1e462651aee521aaa04cd72a35efeca702166340876
+- verification-at-utc: 2026-04-08 01:06:28Z
+- verification-fingerprint: c8ca9b5f9f654338a31ce6f1aa3a23ae66ebb7c0d1af5d10d4918b6a9f7d0ce8
 
 ## Review Status
 - scope-review-status: pass
-- scope-review-note: scope still matches the approved stable-template cutover and the CI fingerprint fallback fix stays inside task-owned files
-- scope-review-at-utc: 2026-04-08 00:59:21Z
-- scope-review-fingerprint: 76492580f6eaad8c3d67c1e462651aee521aaa04cd72a35efeca702166340876
+- scope-review-note: scope still matches the approved stable-template cutover and the CI fallback hardening stays inside task-owned files
+- scope-review-at-utc: 2026-04-08 01:07:06Z
+- scope-review-fingerprint: c8ca9b5f9f654338a31ce6f1aa3a23ae66ebb7c0d1af5d10d4918b6a9f7d0ce8
 - quality-review-status: pass
-- quality-review-note: quality review passed: AI Gate now computes fresh fingerprints in CI and clean task checkouts, and smoke covers the regression
-- quality-review-at-utc: 2026-04-08 00:59:21Z
-- quality-review-fingerprint: 76492580f6eaad8c3d67c1e462651aee521aaa04cd72a35efeca702166340876
+- quality-review-note: quality review passed: invalid CI diff refs now fall back safely to local task baselines and smoke covers both clean-checkout and env-contaminated cases
+- quality-review-at-utc: 2026-04-08 01:07:48Z
+- quality-review-fingerprint: c8ca9b5f9f654338a31ce6f1aa3a23ae66ebb7c0d1af5d10d4918b6a9f7d0ce8
 - reuse-review: pass
 - hardcoding-review: pass
 - tests-review: pass
@@ -418,5 +418,5 @@
 - known risks: the archive-heavy diff makes the task scope large and the root smoke must prove the new runtime works end to end
 
 ## Completion
-- summary: Cut over the repo root to the stable task-driven template, archived the legacy workflow, and hardened AI Gate fingerprinting for CI and clean task checkouts.
+- summary: Cut over the repo root to the stable task-driven template, archived the legacy workflow, and hardened AI Gate fingerprinting for CI, clean checkouts, and invalid inherited CI diff refs.
 - follow-up: push task/migrate-stable-ai-template to update PR #2, confirm AI Gate passes, then merge the PR

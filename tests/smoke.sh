@@ -938,6 +938,8 @@ EOF
     "updated the approved server output" \
     "create or switch to task/publish-late-flow, commit the approved diff, then publish the PR" >/dev/null
 
+  CI_DIFF_BASE="missing-base-ref" CI_DIFF_HEAD="missing-head-ref" bash scripts/check-task.sh publish-late-flow >/dev/null
+
   git switch -c task/publish-late-flow >/dev/null
   expect_failure "open-task-pr should fail on a dirty task branch" bash scripts/open-task-pr.sh publish-late-flow
 
