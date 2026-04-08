@@ -339,6 +339,8 @@
 - `scripts/ci/run-ai-gate.sh`
 - `scripts/check-template-sync.sh`
 - `scripts/merge-task-pr.sh`
+- `stable-ai-dev-template/MIGRATE_EXISTING_PROJECT.md`
+- `stable-ai-dev-template/MIGRATION_ROLLOUT_PLAYBOOK.md`
 - `stable-ai-dev-template/.gitignore`
 - `stable-ai-dev-template/MIGRATION_REPORT.md`
 - `stable-ai-dev-template/README.md`
@@ -385,17 +387,17 @@
 - verification-status: pass
 - verification-note: verification passed for the migration guide cleanup; see .context/tasks/sync-stable-template-bundle/verification.log
 - verification-at-utc: 2026-04-08 04:33:03Z
-- verification-fingerprint: 8adc51e63781374c8f2b06c5da8fce4143c26b4c81a54c7b9ea78301b0bbb603
+- verification-fingerprint: 1fba0dc78803f6b4bc64d63b1346b80d3e489a181c3c238733f0a9eeb1e8019f
 
 ## Review Status
 - scope-review-status: pass
 - scope-review-note: scope matches the approved migration guide cleanup and mirrored bundle parity update
 - scope-review-at-utc: 2026-04-08 04:33:03Z
-- scope-review-fingerprint: 8adc51e63781374c8f2b06c5da8fce4143c26b4c81a54c7b9ea78301b0bbb603
+- scope-review-fingerprint: 1fba0dc78803f6b4bc64d63b1346b80d3e489a181c3c238733f0a9eeb1e8019f
 - quality-review-status: pass
 - quality-review-note: quality checks passed for dropping the legacy migration guides and keeping the root and bundle docs in sync
 - quality-review-at-utc: 2026-04-08 04:33:03Z
-- quality-review-fingerprint: 8adc51e63781374c8f2b06c5da8fce4143c26b4c81a54c7b9ea78301b0bbb603
+- quality-review-fingerprint: 1fba0dc78803f6b4bc64d63b1346b80d3e489a181c3c238733f0a9eeb1e8019f
 - reuse-review: pass
 - hardcoding-review: pass
 - tests-review: pass
