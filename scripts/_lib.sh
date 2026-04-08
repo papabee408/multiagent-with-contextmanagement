@@ -384,8 +384,8 @@ effective_changed_files() {
 
   {
     if [[ -n "${CI_DIFF_BASE:-}" && -n "${CI_DIFF_HEAD:-}" ]] &&
-      git -C "$ROOT_DIR" rev-parse "$CI_DIFF_BASE" >/dev/null 2>&1 &&
-      git -C "$ROOT_DIR" rev-parse "$CI_DIFF_HEAD" >/dev/null 2>&1; then
+      git -C "$ROOT_DIR" rev-parse --verify "${CI_DIFF_BASE}^{commit}" >/dev/null 2>&1 &&
+      git -C "$ROOT_DIR" rev-parse --verify "${CI_DIFF_HEAD}^{commit}" >/dev/null 2>&1; then
       git -C "$ROOT_DIR" diff --name-only "$CI_DIFF_BASE...$CI_DIFF_HEAD" 2>/dev/null || true
     elif [[ -n "$bootstrap_head" ]] && git -C "$ROOT_DIR" rev-parse "$bootstrap_head" >/dev/null 2>&1; then
       git -C "$ROOT_DIR" diff --name-only "$bootstrap_head...HEAD" 2>/dev/null || true
