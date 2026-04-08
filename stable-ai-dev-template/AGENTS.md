@@ -38,6 +38,13 @@ Keep one live user request mapped to one task file and one PR flow while minimiz
 - Never append a new follow-up request to a task already in `review` or `done`; open a new task instead.
 - When uncertain, default to a new task. Extra task setup is cheaper than reworking the wrong PR later.
 
+## Improvement Trigger Rule
+
+- If a workflow or template improvement trigger appears while doing the current task, finish the approved task first unless the user explicitly redirects immediately.
+- Report the trigger briefly in the final task update using only the trigger, the impact, and the suggested next step.
+- Do not start improvement work from the trigger alone.
+- Wait for the user to decide whether to discuss it, defer it, or open a dedicated improvement task.
+
 ## User-Facing Split Copy
 
 Use short guidance like:
