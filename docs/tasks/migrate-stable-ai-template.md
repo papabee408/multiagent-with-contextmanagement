@@ -6,7 +6,7 @@
 - state: done
 - owner: ai
 - risk-level: standard
-- updated-at-utc: 2026-04-08 00:42:29Z
+- updated-at-utc: 2026-04-08 01:00:02Z
 
 ## Approval
 - approved-by: user
@@ -389,18 +389,18 @@
 ## Verification Status
 - verification-status: pass
 - verification-note: verification passed; see .context/tasks/migrate-stable-ai-template/verification.log
-- verification-at-utc: 2026-04-08 00:40:48Z
-- verification-fingerprint: 57c0585a8be9030b8b254afb687eec8e80a205e88b3dea76bb95164b825d7620
+- verification-at-utc: 2026-04-08 00:58:50Z
+- verification-fingerprint: 76492580f6eaad8c3d67c1e462651aee521aaa04cd72a35efeca702166340876
 
 ## Review Status
 - scope-review-status: pass
-- scope-review-note: scope matches the approved root stable-template cutover and archive move set
-- scope-review-at-utc: 2026-04-08 00:41:21Z
-- scope-review-fingerprint: 57c0585a8be9030b8b254afb687eec8e80a205e88b3dea76bb95164b825d7620
+- scope-review-note: scope still matches the approved stable-template cutover and the CI fingerprint fallback fix stays inside task-owned files
+- scope-review-at-utc: 2026-04-08 00:59:21Z
+- scope-review-fingerprint: 76492580f6eaad8c3d67c1e462651aee521aaa04cd72a35efeca702166340876
 - quality-review-status: pass
-- quality-review-note: quality review passed: root task-driven runtime is live, archive is non-live, and smoke coverage validates the cutover
-- quality-review-at-utc: 2026-04-08 00:41:49Z
-- quality-review-fingerprint: 57c0585a8be9030b8b254afb687eec8e80a205e88b3dea76bb95164b825d7620
+- quality-review-note: quality review passed: AI Gate now computes fresh fingerprints in CI and clean task checkouts, and smoke covers the regression
+- quality-review-at-utc: 2026-04-08 00:59:21Z
+- quality-review-fingerprint: 76492580f6eaad8c3d67c1e462651aee521aaa04cd72a35efeca702166340876
 - reuse-review: pass
 - hardcoding-review: pass
 - tests-review: pass
@@ -414,9 +414,9 @@
 
 ## Session Resume
 - current focus: task completed; ready to publish from the task branch
-- next action: create or switch to task/migrate-stable-ai-template before the first commit, then publish the migration PR if you want to ship this cutover
+- next action: push task/migrate-stable-ai-template to update PR #2, confirm AI Gate passes, then merge the PR
 - known risks: the archive-heavy diff makes the task scope large and the root smoke must prove the new runtime works end to end
 
 ## Completion
-- summary: Cut over the repo root to the stable task-driven template, archived the old multi-agent workflow, and validated the new root smoke flow.
-- follow-up: create or switch to task/migrate-stable-ai-template before the first commit, then publish the migration PR if you want to ship this cutover
+- summary: Cut over the repo root to the stable task-driven template, archived the legacy workflow, and hardened AI Gate fingerprinting for CI and clean task checkouts.
+- follow-up: push task/migrate-stable-ai-template to update PR #2, confirm AI Gate passes, then merge the PR

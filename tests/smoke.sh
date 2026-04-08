@@ -961,6 +961,7 @@ EOF
   grep -Eq '^pr-edit:[0-9]+$' "$FAKE_GH_STATE_DIR/gh.log" || fail "expected PR updates to target a numeric PR id"
 
   PR_BODY="$(gh pr view "$PR_NUMBER" --json body | jq -r '.body')"
+  rm -rf .context/tasks
   CI_PR_BODY="$PR_BODY" CI_DIFF_BASE="origin/main" CI_DIFF_HEAD="HEAD" bash scripts/ci/run-ai-gate.sh >/dev/null
 
   HEAD_SHA="$(gh pr view "$PR_NUMBER" --json headRefOid | jq -r '.headRefOid')"

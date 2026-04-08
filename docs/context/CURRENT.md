@@ -1,6 +1,6 @@
 # Current Snapshot
 
-- last-updated-utc: 2026-04-08 00:42:35Z
+- last-updated-utc: 2026-04-08 01:00:09Z
 - active-task: migrate-stable-ai-template
 - active-task-file: docs/tasks/migrate-stable-ai-template.md
 
@@ -19,19 +19,19 @@
 - risk-level: standard
 - approval: approved by user at 2026-04-08 00:37:37Z
 - current focus: task completed; ready to publish from the task branch
-- next action: create or switch to task/migrate-stable-ai-template before the first commit, then publish the migration PR if you want to ship this cutover
+- next action: push task/migrate-stable-ai-template to update PR #2, confirm AI Gate passes, then merge the PR
 - known risks: the archive-heavy diff makes the task scope large and the root smoke must prove the new runtime works end to end
 
 ## Git / PR
 - base-branch: main
 - branch-strategy: publish-late
-- current-branch: chore/migrate-stable-ai-template
-- ahead-of-origin-base: 0
+- current-branch: task/migrate-stable-ai-template
+- ahead-of-origin-base: 1
 - behind-origin-base: 0
-- pr-status: none
-- pr-number: none
-- pr-url: none
-- latest-published-head-sha: none
+- pr-status: open
+- pr-number: 2
+- pr-url: https://github.com/papabee408/multiagent-with-contextmanagement/pull/2
+- latest-published-head-sha: f743d311c2cb29fa9262d1ff6ef4c387a6a385ae
 
 ## Effective Changed Files
 - `.github/workflows/ai-gate.yml`
@@ -358,13 +358,13 @@
 
 ## Verification
 - verification-status: pass
-- verification-at-utc: 2026-04-08 00:40:48Z
-- verification-fingerprint: 57c0585a8be9030b8b254afb687eec8e80a205e88b3dea76bb95164b825d7620
+- verification-at-utc: 2026-04-08 00:58:50Z
+- verification-fingerprint: 76492580f6eaad8c3d67c1e462651aee521aaa04cd72a35efeca702166340876
 
 ## Reviews
 - scope-review-status: pass
-- scope-review-at-utc: 2026-04-08 00:41:21Z
-- scope-review-fingerprint: 57c0585a8be9030b8b254afb687eec8e80a205e88b3dea76bb95164b825d7620
+- scope-review-at-utc: 2026-04-08 00:59:21Z
+- scope-review-fingerprint: 76492580f6eaad8c3d67c1e462651aee521aaa04cd72a35efeca702166340876
 - quality-review-status: pass
-- quality-review-at-utc: 2026-04-08 00:41:49Z
-- quality-review-fingerprint: 57c0585a8be9030b8b254afb687eec8e80a205e88b3dea76bb95164b825d7620
+- quality-review-at-utc: 2026-04-08 00:59:21Z
+- quality-review-fingerprint: 76492580f6eaad8c3d67c1e462651aee521aaa04cd72a35efeca702166340876
