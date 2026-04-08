@@ -49,6 +49,8 @@ Use `early-branch` when the task is long-running, checkpoint-heavy, mixed, or li
 
 ## Workflow
 
+Default interpretation: when a new requirement arrives, write the task plan first, get explicit user approval, and only then implement.
+
 1. Bootstrap the task
 
 ```bash

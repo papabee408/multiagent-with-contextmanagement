@@ -42,6 +42,8 @@ Use scripts for state transitions. Do not hand-edit state fields directly.
 
 ## Workflow
 
+Default rule before implementation: requirement -> task plan -> user approval -> `start-task` -> implementation.
+
 1. `bash scripts/bootstrap-task.sh <task-id>`
 2. fill the task contract
 3. `bash scripts/submit-task-plan.sh <task-id>`

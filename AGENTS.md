@@ -60,6 +60,12 @@ Use short guidance like:
 - The task file is the only request-scoped contract.
 - The task defines both file scope and intent scope.
 
+## Planning And Approval Rule
+
+- When a user gives a new requirement, draft or update the task plan first.
+- Show the plan to the user through the task approval flow and wait for explicit approval.
+- Start implementation only after approval and `start-task`.
+
 ## State Machine
 
 - `planning -> awaiting_approval -> approved -> in_progress -> review -> done`
