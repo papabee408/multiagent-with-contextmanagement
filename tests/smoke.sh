@@ -584,6 +584,9 @@ assert_split_guidance_present() {
   assert_file_contains "$TEMPLATE_DIR/README.md" "wait for the user to choose discussion, defer, or a dedicated improvement task"
   assert_file_contains "$TEMPLATE_DIR/AGENTS.md" "When a user gives a new requirement, draft or update the task plan first."
   assert_file_contains "$TEMPLATE_DIR/README.md" "write the task plan first, get explicit user approval, and only then implement."
+  assert_file_contains "$TEMPLATE_DIR/README.md" 'one runtime resume surface = `.context/current.md`'
+  assert_file_contains "$TEMPLATE_DIR/AGENTS.md" 'Use `.context/current.md` as the default runtime resume surface.'
+  assert_file_contains "$TEMPLATE_DIR/docs/context/CURRENT.md" ".context/current.md"
 }
 
 scenario_scope_and_approval() {
@@ -709,8 +712,8 @@ EOF
   bash scripts/review-quality.sh scope-safety --summary "quick review: narrow change and deterministic check" >/dev/null
   bash scripts/complete-task.sh scope-safety "updated the approved app output" "create a task branch before publish if this task needs a PR" >/dev/null
 
-  assert_file_contains docs/context/CURRENT.md "task-state: done"
-  assert_file_contains docs/context/CURRENT.md "verification-status: pass"
+  assert_file_contains .context/current.md "task-state: done"
+  assert_file_contains .context/current.md "verification-status: pass"
   test -f .context/tasks/scope-safety/verification.receipt || fail "missing runtime verification receipt"
 }
 
@@ -819,7 +822,7 @@ EOF
   bash scripts/start-task.sh main-commit-guard >/dev/null
   perl -0pi -e 's/button-size=4/button-size=8/' src/app.sh
 
-  git add src/app.sh docs/tasks/main-commit-guard.md docs/context/CURRENT.md
+  git add src/app.sh docs/tasks/main-commit-guard.md
   git commit -qm "task(main-commit-guard): incorrect main branch commit"
 
   expect_failure "publish-late should reject local commits on the base branch" bash scripts/run-task-checks.sh main-commit-guard
@@ -957,7 +960,7 @@ EOF
   git switch -c task/publish-late-flow >/dev/null
   expect_failure "open-task-pr should fail on a dirty task branch" bash scripts/open-task-pr.sh publish-late-flow
 
-  git add src/server.sh docs/tasks/publish-late-flow.md docs/context/CURRENT.md
+  git add src/server.sh docs/tasks/publish-late-flow.md
   git commit -qm "task(publish-late-flow): initial publish"
 
   PR_BODY_FILE="$(mktemp)"
@@ -982,7 +985,7 @@ EOF
   perl -0pi -e 's/- follow-up: .*/- follow-up: publish update documented after initial PR creation/' docs/tasks/publish-late-flow.md
   bash scripts/check-task.sh publish-late-flow >/dev/null
   bash scripts/refresh-current.sh publish-late-flow >/dev/null
-  git add docs/tasks/publish-late-flow.md docs/context/CURRENT.md
+  git add docs/tasks/publish-late-flow.md
   git commit -qm "task(publish-late-flow): update mutable summary"
 
   bash scripts/open-task-pr.sh publish-late-flow >/dev/null
@@ -995,8 +998,6 @@ EOF
   mark_check_success "$HEAD_SHA" "AI Gate"
 
   gh pr merge "$PR_NUMBER" --squash --delete-branch >/dev/null
-  git restore --staged --worktree --source=HEAD -- docs/context/CURRENT.md >/dev/null 2>&1 || \
-    git restore --worktree --source=HEAD -- docs/context/CURRENT.md >/dev/null 2>&1 || true
   git switch main >/dev/null
   git fetch origin main >/dev/null
   git merge --ff-only origin/main >/dev/null
@@ -1007,7 +1008,7 @@ EOF
   [[ "$(git branch --show-current)" == "main" ]] || fail "expected manual merge flow to return to main"
   [[ "$(git rev-parse main)" == "$(git rev-parse origin/main)" ]] || fail "expected local main to sync with origin/main"
   assert_branch_absent "$CURRENT_SMOKE_REPO" "task/publish-late-flow"
-  assert_file_contains docs/context/CURRENT.md "active-task: none"
+  assert_file_contains .context/current.md "active-task: none"
 }
 
 scenario_intake_validation() {
@@ -1345,7 +1346,7 @@ EOF
   bash scripts/complete-task.sh ci-active-fallback "updated the approved app output" "publish from the task branch" >/dev/null
 
   git switch -c task/ci-active-fallback >/dev/null
-  git add src/app.sh docs/tasks/ci-active-fallback.md docs/context/CURRENT.md
+  git add src/app.sh docs/tasks/ci-active-fallback.md
   git commit -qm "task(ci-active-fallback): initial publish"
 
   printf 'ci-active-fallback\n' > .context/active_task

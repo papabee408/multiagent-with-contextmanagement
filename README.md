@@ -17,18 +17,20 @@ This template is for long-running AI-assisted product development where sessions
 - one live request = one `docs/tasks/<task-id>.md`
 - one task = one PR flow
 - one active task pointer = `.context/active_task`
-- one resume surface = `docs/context/CURRENT.md`
+- one runtime resume surface = `.context/current.md`
+- one tracked context guide = `docs/context/CURRENT.md`
 
 ## Read Order
 
-1. `docs/context/CURRENT.md`
-2. `.context/active_task`
+1. `.context/current.md` if present
+2. `.context/active_task` if present
 3. `docs/tasks/<task-id>.md`
-4. `docs/context/PROJECT.md`
-5. `docs/context/ARCHITECTURE.md`
-6. `docs/context/CONVENTIONS.md`
-7. `docs/context/CI_PROFILE.md` only when needed
-8. `docs/context/DECISIONS.md` only when needed
+4. `docs/context/CURRENT.md`
+5. `docs/context/PROJECT.md`
+6. `docs/context/ARCHITECTURE.md`
+7. `docs/context/CONVENTIONS.md`
+8. `docs/context/CI_PROFILE.md` only when needed
+9. `docs/context/DECISIONS.md` only when needed
 
 ## Branch Strategy
 
@@ -45,7 +47,9 @@ Use `early-branch` when the task is long-running, checkpoint-heavy, mixed, or li
 
 - runtime receipts and task-local state live only under `.context/tasks/<task-id>/*`
 - `.context/` is ignored by git
-- the task file and `CURRENT.md` keep human-readable summary status
+- `.context/current.md` keeps the mutable human-readable runtime snapshot
+- `docs/context/CURRENT.md` stays tracked as stable resume guidance
+- the task file keeps the tracked request contract, verification, and review summaries
 
 ## Workflow
 
@@ -89,7 +93,6 @@ bash scripts/open-task-pr.sh <task-id>
 
 ```bash
 gh pr merge <pr-number> --squash --delete-branch
-git restore --staged --worktree --source=HEAD -- docs/context/CURRENT.md 2>/dev/null || git restore --worktree --source=HEAD -- docs/context/CURRENT.md
 git switch main
 git fetch origin main
 git merge --ff-only origin/main

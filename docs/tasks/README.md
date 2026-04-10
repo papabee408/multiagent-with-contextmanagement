@@ -57,4 +57,4 @@ Default rule before implementation: requirement -> task plan -> user approval ->
 11. create or switch to the task branch, stage approved files explicitly, create the commit explicitly
 12. `bash scripts/open-task-pr.sh <task-id>`
 13. merge the PR manually after checks pass, for example `gh pr merge <pr-number> --squash --delete-branch`
-14. restore `docs/context/CURRENT.md` to `HEAD`, sync local `main`, delete the local task branch, clear `.context/active_task`, then run `bash scripts/refresh-current.sh`
+14. sync local `main`, delete the local task branch, clear `.context/active_task`, then run `bash scripts/refresh-current.sh` to rewrite `.context/current.md`

@@ -17,8 +17,8 @@ trap 'rm -f "$allowed_tmp"' EXIT
 {
   target_files_from_task "$TASK_ID"
   printf '%s\n' "docs/tasks/$TASK_ID.md"
-  printf '%s\n' "docs/context/CURRENT.md"
   printf '%s\n' "docs/context/DECISIONS.md"
+  printf '%s\n' ".context/current.md"
   printf '%s\n' ".context/active_task"
 } | sort -u > "$allowed_tmp"
 

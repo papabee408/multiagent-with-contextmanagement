@@ -6,14 +6,15 @@ Keep one live user request mapped to one task file and one PR flow while minimiz
 
 ## Read Order
 
-1. `docs/context/CURRENT.md`
-2. `.context/active_task`
+1. `.context/current.md` if present
+2. `.context/active_task` if present
 3. `docs/tasks/<task-id>.md`
-4. `docs/context/PROJECT.md`
-5. `docs/context/ARCHITECTURE.md`
-6. `docs/context/CONVENTIONS.md`
-7. `docs/context/CI_PROFILE.md` only when the task touches git, PR, merge, verification policy, or CI
-8. `docs/context/DECISIONS.md` only when the task or diff depends on prior decisions
+4. `docs/context/CURRENT.md`
+5. `docs/context/PROJECT.md`
+6. `docs/context/ARCHITECTURE.md`
+7. `docs/context/CONVENTIONS.md`
+8. `docs/context/CI_PROFILE.md` only when the task touches git, PR, merge, verification policy, or CI
+9. `docs/context/DECISIONS.md` only when the task or diff depends on prior decisions
 
 ## Architecture-First Rule
 
@@ -93,7 +94,7 @@ Use short guidance like:
 Only edit target files plus workflow internal files:
 
 - `docs/tasks/<task-id>.md`
-- `docs/context/CURRENT.md`
+- `.context/current.md`
 - `.context/active_task`
 - `.context/tasks/<task-id>/*`
 - `docs/context/DECISIONS.md` only when the task truly records a reusable decision
@@ -123,5 +124,5 @@ Only edit target files plus workflow internal files:
 ## Session Reset Rule
 
 - Do not scan the whole repo on a new session.
-- Read `CURRENT -> active_task -> task file -> PROJECT -> ARCHITECTURE -> CONVENTIONS`.
-- Use `CURRENT.md` as the default resume surface.
+- Read `.context/current.md -> active_task -> task file -> CURRENT -> PROJECT -> ARCHITECTURE -> CONVENTIONS`.
+- Use `.context/current.md` as the default runtime resume surface.

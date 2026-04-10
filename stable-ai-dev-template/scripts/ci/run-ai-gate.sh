@@ -134,7 +134,6 @@ check_ci_scope() {
   {
     target_files_from_task "$task_id"
     printf '%s\n' "docs/tasks/$task_id.md"
-    printf '%s\n' "docs/context/CURRENT.md"
     printf '%s\n' "docs/context/DECISIONS.md"
   } | sort -u > "$allowed_tmp"
 
