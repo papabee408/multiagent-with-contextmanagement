@@ -30,4 +30,4 @@ printf '%s\n' "$TASK_ID" > "$ACTIVE_TASK_FILE"
 echo "[OK] active task set: $TASK_ID"
 
 bash "$ROOT_DIR/scripts/refresh-current.sh" "$TASK_ID" >/dev/null
-echo "[OK] refreshed docs/context/CURRENT.md"
+echo "[OK] refreshed .context/current.md"

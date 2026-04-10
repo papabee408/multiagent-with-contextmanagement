@@ -7,9 +7,9 @@ TASK_ID="${1:-}"
 if [[ -z "$TASK_ID" && -f "$ACTIVE_TASK_FILE" ]]; then
   TASK_ID="$(tr -d ' \n\r\t' < "$ACTIVE_TASK_FILE")"
 fi
-CURRENT_FILE="$ROOT_DIR/docs/context/CURRENT.md"
+CURRENT_FILE="$CURRENT_SNAPSHOT_FILE"
 
-mkdir -p "$ROOT_DIR/docs/context" "$CONTEXT_DIR"
+mkdir -p "$CONTEXT_DIR"
 
 render_changed_files() {
   local task_id="$1"
@@ -35,14 +35,15 @@ if [[ -z "$TASK_ID" || ! -f "$(task_file "$TASK_ID")" ]]; then
 - active-task-file: none
 
 ## Read This First
-1. \`docs/context/CURRENT.md\`
+1. \`.context/current.md\`
 2. \`.context/active_task\`
 3. \`docs/tasks/<task-id>.md\`
-4. \`docs/context/PROJECT.md\`
-5. \`docs/context/ARCHITECTURE.md\`
-6. \`docs/context/CONVENTIONS.md\`
-7. \`docs/context/CI_PROFILE.md\` only if needed
-8. \`docs/context/DECISIONS.md\` only if needed
+4. \`docs/context/CURRENT.md\`
+5. \`docs/context/PROJECT.md\`
+6. \`docs/context/ARCHITECTURE.md\`
+7. \`docs/context/CONVENTIONS.md\`
+8. \`docs/context/CI_PROFILE.md\` only if needed
+9. \`docs/context/DECISIONS.md\` only if needed
 
 ## Current State
 - task-state: no active task
@@ -76,7 +77,7 @@ if [[ -z "$TASK_ID" || ! -f "$(task_file "$TASK_ID")" ]]; then
 - quality-review-status: not-run
 - quality-review-at-utc: none
 EOF
-  echo "[OK] refreshed docs/context/CURRENT.md"
+  echo "[OK] refreshed .context/current.md"
   exit 0
 fi
 
@@ -135,14 +136,15 @@ cat > "$CURRENT_FILE" <<EOF
 - active-task-file: docs/tasks/$TASK_ID.md
 
 ## Read This First
-1. \`docs/context/CURRENT.md\`
+1. \`.context/current.md\`
 2. \`.context/active_task\`
 3. \`docs/tasks/$TASK_ID.md\`
-4. \`docs/context/PROJECT.md\`
-5. \`docs/context/ARCHITECTURE.md\`
-6. \`docs/context/CONVENTIONS.md\`
-7. \`docs/context/CI_PROFILE.md\` only if needed
-8. \`docs/context/DECISIONS.md\` only if needed
+4. \`docs/context/CURRENT.md\`
+5. \`docs/context/PROJECT.md\`
+6. \`docs/context/ARCHITECTURE.md\`
+7. \`docs/context/CONVENTIONS.md\`
+8. \`docs/context/CI_PROFILE.md\` only if needed
+9. \`docs/context/DECISIONS.md\` only if needed
 
 ## Current State
 - task-state: $STATE
@@ -177,4 +179,4 @@ $(render_changed_files "$TASK_ID")
 - quality-review-at-utc: $QUALITY_AT
 EOF
 
-echo "[OK] refreshed docs/context/CURRENT.md"
+echo "[OK] refreshed .context/current.md"

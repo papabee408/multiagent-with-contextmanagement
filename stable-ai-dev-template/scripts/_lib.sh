@@ -4,6 +4,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CONTEXT_DIR="$ROOT_DIR/.context"
 TASKS_DIR="$ROOT_DIR/docs/tasks"
 ACTIVE_TASK_FILE="$CONTEXT_DIR/active_task"
+CURRENT_SNAPSHOT_FILE="$CONTEXT_DIR/current.md"
 
 ci_profile_file() {
   printf '%s/docs/context/CI_PROFILE.md' "$ROOT_DIR"
@@ -146,7 +147,7 @@ active_task_value() {
 }
 
 current_snapshot_active_task_value() {
-  local current_file="$ROOT_DIR/docs/context/CURRENT.md"
+  local current_file="$CURRENT_SNAPSHOT_FILE"
   local value
 
   if [[ ! -f "$current_file" ]]; then
@@ -180,7 +181,7 @@ resolve_task_id_or_exit() {
   fi
 
   if [[ -z "$task_id" ]]; then
-    echo "[ERROR] task-id is required. Set .context/active_task or pass a task id." >&2
+    echo "[ERROR] task-id is required. Set .context/active_task, refresh .context/current.md, or pass a task id." >&2
     exit 1
   fi
 
@@ -521,9 +522,8 @@ is_workflow_internal_file() {
 
   case "$relative_path" in
     "docs/tasks/$task_id.md"|\
-    "docs/context/CURRENT.md"|\
     "stable-ai-dev-template/docs/tasks/$task_id.md"|\
-    "stable-ai-dev-template/docs/context/CURRENT.md"|\
+    ".context/current.md"|\
     ".context/active_task"|\
     ".context/tasks/$task_id/"*|\
     "docs/context/DECISIONS.md"|\
@@ -735,22 +735,9 @@ touch_task_updated_at() {
 }
 
 ensure_clean_worktree() {
-  git -C "$ROOT_DIR" diff --quiet --ignore-submodules -- . ':(exclude)docs/context/CURRENT.md' || return 1
-  git -C "$ROOT_DIR" diff --cached --quiet --ignore-submodules -- . ':(exclude)docs/context/CURRENT.md' || return 1
-  [[ -z "$(git -C "$ROOT_DIR" ls-files --others --exclude-standard | grep -vx 'docs/context/CURRENT.md' || true)" ]] || return 1
-}
-
-restore_current_snapshot_file() {
-  local current_file="docs/context/CURRENT.md"
-
-  if git -C "$ROOT_DIR" diff --quiet --ignore-submodules -- "$current_file" &&
-    git -C "$ROOT_DIR" diff --cached --quiet --ignore-submodules -- "$current_file"; then
-    return 0
-  fi
-
-  git -C "$ROOT_DIR" restore --staged --worktree --source=HEAD -- "$current_file" >/dev/null 2>&1 ||
-    git -C "$ROOT_DIR" restore --worktree --source=HEAD -- "$current_file" >/dev/null 2>&1 ||
-    true
+  git -C "$ROOT_DIR" diff --quiet --ignore-submodules -- . || return 1
+  git -C "$ROOT_DIR" diff --cached --quiet --ignore-submodules -- . || return 1
+  [[ -z "$(git -C "$ROOT_DIR" ls-files --others --exclude-standard)" ]] || return 1
 }
 
 current_branch_name() {
