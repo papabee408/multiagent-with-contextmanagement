@@ -16,6 +16,14 @@ Keep one live user request mapped to one task file and one PR flow while minimiz
 8. `docs/context/CI_PROFILE.md` only when the task touches git, PR, merge, verification policy, or CI
 9. `docs/context/DECISIONS.md` only when the task or diff depends on prior decisions
 
+## Fresh Repo Bootstrap Rule
+
+- If this repository was freshly copied from `stable-ai-dev-template/` and still carries template-source identity or copied template task history, run `bash scripts/init-project.sh` before feature planning or implementation.
+- If the user says things like "프로젝트 셋팅부터 하자", "프로젝트 세팅부터 하자", or "start with project setup" in a freshly copied repo, treat that as authorization to run the bootstrap flow immediately.
+- Prefer running `bash scripts/init-project.sh` without asking the user to remember commands. Infer the provisional project name from the repo directory when the user has not named it yet, then report what was inferred.
+- During this bootstrap-only phase, keep scope limited to git/base-branch setup, repo identity docs, CI profile generation, and creating the initial `project-bootstrap` task.
+- Do not widen the bootstrap task into product features, roadmap work, or unrelated refactors.
+
 ## Architecture-First Rule
 
 - Before implementation, map the change to existing boundaries in `docs/context/ARCHITECTURE.md`.

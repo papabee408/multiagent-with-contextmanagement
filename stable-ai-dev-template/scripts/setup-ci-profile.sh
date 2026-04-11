@@ -6,14 +6,16 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_lib.sh"
 usage() {
   cat <<'EOF'
 Usage:
-  bash scripts/setup-ci-profile.sh [--platform <type>] [--stack <framework>] [--force]
+  bash scripts/setup-ci-profile.sh [--platform <type>] [--stack <framework>] [--force] [--non-interactive]
 
 Examples:
   bash scripts/setup-ci-profile.sh --platform web --stack nextjs
+  bash scripts/setup-ci-profile.sh --non-interactive
   bash scripts/setup-ci-profile.sh
 
 This script creates or refreshes docs/context/CI_PROFILE.md.
 If platform or stack is omitted, the script prompts for them and falls back to simple repo detection.
+Use --non-interactive to accept detected defaults without prompting.
 EOF
 }
 
@@ -315,10 +317,17 @@ build_recommendations() {
   esac
 
   if [[ ${#pr_fast_commands[@]} -eq 0 ]]; then
+    append_unique pr_fast_commands "bash scripts/check-context.sh"
     add_default_note "No fast PR commands were inferred automatically. Add the fastest reliable lint/typecheck/test commands for this repository."
   fi
 
+  if [[ ${#high_risk_commands[@]} -eq 0 ]]; then
+    append_unique high_risk_commands "bash scripts/check-context.sh"
+    add_default_note "No high-risk commands were inferred automatically. Replace the fallback with sensitive-path checks once real project commands exist."
+  fi
+
   if [[ ${#full_commands[@]} -eq 0 ]]; then
+    append_unique full_commands "bash scripts/check-context.sh"
     add_default_note "No full-project commands were inferred automatically. Add the slow build/regression commands you want available for manual runs."
   fi
 }
@@ -350,16 +359,17 @@ write_section() {
   local count
 
   printf '%s\n' "$title"
-  eval 'count=${#'"$array_name"'[@]}'
+  eval "count=\${#${array_name}[@]}"
   if [[ "$count" -eq 0 ]]; then
     printf '%s\n' "$fallback"
     printf '\n'
     return 0
   fi
 
-  eval 'for command in "${'"$array_name"'[@]}"; do
-    printf -- "- `%s`\n" "$command"
-  done'
+  eval "set -- \"\${${array_name}[@]}\""
+  for command in "$@"; do
+    printf -- "- \`%s\`\n" "$command"
+  done
   printf '\n'
 }
 
@@ -380,6 +390,7 @@ write_notes_section() {
 PLATFORM=""
 STACK=""
 FORCE=0
+NON_INTERACTIVE=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -393,6 +404,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --force)
       FORCE=1
+      shift
+      ;;
+    --non-interactive)
+      NON_INTERACTIVE=1
       shift
       ;;
     -h|--help)
@@ -420,10 +435,18 @@ DEFAULT_STACK="$(detect_stack)"
 PACKAGE_MANAGER="$(detect_package_manager)"
 
 if [[ -z "$PLATFORM" ]]; then
-  PLATFORM="$(prompt_with_default "Project platform (web/mobile/backend/game)" "$DEFAULT_PLATFORM")"
+  if [[ "$NON_INTERACTIVE" -eq 1 ]]; then
+    PLATFORM="$DEFAULT_PLATFORM"
+  else
+    PLATFORM="$(prompt_with_default "Project platform (web/mobile/backend/game)" "$DEFAULT_PLATFORM")"
+  fi
 fi
 if [[ -z "$STACK" ]]; then
-  STACK="$(prompt_with_default "Framework or stack" "$DEFAULT_STACK")"
+  if [[ "$NON_INTERACTIVE" -eq 1 ]]; then
+    STACK="$DEFAULT_STACK"
+  else
+    STACK="$(prompt_with_default "Framework or stack" "$DEFAULT_STACK")"
+  fi
 fi
 
 PLATFORM="$(lower "$PLATFORM")"

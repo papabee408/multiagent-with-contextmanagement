@@ -19,7 +19,7 @@ bash "$TEMPLATE_DIR/scripts/check-template-sync.sh" >/dev/null
 assert_file_contains() {
   local file="$1"
   local needle="$2"
-  grep -Fq "$needle" "$file" || fail "expected '$needle' in $file"
+  grep -Fq -- "$needle" "$file" || fail "expected '$needle' in $file"
 }
 
 expect_failure() {
@@ -560,6 +560,26 @@ setup_repo() {
   export CURRENT_SMOKE_REPO="$repo"
 }
 
+setup_stable_bundle_repo() {
+  local name="$1"
+  local repo="$TMP_DIR/repos/$name"
+
+  mkdir -p "$TMP_DIR/repos"
+  mkdir -p "$repo"
+  (
+    cd "$TEMPLATE_DIR/stable-ai-dev-template"
+    tar \
+      --exclude=".git" \
+      --exclude=".context" \
+      -cf - .
+  ) | (
+    cd "$repo"
+    tar -xf -
+  )
+
+  export CURRENT_SMOKE_REPO="$repo"
+}
+
 mark_check_success() {
   local sha="$1"
   local check_name="$2"
@@ -584,9 +604,50 @@ assert_split_guidance_present() {
   assert_file_contains "$TEMPLATE_DIR/README.md" "wait for the user to choose discussion, defer, or a dedicated improvement task"
   assert_file_contains "$TEMPLATE_DIR/AGENTS.md" "When a user gives a new requirement, draft or update the task plan first."
   assert_file_contains "$TEMPLATE_DIR/README.md" "write the task plan first, get explicit user approval, and only then implement."
+  assert_file_contains "$TEMPLATE_DIR/AGENTS.md" 'run `bash scripts/init-project.sh` before feature planning or implementation.'
+  assert_file_contains "$TEMPLATE_DIR/AGENTS.md" '"프로젝트 셋팅부터 하자"'
+  assert_file_contains "$TEMPLATE_DIR/README.md" 'bash scripts/init-project.sh'
+  assert_file_contains "$TEMPLATE_DIR/README.md" '"이 템플릿 막 복사한 새 repo야. 셋업부터 해줘."'
   assert_file_contains "$TEMPLATE_DIR/README.md" 'one runtime resume surface = `.context/current.md`'
   assert_file_contains "$TEMPLATE_DIR/AGENTS.md" 'Use `.context/current.md` as the default runtime resume surface.'
   assert_file_contains "$TEMPLATE_DIR/docs/context/CURRENT.md" ".context/current.md"
+}
+
+scenario_init_project_from_stable_bundle() {
+  local task_file_count
+
+  setup_stable_bundle_repo "init-project-from-stable-bundle"
+  cd "$CURRENT_SMOKE_REPO"
+
+  bash scripts/init-project.sh >/dev/null
+
+  git rev-parse --is-inside-work-tree >/dev/null 2>&1 || fail "init-project should create a git repo"
+  [[ "$(git branch --show-current)" == "main" ]] || fail "init-project should use main as the bootstrap branch"
+
+  assert_file_contains docs/context/PROJECT.md "project-name: Init Project From Stable Bundle"
+  assert_file_contains docs/context/PROJECT.md "repo-slug: init-project-from-stable-bundle"
+  assert_file_contains docs/context/PROJECT.md "platform=web, stack=custom"
+  assert_file_contains docs/context/ARCHITECTURE.md "product entrypoints for the web app"
+  assert_file_contains docs/context/CI_PROFILE.md "- platform: web"
+  assert_file_contains docs/context/CI_PROFILE.md "- stack: custom"
+  assert_file_contains docs/context/CI_PROFILE.md '`bash scripts/check-context.sh`'
+
+  test ! -f docs/tasks/migrate-stable-ai-template.md || fail "template task history should be removed"
+  test -f docs/tasks/project-bootstrap.md || fail "project-bootstrap task should exist"
+
+  task_file_count="$(find docs/tasks -maxdepth 1 -type f | wc -l | tr -d ' ')"
+  [[ "$task_file_count" == "3" ]] || fail "expected only README.md, _template.md, and project-bootstrap.md after init"
+
+  assert_file_contains docs/tasks/project-bootstrap.md "# Task: project-bootstrap"
+  assert_file_contains docs/tasks/project-bootstrap.md "repo-specific bootstrap context for Init Project From Stable Bundle"
+  assert_file_contains docs/tasks/project-bootstrap.md '`bash scripts/check-task.sh project-bootstrap`'
+
+  test -f .context/current.md || fail "init-project should refresh .context/current.md"
+  assert_file_contains .context/current.md "active-task: project-bootstrap"
+  assert_file_contains .context/current.md 'task-state: planning'
+
+  bash scripts/check-context.sh >/dev/null
+  bash scripts/check-task.sh project-bootstrap >/dev/null
 }
 
 scenario_scope_and_approval() {
@@ -1360,6 +1421,7 @@ EOF
 setup_fake_gh
 assert_split_guidance_present
 
+scenario_init_project_from_stable_bundle
 scenario_scope_and_approval
 scenario_publish_late_commit_rejection
 scenario_publish_and_merge
