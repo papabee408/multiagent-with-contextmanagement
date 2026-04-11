@@ -51,6 +51,25 @@ Use `early-branch` when the task is long-running, checkpoint-heavy, mixed, or li
 - `docs/context/CURRENT.md` stays tracked as stable resume guidance
 - the task file keeps the tracked request contract, verification, and review summaries
 
+## New Repo Bootstrap
+
+If you copied `stable-ai-dev-template/` into a brand new repository, run this once before feature planning:
+
+```bash
+bash scripts/init-project.sh
+```
+
+`init-project.sh` rewrites the repo identity docs, regenerates `docs/context/CI_PROFILE.md`, removes copied template task history, creates a `project-bootstrap` task, and initializes local git on the chosen base branch when needed. When you do not pass options, it infers the initial project name and repo slug from the repository directory name.
+
+If you are driving the repo through Codex CLI, you do not need to memorize the command. In a fresh copied repo you can simply say:
+
+- "프로젝트 셋팅부터 하자."
+- "이 템플릿 막 복사한 새 repo야. 셋업부터 해줘."
+
+The intended agent behavior is to run the bootstrap flow first and then continue inside `project-bootstrap`.
+
+After that, keep the first conversation bootstrap-only: git/base branch/context docs/CI profile/project-bootstrap. Do not mix product features into that first task.
+
 ## Workflow
 
 Default interpretation: when a new requirement arrives, write the task plan first, get explicit user approval, and only then implement.

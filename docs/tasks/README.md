@@ -4,6 +4,9 @@ Create one task file per live user request:
 
 `docs/tasks/<task-id>.md`
 
+If this repo was just copied from `stable-ai-dev-template/`, run `bash scripts/init-project.sh` first. The recommended first live task is `project-bootstrap`.
+In Codex CLI, a plain request like "프로젝트 셋팅부터 하자" should trigger that bootstrap step before normal feature tasks begin.
+
 ## Core Rules
 
 - One live request maps to one task file and one PR flow.
