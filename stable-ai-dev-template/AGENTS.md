@@ -126,6 +126,12 @@ Only edit target files plus workflow internal files:
   - the latest PR head SHA has all required checks green
 - After merge, sync local base branch and clean local and remote task branches.
 
+## Git Finish Shortcut Rule
+
+- If the user says `git 마무리해`, `git finish this`, or `land current task`, treat that as authorization to run `bash scripts/land-task.sh` for the active task or explicit task id.
+- Use that shortcut only when the task is already publish-ready, or after you finish verification, review, and `complete-task` in the same turn.
+- Keep the shortcut scoped to commit, PR publish, required-check waiting, merge, local sync, branch cleanup, and runtime pointer cleanup.
+
 ## Session Reset Rule
 
 - Do not scan the whole repo on a new session.

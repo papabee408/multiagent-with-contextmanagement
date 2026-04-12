@@ -606,9 +606,13 @@ assert_split_guidance_present() {
   assert_file_contains "$TEMPLATE_DIR/README.md" "write the task plan first, get explicit user approval, and only then implement."
   assert_file_contains "$TEMPLATE_DIR/AGENTS.md" 'read `docs/context/FRESH_REPO_BOOTSTRAP.md` before feature planning or implementation.'
   assert_file_contains "$TEMPLATE_DIR/AGENTS.md" "Use that file only for first-run bootstrap handling."
+  assert_file_contains "$TEMPLATE_DIR/AGENTS.md" '`git 마무리해`'
+  assert_file_contains "$TEMPLATE_DIR/AGENTS.md" 'bash scripts/land-task.sh'
   assert_file_contains "$TEMPLATE_DIR/docs/context/FRESH_REPO_BOOTSTRAP.md" 'run `bash scripts/init-project.sh` before feature planning or implementation.'
   assert_file_contains "$TEMPLATE_DIR/docs/context/FRESH_REPO_BOOTSTRAP.md" '"프로젝트 셋팅부터 하자"'
   assert_file_contains "$TEMPLATE_DIR/README.md" 'bash scripts/init-project.sh'
+  assert_file_contains "$TEMPLATE_DIR/README.md" 'bash scripts/land-task.sh <task-id>'
+  test -f "$TEMPLATE_DIR/scripts/land-task.sh" || fail "missing scripts/land-task.sh"
   assert_file_contains "$TEMPLATE_DIR/README.md" '"이 템플릿 막 복사한 새 repo야. 셋업부터 해줘."'
   assert_file_contains "$TEMPLATE_DIR/README.md" 'one runtime resume surface = `.context/current.md`'
   assert_file_contains "$TEMPLATE_DIR/AGENTS.md" 'Use `.context/current.md` as the default runtime resume surface.'
@@ -1074,6 +1078,167 @@ EOF
   assert_file_contains .context/current.md "active-task: none"
 }
 
+scenario_land_task_shortcut() {
+  local land_log
+  local land_pid
+  local pr_number=""
+  local head_sha=""
+  local attempt
+
+  setup_repo "land-task-shortcut"
+  cd "$CURRENT_SMOKE_REPO"
+
+  bash scripts/bootstrap-task.sh git-finish-flow >/dev/null
+
+  cat > docs/tasks/git-finish-flow.md <<'EOF'
+# Task: git-finish-flow
+
+> Normal PR rule: one PR should map to one live task file.
+
+## Status
+- state: planning
+- owner: ai
+- risk-level: standard
+- updated-at-utc: 2026-04-07 00:00:00Z
+
+## Approval
+- approved-by: pending
+- approved-at-utc: pending
+- approval-note: pending
+
+## Intake
+- user-visible-change-clusters: 1
+- split-decision: single-task
+- split-rationale: one server behavior change and its publish flow
+- bundle-override-approved: no
+
+## Goal
+- Update the server output to `api=v2` and land the publish-ready task through the git finish shortcut.
+
+## Non-goals
+- Do not change the app output or bundle another feature.
+
+## Requirements
+- RQ-001: `src/server.sh` must emit `api=v2`.
+
+## Implementation Plan
+- Step 1: update `src/server.sh`.
+- Step 2: verify and review the task.
+- Step 3: use the landing shortcut to commit, publish, merge, sync, and clean up.
+
+## Target Files
+- `src/server.sh`
+- `scripts/land-task.sh`
+
+## Out of Scope
+- `src/app.sh`, CI definitions, and unrelated workflow files remain unchanged.
+
+## Scope Guardrails
+- unrelated changes allowed: no
+- incidental refactors allowed: no
+
+## Reuse And Constraints
+- existing abstractions to reuse: reuse the existing server shell script, verification command, and publish-late workflow scripts.
+- config/constants to centralize: keep landing waits in the landing script environment variables.
+- side effects to avoid: leaving the task branch behind or publishing before the task is done.
+
+## Risk Controls
+- sensitive areas touched: server output contract and publish automation.
+- extra checks before merge: rerun the required AI Gate check on the latest PR head SHA.
+
+## Acceptance
+- The landing shortcut commits the approved diff, waits for AI Gate, merges the PR, syncs main, deletes the task branch, and clears the active task pointer.
+
+## Verification Commands
+- `bash tests/server-check.sh`
+
+## Verification Status
+- verification-status: pending
+- verification-note: pending
+- verification-at-utc: pending
+
+## Review Status
+- scope-review-status: pending
+- scope-review-note: pending
+- scope-review-at-utc: pending
+- quality-review-status: pending
+- quality-review-note: pending
+- quality-review-at-utc: pending
+- reuse-review: pending
+- hardcoding-review: pending
+- tests-review: pending
+- request-scope-review: pending
+- architecture-review: pending
+- risk-controls-review: pending
+
+## Git / PR
+- base-branch: main
+- branch-strategy: publish-late
+- pr-metadata-policy: auto-recover
+
+## Session Resume
+- current focus: finish the plan and get approval.
+- next action: submit the task plan for approval.
+- known risks: publishing before verification and review are recorded.
+
+## Completion
+- summary: pending
+- follow-up: pending
+EOF
+
+  bash scripts/submit-task-plan.sh git-finish-flow >/dev/null
+  bash scripts/approve-task.sh git-finish-flow --by "user" --note "approved" >/dev/null
+  bash scripts/start-task.sh git-finish-flow >/dev/null
+  perl -0pi -e 's/api=v1/api=v2/' src/server.sh
+
+  bash scripts/run-task-checks.sh git-finish-flow >/dev/null
+  bash scripts/review-scope.sh git-finish-flow --summary "scope stayed inside src/server.sh and workflow internals" >/dev/null
+  bash scripts/review-quality.sh git-finish-flow \
+    --summary "reviewed the shortcut publish flow against the existing server change" \
+    --reuse pass \
+    --hardcoding pass \
+    --tests pass \
+    --request-scope pass \
+    --architecture pass >/dev/null
+  bash scripts/complete-task.sh git-finish-flow \
+    "updated the approved server output and prepared the task for the landing shortcut" \
+    "run bash scripts/land-task.sh git-finish-flow to publish and merge the task" >/dev/null
+
+  land_log="$TMP_DIR/land-task-shortcut.log"
+  LAND_TASK_CHECK_POLL_SECONDS=1 LAND_TASK_CHECK_TIMEOUT_SECONDS=30 \
+    bash scripts/land-task.sh git-finish-flow >"$land_log" 2>&1 &
+  land_pid=$!
+
+  for attempt in $(seq 1 20); do
+    pr_number="$(gh pr view task/git-finish-flow --json number --jq '.number' 2>/dev/null || true)"
+    if [[ -n "$pr_number" ]]; then
+      break
+    fi
+    sleep 1
+  done
+
+  [[ -n "$pr_number" ]] || {
+    cat "$land_log" >&2 || true
+    fail "expected the landing shortcut to create a PR"
+  }
+
+  head_sha="$(gh pr view "$pr_number" --json headRefOid | jq -r '.headRefOid')"
+  [[ -n "$head_sha" && "$head_sha" != "null" ]] || fail "expected a PR head sha for the landing shortcut"
+  mark_check_success "$head_sha" "AI Gate"
+
+  wait "$land_pid" || {
+    cat "$land_log" >&2 || true
+    fail "land-task shortcut should succeed"
+  }
+
+  [[ "$(git branch --show-current)" == "main" ]] || fail "expected land-task shortcut to return to main"
+  [[ "$(git rev-parse main)" == "$(git rev-parse origin/main)" ]] || fail "expected land-task shortcut to sync local main"
+  assert_branch_absent "$CURRENT_SMOKE_REPO" "task/git-finish-flow"
+  git -C "$CURRENT_SMOKE_REPO" show-ref --verify --quiet "refs/remotes/origin/task/git-finish-flow" && fail "expected remote task branch ref to be pruned"
+  assert_file_contains .context/current.md "active-task: none"
+  grep -Fq "pr-merge:$pr_number" "$FAKE_GH_STATE_DIR/gh.log" || fail "expected land-task shortcut to merge the PR"
+}
+
 scenario_intake_validation() {
   setup_repo "intake-validation"
   cd "$CURRENT_SMOKE_REPO"
@@ -1427,6 +1592,7 @@ scenario_init_project_from_stable_bundle
 scenario_scope_and_approval
 scenario_publish_late_commit_rejection
 scenario_publish_and_merge
+scenario_land_task_shortcut
 scenario_intake_validation
 scenario_delete_only_scope
 scenario_ci_active_task_fallback

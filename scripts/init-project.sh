@@ -74,6 +74,7 @@ prompt_with_default() {
 is_template_seed_task_id() {
   case "$1" in
     add-fresh-repo-bootstrap-flow|\
+    add-git-finish-shortcut|\
     add-improvement-trigger-reporting-rule|\
     document-plan-approval-before-implementation|\
     enforce-architecture-review-gate|\
