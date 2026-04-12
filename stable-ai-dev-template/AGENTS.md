@@ -18,11 +18,8 @@ Keep one live user request mapped to one task file and one PR flow while minimiz
 
 ## Fresh Repo Bootstrap Rule
 
-- If this repository was freshly copied from `stable-ai-dev-template/` and still carries template-source identity or copied template task history, run `bash scripts/init-project.sh` before feature planning or implementation.
-- If the user says things like "프로젝트 셋팅부터 하자", "프로젝트 세팅부터 하자", or "start with project setup" in a freshly copied repo, treat that as authorization to run the bootstrap flow immediately.
-- Prefer running `bash scripts/init-project.sh` without asking the user to remember commands. Infer the provisional project name from the repo directory when the user has not named it yet, then report what was inferred.
-- During this bootstrap-only phase, keep scope limited to git/base-branch setup, repo identity docs, CI profile generation, and creating the initial `project-bootstrap` task.
-- Do not widen the bootstrap task into product features, roadmap work, or unrelated refactors.
+- If this repository was freshly copied from `stable-ai-dev-template/` and still carries template-source identity or copied template task history, read `docs/context/FRESH_REPO_BOOTSTRAP.md` before feature planning or implementation.
+- Use that file only for first-run bootstrap handling. After the repo has been customized, do not treat it as part of the normal session read path.
 
 ## Architecture-First Rule
 

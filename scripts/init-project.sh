@@ -78,6 +78,7 @@ is_template_seed_task_id() {
     document-plan-approval-before-implementation|\
     enforce-architecture-review-gate|\
     improve-followup-task-routing|\
+    separate-fresh-repo-bootstrap-context|\
     migrate-stable-ai-template|\
     separate-current-snapshot-runtime-state|\
     simplify-pr-gate-flow|\

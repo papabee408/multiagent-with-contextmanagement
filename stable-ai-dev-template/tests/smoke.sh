@@ -604,8 +604,10 @@ assert_split_guidance_present() {
   assert_file_contains "$TEMPLATE_DIR/README.md" "wait for the user to choose discussion, defer, or a dedicated improvement task"
   assert_file_contains "$TEMPLATE_DIR/AGENTS.md" "When a user gives a new requirement, draft or update the task plan first."
   assert_file_contains "$TEMPLATE_DIR/README.md" "write the task plan first, get explicit user approval, and only then implement."
-  assert_file_contains "$TEMPLATE_DIR/AGENTS.md" 'run `bash scripts/init-project.sh` before feature planning or implementation.'
-  assert_file_contains "$TEMPLATE_DIR/AGENTS.md" '"프로젝트 셋팅부터 하자"'
+  assert_file_contains "$TEMPLATE_DIR/AGENTS.md" 'read `docs/context/FRESH_REPO_BOOTSTRAP.md` before feature planning or implementation.'
+  assert_file_contains "$TEMPLATE_DIR/AGENTS.md" "Use that file only for first-run bootstrap handling."
+  assert_file_contains "$TEMPLATE_DIR/docs/context/FRESH_REPO_BOOTSTRAP.md" 'run `bash scripts/init-project.sh` before feature planning or implementation.'
+  assert_file_contains "$TEMPLATE_DIR/docs/context/FRESH_REPO_BOOTSTRAP.md" '"프로젝트 셋팅부터 하자"'
   assert_file_contains "$TEMPLATE_DIR/README.md" 'bash scripts/init-project.sh'
   assert_file_contains "$TEMPLATE_DIR/README.md" '"이 템플릿 막 복사한 새 repo야. 셋업부터 해줘."'
   assert_file_contains "$TEMPLATE_DIR/README.md" 'one runtime resume surface = `.context/current.md`'
