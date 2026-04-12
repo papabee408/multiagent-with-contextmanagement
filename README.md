@@ -120,6 +120,18 @@ rm -f .context/active_task
 bash scripts/refresh-current.sh
 ```
 
+## Git Finish Shortcut
+
+When the current task is already `done`, you can land it end to end with:
+
+```bash
+bash scripts/land-task.sh <task-id>
+```
+
+`land-task.sh` stages approved task-owned changes, creates the task commit on the task branch, opens or updates the PR, waits for required checks, squash merges, syncs local `main`, prunes deleted remote refs, deletes the local task branch, clears `.context/active_task`, and refreshes `.context/current.md`.
+
+In Codex CLI, a short request like "git 마무리해" should trigger that flow for the active task.
+
 ## Intake Policy
 
 Default policy: one user-visible change cluster per task.
