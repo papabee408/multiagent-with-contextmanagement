@@ -78,6 +78,7 @@ Default interpretation: when a new requirement arrives, write the task plan firs
 
 ```bash
 bash scripts/bootstrap-task.sh <task-id>
+bash scripts/bootstrap-task.sh <new-task-id> --supersedes <old-task-id> --reason "<why>"
 ```
 
 2. Fill the task contract
@@ -147,8 +148,10 @@ If a request mixes multiple independent features, recommend splitting first. Use
 When a small extra request appears during a task, make the routing decision before coding:
 
 - If the task is still `planning`, `awaiting_approval`, `approved`, or `in_progress`, update that task only when the follow-up keeps the same goal and PR flow.
+- If the task is already `review` and the feedback only fixes review findings while keeping the same goal and PR flow, stay in the current task and rerun verification and review.
 - Before absorbing the follow-up, revisit `Goal`, `Target Files`, `Verification Commands`, and `risk-level`.
-- If the task is already `review` or `done`, or the follow-up materially changes verification, risk, or review path, bootstrap a new task.
+- If the task is already `review` or `done`, and the follow-up materially changes verification, risk, or review path, bootstrap a new task.
+- When a new task replaces the current one, use `bash scripts/bootstrap-task.sh <new-task-id> --supersedes <old-task-id> --reason "<why>"` so the replaced task is explicitly marked `superseded`.
 - When unsure, open a new task. That is usually faster than fixing the wrong task and PR later.
 
 ## Improvement Trigger Reporting

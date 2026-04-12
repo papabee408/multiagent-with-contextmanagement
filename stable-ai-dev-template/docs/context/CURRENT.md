@@ -22,5 +22,6 @@ The mutable task snapshot lives in `.context/current.md`, stays gitignored, and 
 
 ## Runtime Notes
 - Regenerate the runtime snapshot with `bash scripts/refresh-current.sh`.
+- If a replacement task takes over, use `bash scripts/bootstrap-task.sh <new-task-id> --supersedes <old-task-id> --reason "<why>"` so `.context/active_task` moves to the new task and the old one is recorded as `superseded`.
 - After merge, clear `.context/active_task` and rerun `bash scripts/refresh-current.sh` to reset the snapshot to `active-task: none`.
 - Do not commit `.context/` runtime files.

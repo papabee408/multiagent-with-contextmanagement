@@ -15,7 +15,7 @@ failures=()
 
 state="$(section_key_value "$TASK_FILE" "## Status" "state")"
 case "$state" in
-  planning|awaiting_approval|approved|in_progress|review|done)
+  planning|awaiting_approval|approved|in_progress|review|done|superseded)
     ;;
   *)
     failures+=("invalid-state($state)")
@@ -302,6 +302,15 @@ if [[ "$state" == "done" ]]; then
     value="$(section_key_value "$TASK_FILE" "## Completion" "$key")"
     if placeholder_like "$value"; then
       failures+=("missing-completion-$key")
+    fi
+  done
+fi
+
+if [[ "$state" == "superseded" ]]; then
+  for key in "summary" "follow-up"; do
+    value="$(section_key_value "$TASK_FILE" "## Completion" "$key")"
+    if placeholder_like "$value"; then
+      failures+=("superseded-task-requires-$key")
     fi
   done
 fi

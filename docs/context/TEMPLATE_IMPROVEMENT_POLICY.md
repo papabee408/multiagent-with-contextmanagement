@@ -47,3 +47,4 @@ When a report shows recurring friction:
 - Do not interrupt the current approved task just because an improvement trigger appears; report it at the end instead.
 - If the template itself is the blocker, open a separate stabilization or template-improvement task.
 - If a follow-up workflow improvement request arrives after a task is already in `review` or `done`, do not reopen that task; open a dedicated improvement task.
+- If the user redirects away from the current task, explicitly supersede the old task instead of leaving it active or ambiguous.

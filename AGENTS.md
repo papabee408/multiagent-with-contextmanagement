@@ -39,9 +39,11 @@ Keep one live user request mapped to one task file and one PR flow while minimiz
 ## Follow-up Request Rule
 
 - If the current task is `planning`, `awaiting_approval`, `approved`, or `in_progress`, decide whether the follow-up is still the same change cluster before writing code.
-- Update the current task first if the follow-up keeps the same goal and PR flow, and only after revising goal, target files, verification commands, and risk when needed.
+- If the task is already `review` and the feedback only addresses review findings without changing the approved goal or PR flow, keep the same task and rerun verification and review inside that task.
+- Update the current task first if the follow-up or review feedback keeps the same goal and PR flow, and only after revising goal, target files, verification commands, and risk when needed.
 - Open a new task if the follow-up changes the goal, verification path, risk profile, rollout path, or likely review path in a material way.
-- Never append a new follow-up request to a task already in `review` or `done`; open a new task instead.
+- Never append a materially new follow-up request to a task already in `review` or `done`; open a new task instead.
+- If a new task replaces the current one, bootstrap it with `bash scripts/bootstrap-task.sh <new-task-id> --supersedes <old-task-id> --reason "<why>"` so the old task is explicitly recorded as `superseded`.
 - When uncertain, default to a new task. Extra task setup is cheaper than reworking the wrong PR later.
 
 ## Improvement Trigger Rule
@@ -75,6 +77,7 @@ Use short guidance like:
 ## State Machine
 
 - `planning -> awaiting_approval -> approved -> in_progress -> review -> done`
+- `planning|awaiting_approval|approved|in_progress|review -> superseded` when a replacement task takes over the request
 - Use scripts for all state transitions.
 - Do not hand-edit state fields directly.
 - Do not edit implementation files before approval and `start-task`.
