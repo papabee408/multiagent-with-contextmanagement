@@ -18,8 +18,10 @@ In Codex CLI, a plain request like "프로젝트 셋팅부터 하자" should tri
 ## Follow-up Routing
 
 - If a follow-up arrives while the current task is `planning`, `awaiting_approval`, `approved`, or `in_progress`, decide whether it is still the same change cluster before editing code.
-- Update the current task first when the follow-up keeps the same goal and PR flow, and revise `Goal`, `Target Files`, `Verification Commands`, and `risk-level` before implementation if the contract changes.
-- If the task is already `review` or `done`, or the follow-up materially changes verification, risk, or review path, open a new task instead of widening the old one.
+- If the task is already `review` and the feedback only fixes review findings while keeping the approved goal and PR flow intact, keep the same task and rerun verification and review there.
+- Update the current task first when the follow-up or review feedback keeps the same goal and PR flow, and revise `Goal`, `Target Files`, `Verification Commands`, and `risk-level` before implementation if the contract changes.
+- If the task is already `review` or `done`, and the follow-up materially changes verification, risk, or review path, open a new task instead of widening the old one.
+- If the new task replaces the current task, run `bash scripts/bootstrap-task.sh <new-task-id> --supersedes <old-task-id> --reason "<why>"` so the old task ends in `superseded` instead of staying ambiguous.
 - When uncertain, choose a new task.
 
 ## Improvement Trigger Reporting
@@ -31,6 +33,8 @@ In Codex CLI, a plain request like "프로젝트 셋팅부터 하자" should tri
 ## State Machine
 
 `planning -> awaiting_approval -> approved -> in_progress -> review -> done`
+
+`planning|awaiting_approval|approved|in_progress|review -> superseded`
 
 Use scripts for state transitions. Do not hand-edit state fields directly.
 
@@ -48,6 +52,7 @@ Use scripts for state transitions. Do not hand-edit state fields directly.
 Default rule before implementation: requirement -> task plan -> user approval -> `start-task` -> implementation.
 
 1. `bash scripts/bootstrap-task.sh <task-id>`
+   Replacement flow: `bash scripts/bootstrap-task.sh <new-task-id> --supersedes <old-task-id> --reason "<why>"`
 2. fill the task contract
 3. `bash scripts/submit-task-plan.sh <task-id>`
 4. wait for approval, then `bash scripts/approve-task.sh <task-id> --by "<approver>" --note "<approval note>"`

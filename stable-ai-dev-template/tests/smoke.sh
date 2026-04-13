@@ -597,8 +597,10 @@ assert_branch_absent() {
 assert_split_guidance_present() {
   assert_file_contains "$TEMPLATE_DIR/AGENTS.md" "이 요청은 기능이 여러 개 섞여 있어서 한 번에 묶는 것보다 나눠서 처리하는 편이 더 빠릅니다."
   assert_file_contains "$TEMPLATE_DIR/README.md" "이유는 검증, PR 리뷰, merge, 후속 수정까지 전체 리드타임이 줄기 때문입니다."
-  assert_file_contains "$TEMPLATE_DIR/AGENTS.md" "Never append a new follow-up request to a task already in"
+  assert_file_contains "$TEMPLATE_DIR/AGENTS.md" 'If the task is already `review` and the feedback only addresses review findings'
+  assert_file_contains "$TEMPLATE_DIR/AGENTS.md" "Never append a materially new follow-up request to a task already in"
   assert_file_contains "$TEMPLATE_DIR/AGENTS.md" "open a new task instead."
+  assert_file_contains "$TEMPLATE_DIR/README.md" '--supersedes <old-task-id> --reason "<why>"'
   assert_file_contains "$TEMPLATE_DIR/README.md" "When unsure, open a new task. That is usually faster than fixing the wrong task and PR later."
   assert_file_contains "$TEMPLATE_DIR/AGENTS.md" "Report the trigger briefly in the final task update"
   assert_file_contains "$TEMPLATE_DIR/README.md" "wait for the user to choose discussion, defer, or a dedicated improvement task"
@@ -777,6 +779,11 @@ EOF
   bash scripts/run-task-checks.sh scope-safety >/dev/null
   bash scripts/review-scope.sh scope-safety --summary "scope stayed inside src/app.sh and workflow internals" >/dev/null
   bash scripts/review-quality.sh scope-safety --summary "quick review: narrow change and deterministic check" >/dev/null
+  assert_file_contains docs/tasks/scope-safety.md "- state: review"
+  printf '\n# review-fix\n' >> src/app.sh
+  bash scripts/run-task-checks.sh scope-safety >/dev/null
+  bash scripts/review-scope.sh scope-safety --summary "scope stayed inside src/app.sh after the review-stage fix" >/dev/null
+  bash scripts/review-quality.sh scope-safety --summary "review-stage fix stayed in the same task and kept deterministic checks" >/dev/null
   bash scripts/complete-task.sh scope-safety "updated the approved app output" "create a task branch before publish if this task needs a PR" >/dev/null
 
   assert_file_contains .context/current.md "task-state: done"
@@ -1463,6 +1470,122 @@ EOF
   expect_failure "check-scope should reject files outside prefix/delete-only rules" bash scripts/check-scope.sh delete-only-scope
 }
 
+scenario_task_supersession() {
+  setup_repo "task-supersession"
+  cd "$CURRENT_SMOKE_REPO"
+
+  bash scripts/bootstrap-task.sh fetch-boundary >/dev/null
+
+  cat > docs/tasks/fetch-boundary.md <<'EOF'
+# Task: fetch-boundary
+
+> Normal PR rule: one PR should map to one live task file.
+
+## Status
+- state: review
+- owner: ai
+- risk-level: standard
+- updated-at-utc: 2026-04-12 00:00:00Z
+
+## Approval
+- approved-by: user
+- approved-at-utc: 2026-04-12 00:00:00Z
+- approval-note: approved fetch-boundary work
+
+## Intake
+- user-visible-change-clusters: 1
+- split-decision: single-task
+- split-rationale: one fetch-boundary change cluster
+- bundle-override-approved: no
+
+## Goal
+- Keep source fetch behavior inside the approved adapter boundary.
+
+## Non-goals
+- Do not add semantic extraction or a second task flow here.
+
+## Requirements
+- RQ-001: keep the fetch behavior inside the approved adapter boundary.
+
+## Implementation Plan
+- Step 1: finish the approved fetch boundary work.
+
+## Architecture Notes
+- intended module boundaries: keep fetch logic in the adapter boundary.
+- dependency direction: callers depend on the adapter, not on extraction details.
+- extraction/refactor triggers in touched files: split extraction into a new task if the goal changes.
+
+## Target Files
+- `src/app.sh`
+
+## Out of Scope
+- semantic extraction and workflow redesign remain out of scope.
+
+## Scope Guardrails
+- unrelated changes allowed: no
+- incidental refactors allowed: no
+
+## Reuse And Constraints
+- existing abstractions to reuse: reuse the existing app script.
+- config/constants to centralize: none
+- side effects to avoid: avoid broadening the request into semantic extraction.
+
+## Risk Controls
+- sensitive areas touched: none
+- extra checks before merge: none
+
+## Acceptance
+- The fetch-boundary diff is ready for completion unless the goal changes.
+
+## Verification Commands
+- `bash tests/app-check.sh`
+
+## Verification Status
+- verification-status: pass
+- verification-note: verification passed; see .context/tasks/fetch-boundary/verification.log
+- verification-at-utc: 2026-04-12 00:00:00Z
+
+## Review Status
+- scope-review-status: pass
+- scope-review-note: scope stayed inside src/app.sh and workflow internals
+- scope-review-at-utc: 2026-04-12 00:00:00Z
+- quality-review-status: pass
+- quality-review-note: fetch-boundary review passed
+- quality-review-at-utc: 2026-04-12 00:00:00Z
+- reuse-review: pass
+- hardcoding-review: pass
+- tests-review: pass
+- request-scope-review: pass
+- architecture-review: pass
+- risk-controls-review: n/a
+
+## Git / PR
+- base-branch: main
+- branch-strategy: publish-late
+- pr-metadata-policy: auto-recover
+
+## Session Resume
+- current focus: quality review recorded; task is ready for completion when receipts stay fresh
+- next action: run bash scripts/complete-task.sh fetch-boundary "<summary>" "<next-step>"
+- known risks: do not change the goal without opening a replacement task.
+
+## Completion
+- summary: pending
+- follow-up: pending
+EOF
+
+  bash scripts/check-task.sh fetch-boundary >/dev/null
+  bash scripts/bootstrap-task.sh semantic-extraction --supersedes fetch-boundary --reason "the approved direction changed from fetch-boundary completion to semantic extraction" >/dev/null
+
+  assert_file_contains docs/tasks/fetch-boundary.md "- state: superseded"
+  assert_file_contains docs/tasks/fetch-boundary.md "continue delivery in docs/tasks/semantic-extraction.md"
+  assert_file_contains docs/tasks/fetch-boundary.md "Task superseded before completion because the approved direction changed from fetch-boundary completion to semantic extraction"
+  bash scripts/check-task.sh fetch-boundary >/dev/null
+  bash scripts/check-scope.sh semantic-extraction >/dev/null
+  [[ "$(cat .context/active_task)" == "semantic-extraction" ]] || fail "replacement task should become active"
+  assert_file_contains .context/current.md "- active-task: semantic-extraction"
+}
+
 scenario_ci_active_task_fallback() {
   setup_repo "ci-metadata-mismatch"
   cd "$CURRENT_SMOKE_REPO"
@@ -1595,6 +1718,7 @@ scenario_publish_and_merge
 scenario_land_task_shortcut
 scenario_intake_validation
 scenario_delete_only_scope
+scenario_task_supersession
 scenario_ci_active_task_fallback
 
 echo "[PASS] smoke"

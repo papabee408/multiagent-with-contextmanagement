@@ -76,6 +76,7 @@ is_template_seed_task_id() {
     add-fresh-repo-bootstrap-flow|\
     add-git-finish-shortcut|\
     add-improvement-trigger-reporting-rule|\
+    clarify-review-routing-and-supersession|\
     document-plan-approval-before-implementation|\
     enforce-architecture-review-gate|\
     improve-followup-task-routing|\

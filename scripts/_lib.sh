@@ -301,6 +301,26 @@ task_exists() {
   [[ -f "$(task_file "$1")" ]]
 }
 
+task_is_superseded_by_task() {
+  local source_task_id="$1"
+  local replacement_task_id="$2"
+  local source_file
+  local follow_up
+  local next_action
+
+  source_file="$(task_file "$source_task_id")"
+  [[ -f "$source_file" ]] || return 1
+  [[ "$(task_state "$source_task_id")" == "superseded" ]] || return 1
+
+  follow_up="$(section_key_value "$source_file" "## Completion" "follow-up")"
+  next_action="$(section_key_value "$source_file" "## Session Resume" "next action")"
+
+  [[ "$follow_up" == *"docs/tasks/$replacement_task_id.md"* ]] && return 0
+  [[ "$next_action" == *"docs/tasks/$replacement_task_id.md"* ]] && return 0
+
+  return 1
+}
+
 task_id_from_branch_ref() {
   local ref="$1"
   local pattern
@@ -519,6 +539,7 @@ target_rule_matches_path() {
 is_workflow_internal_file() {
   local task_id="$1"
   local relative_path="$2"
+  local related_task_id=""
 
   case "$relative_path" in
     "docs/tasks/$task_id.md"|\
@@ -529,6 +550,15 @@ is_workflow_internal_file() {
     "docs/context/DECISIONS.md"|\
     "stable-ai-dev-template/docs/context/DECISIONS.md")
       return 0
+      ;;
+  esac
+
+  case "$relative_path" in
+    docs/tasks/*.md)
+      related_task_id="$(basename "$relative_path" .md)"
+      if [[ "$related_task_id" != "$task_id" ]] && task_is_superseded_by_task "$related_task_id" "$task_id"; then
+        return 0
+      fi
       ;;
   esac
 
@@ -732,6 +762,21 @@ replace_key_value_or_exit() {
 
 touch_task_updated_at() {
   replace_key_value_or_exit "$(task_file "$1")" "## Status" "updated-at-utc" "$(utc_now)"
+}
+
+mark_task_superseded() {
+  local task_id="$1"
+  local replacement_task_id="$2"
+  local reason="$3"
+  local task_path="docs/tasks/$replacement_task_id.md"
+
+  replace_key_value_or_exit "$(task_file "$task_id")" "## Status" "state" "superseded"
+  touch_task_updated_at "$task_id"
+  replace_key_value_or_exit "$(task_file "$task_id")" "## Session Resume" "current focus" "task superseded by $replacement_task_id; do not continue editing this task"
+  replace_key_value_or_exit "$(task_file "$task_id")" "## Session Resume" "next action" "continue delivery in $task_path"
+  replace_key_value_or_exit "$(task_file "$task_id")" "## Session Resume" "known risks" "do not split work across the superseded task and $replacement_task_id"
+  replace_key_value_or_exit "$(task_file "$task_id")" "## Completion" "summary" "Task superseded before completion because $reason"
+  replace_key_value_or_exit "$(task_file "$task_id")" "## Completion" "follow-up" "Continue in $task_path."
 }
 
 ensure_clean_worktree() {
