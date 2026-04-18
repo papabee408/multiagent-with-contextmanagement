@@ -28,5 +28,6 @@
 
 ## Notes
 - `AI Gate` already runs `bash scripts/check-context.sh`, `bash scripts/check-task.sh <task-id>`, scope checks, and task verification commands before these project checks.
+- `PR Fast Checks`, `High-Risk Checks`, and `Full Project Checks` are supplemental project coverage; prefer commands that add coverage beyond task verification, and `AI Gate` skips repeated commands within the same run.
 - This repository is a shell-driven template repo, so `setup-ci-profile.sh` auto-detection is only a starting point and should not replace explicit review.
 - The live required regression check is the root `tests/smoke.sh`, not the archived multi-agent shell tests.
