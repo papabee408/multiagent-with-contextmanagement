@@ -178,8 +178,7 @@ run_task_verification_commands_ci() {
   fi
 
   for command in "${commands[@]}"; do
-    echo "[RUN] $command"
-    bash -lc "cd \"$ROOT_DIR\" && $command"
+    run_ci_command_once "verification" "$command"
   done
 }
 
@@ -271,6 +270,7 @@ main() {
 
   bash "$ROOT_DIR/scripts/check-context.sh"
   bash "$ROOT_DIR/scripts/check-task.sh" "$task_id"
+  reset_ci_command_history
   ensure_merge_ready_state "$task_id"
   check_ci_scope "$task_id"
   check_summary_statuses_ci "$task_id"

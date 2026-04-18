@@ -77,6 +77,7 @@ is_template_seed_task_id() {
     add-git-finish-shortcut|\
     add-improvement-trigger-reporting-rule|\
     clarify-review-routing-and-supersession|\
+    dedupe-ai-gate-checks|\
     document-plan-approval-before-implementation|\
     enforce-architecture-review-gate|\
     improve-followup-task-routing|\

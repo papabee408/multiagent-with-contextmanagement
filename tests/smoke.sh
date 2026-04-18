@@ -1586,6 +1586,202 @@ EOF
   assert_file_contains .context/current.md "- active-task: semantic-extraction"
 }
 
+scenario_ai_gate_command_dedupe() {
+  local ai_gate_log
+
+  setup_repo "ai-gate-command-dedupe"
+  cd "$CURRENT_SMOKE_REPO"
+
+  cat > tests/record-check.sh <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+name="${1:?}"
+mkdir -p .context
+printf '%s\n' "$name" >> .context/ci-command-runs.log
+EOF
+  chmod +x tests/record-check.sh
+
+  cat > docs/context/CI_PROFILE.md <<'EOF'
+# CI Profile
+
+## Project Profile
+- platform: shell
+- stack: task-driven-smoke
+- package-manager: none
+- setup-status: generated
+
+## Git / PR Policy
+- git-host: github
+- default-base-branch: main
+- default-branch-strategy: publish-late
+- task-branch-pattern: task/<task-id>
+- required-check-resolution: branch-protection-first
+- merge-method: squash
+
+## Required Check Fallback
+- `AI Gate`
+
+## PR Fast Checks
+- `bash tests/record-check.sh shared`
+
+## High-Risk Checks
+- `bash tests/record-check.sh shared`
+
+## Full Project Checks
+- `bash tests/record-check.sh shared`
+
+## Notes
+- The smoke repo uses a fake gh binary and local bare git remotes only.
+EOF
+
+  bash scripts/bootstrap-task.sh ai-gate-command-dedupe >/dev/null
+
+  cat > docs/tasks/ai-gate-command-dedupe.md <<'EOF'
+# Task: ai-gate-command-dedupe
+
+> Normal PR rule: one PR should map to one live task file.
+
+## Status
+- state: planning
+- owner: ai
+- risk-level: high-risk
+- updated-at-utc: 2026-04-07 00:00:00Z
+
+## Approval
+- approved-by: pending
+- approved-at-utc: pending
+- approval-note: pending
+
+## Intake
+- user-visible-change-clusters: 1
+- split-decision: single-task
+- split-rationale: one narrow CI dedupe proof for repeated top-level commands
+- bundle-override-approved: no
+
+## Goal
+- Update the app output and prove AI Gate dedupes repeated commands across verification and CI profile sections.
+
+## Non-goals
+- Do not change task detection, publish flow, or nested commands inside a single check.
+
+## Requirements
+- RQ-001: `src/app.sh` must emit `button-size=8`.
+- RQ-002: `bash tests/record-check.sh shared` appears in verification plus every CI profile section but must run once per AI Gate pass.
+
+## Implementation Plan
+- Step 1: update `src/app.sh`, add the shared marker check, and configure repeated CI profile commands.
+- Step 2: complete the approved task and commit the in-scope diff.
+- Step 3: run AI Gate with full project checks enabled and confirm duplicate skips.
+
+## Architecture Notes
+- intended module boundaries: keep app behavior in `src/app.sh`, supplemental project coverage in `docs/context/CI_PROFILE.md`, and the dedupe marker in a dedicated smoke-only check script.
+- dependency direction: AI Gate should orchestrate task verification and supplemental project checks while the shared marker script observes execution only.
+- extraction/refactor triggers in touched files: none for this narrow smoke fixture.
+
+## Target Files
+- `src/app.sh`
+- `docs/context/CI_PROFILE.md`
+- `tests/record-check.sh`
+
+## Out of Scope
+- PR metadata recovery and server behavior.
+
+## Scope Guardrails
+- unrelated changes allowed: no
+- incidental refactors allowed: no
+
+## Reuse And Constraints
+- existing abstractions to reuse: reuse the existing app check and smoke repo workflow scripts.
+- config/constants to centralize: reuse the shared marker name `shared` across verification and project checks only.
+- side effects to avoid: changing server output or adding unrelated workflow behavior.
+
+## Risk Controls
+- sensitive areas touched: AI Gate execution order and repeated project-check requests in the CI profile.
+- extra checks before merge: rerun the task verification commands and rerun AI Gate with full project checks enabled.
+
+## Acceptance
+- AI Gate passes and the shared marker command records exactly one run even though verification and all project-check sections request it.
+
+## Verification Commands
+- `bash tests/app-check.sh`
+- `bash tests/record-check.sh shared`
+
+## Verification Status
+- verification-status: pending
+- verification-note: pending
+- verification-at-utc: pending
+
+## Review Status
+- scope-review-status: pending
+- scope-review-note: pending
+- scope-review-at-utc: pending
+- quality-review-status: pending
+- quality-review-note: pending
+- quality-review-at-utc: pending
+- reuse-review: pending
+- hardcoding-review: pending
+- tests-review: pending
+- request-scope-review: pending
+- architecture-review: pending
+- risk-controls-review: pending
+
+## Git / PR
+- base-branch: main
+- branch-strategy: publish-late
+- pr-metadata-policy: auto-recover
+
+## Session Resume
+- current focus: prove AI Gate dedupes repeated top-level commands cleanly.
+- next action: submit the task plan for approval.
+- known risks: AI Gate must skip only exact repeated top-level commands.
+
+## Completion
+- summary: pending
+- follow-up: pending
+EOF
+
+  bash scripts/submit-task-plan.sh ai-gate-command-dedupe >/dev/null
+  bash scripts/approve-task.sh ai-gate-command-dedupe --by "user" --note "approved" >/dev/null
+  bash scripts/start-task.sh ai-gate-command-dedupe >/dev/null
+  perl -0pi -e 's/button-size=4/button-size=8/' src/app.sh
+
+  bash scripts/run-task-checks.sh ai-gate-command-dedupe >/dev/null
+  bash scripts/review-scope.sh ai-gate-command-dedupe --summary "scope stayed inside src/app.sh, docs/context/CI_PROFILE.md, and tests/record-check.sh" >/dev/null
+  bash scripts/review-quality.sh ai-gate-command-dedupe \
+    --summary "reviewed the shared marker coverage and high-risk gate assertions" \
+    --reuse pass \
+    --hardcoding pass \
+    --tests pass \
+    --request-scope pass \
+    --architecture pass \
+    --risk-controls pass >/dev/null
+  bash scripts/complete-task.sh ai-gate-command-dedupe \
+    "proved AI Gate runs the shared marker command once per gate pass" \
+    "publish from the task branch after confirming the dedupe log output" >/dev/null
+
+  git switch -c task/ai-gate-command-dedupe >/dev/null
+  git add src/app.sh docs/context/CI_PROFILE.md tests/record-check.sh docs/tasks/ai-gate-command-dedupe.md
+  git commit -qm "task(ai-gate-command-dedupe): prove shared command dedupe"
+
+  rm -f .context/ci-command-runs.log
+  ai_gate_log="$(mktemp)"
+  CI_EVENT_NAME="pull_request" \
+    CI_REF_NAME="9/merge" \
+    CI_HEAD_BRANCH="task/ai-gate-command-dedupe" \
+    CI_PR_BODY="" \
+    CI_DIFF_BASE="origin/main" \
+    CI_DIFF_HEAD="HEAD" \
+    CI_RUN_FULL_PROJECT_CHECKS="1" \
+    bash scripts/ci/run-ai-gate.sh >"$ai_gate_log" 2>&1
+
+  [[ "$(grep -c '^shared$' .context/ci-command-runs.log)" == "1" ]] || fail "expected shared dedupe command to run once"
+  assert_file_contains "$ai_gate_log" "[RUN][verification] bash tests/record-check.sh shared"
+  assert_file_contains "$ai_gate_log" "[SKIP][pr-fast] bash tests/record-check.sh shared (already ran in verification)"
+  assert_file_contains "$ai_gate_log" "[SKIP][high-risk] bash tests/record-check.sh shared (already ran in verification)"
+  assert_file_contains "$ai_gate_log" "[SKIP][full-project] bash tests/record-check.sh shared (already ran in verification)"
+  assert_file_contains "$ai_gate_log" "[PASS] ai-gate"
+}
+
 scenario_ci_active_task_fallback() {
   setup_repo "ci-metadata-mismatch"
   cd "$CURRENT_SMOKE_REPO"
@@ -1719,6 +1915,7 @@ scenario_land_task_shortcut
 scenario_intake_validation
 scenario_delete_only_scope
 scenario_task_supersession
+scenario_ai_gate_command_dedupe
 scenario_ci_active_task_fallback
 
 echo "[PASS] smoke"
