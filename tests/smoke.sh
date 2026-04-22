@@ -1365,6 +1365,150 @@ EOF
   printf '%s' "$status_output" | grep -Fq -- "inspect remote PR history if needed, otherwise continue with the next task" || fail "status-task should stop recommending land-task when the publish branch is gone and PR status is unavailable"
 }
 
+scenario_land_task_skips_committed_deleted_files() {
+  local land_log
+  local land_pid
+  local pr_number=""
+  local head_sha=""
+
+  setup_repo "land-task-committed-delete"
+  cd "$CURRENT_SMOKE_REPO"
+
+  mkdir -p docs/legacy
+  printf 'obsolete content\n' > docs/legacy/obsolete.md
+  git add docs/legacy/obsolete.md
+  git commit -qm "seed: tracked obsolete file"
+  git push origin main >/dev/null
+
+  bash scripts/bootstrap-task.sh land-committed-delete >/dev/null
+
+  cat > docs/tasks/land-committed-delete.md <<'EOF'
+# Task: land-committed-delete
+
+> Normal PR rule: one PR should map to one live task file.
+
+## Status
+- state: planning
+- owner: ai
+- risk-level: trivial
+- updated-at-utc: 2026-04-21 00:00:00Z
+
+## Approval
+- approved-by: pending
+- approved-at-utc: pending
+- approval-note: pending
+
+## Intake
+- user-visible-change-clusters: 1
+- split-decision: single-task
+- split-rationale: one app tweak plus one approved delete-only cleanup
+- bundle-override-approved: no
+
+## Goal
+- Update the app output and land a publish-ready task whose branch already contains an approved tracked-file deletion.
+
+## Non-goals
+- Do not change server behavior or widen scope beyond the approved delete.
+
+## Requirements
+- RQ-001: `src/app.sh` must emit `button-size=8`.
+- RQ-002: `docs/legacy/obsolete.md` may be deleted as part of the same task.
+
+## Implementation Plan
+- Step 1: update `src/app.sh` and delete the approved legacy file.
+- Step 2: verify, review, and mark the task done.
+- Step 3: publish once, then prove `land-task` can merge without trying to restage the already-committed delete.
+
+## Target Files
+- `src/app.sh`
+- `delete-only:docs/legacy/obsolete.md`
+
+## Out of Scope
+- `src/server.sh`, unrelated docs, and workflow policy changes remain unchanged.
+
+## Scope Guardrails
+- unrelated changes allowed: no
+- incidental refactors allowed: no
+
+## Reuse And Constraints
+- existing abstractions to reuse: reuse the existing app shell script, smoke harness, and landing flow.
+- config/constants to centralize: keep landing waits in the landing script environment variables.
+- side effects to avoid: restaging already-committed deletes during landing.
+
+## Risk Controls
+- sensitive areas touched: landing automation path selection for deleted files only.
+- extra checks before merge: rerun the required AI Gate check on the latest PR head SHA.
+
+## Acceptance
+- `land-task` lands the published task even when its committed diff already includes a tracked-file deletion and there are no new local changes to stage.
+
+## Verification Commands
+- `bash tests/app-check.sh`
+
+## Verification Status
+- verification-status: pending
+- verification-note: pending
+- verification-at-utc: pending
+
+## Review Status
+- scope-review-status: pending
+- scope-review-note: pending
+- scope-review-at-utc: pending
+- quality-review-status: pending
+- quality-review-note: pending
+- quality-review-at-utc: pending
+- reuse-review: pending
+- hardcoding-review: pending
+- tests-review: pending
+- request-scope-review: pending
+- architecture-review: pending
+- risk-controls-review: pending
+
+## Completion
+- summary: pending
+- follow-up: pending
+EOF
+
+  bash scripts/submit-task-plan.sh land-committed-delete >/dev/null
+  bash scripts/approve-task.sh land-committed-delete --by "user" --note "approved" >/dev/null
+  bash scripts/start-task.sh land-committed-delete >/dev/null
+  perl -0pi -e 's/button-size=4/button-size=8/' src/app.sh
+  rm -f docs/legacy/obsolete.md
+  bash scripts/run-task-checks.sh land-committed-delete >/dev/null
+  bash scripts/review-scope.sh land-committed-delete --summary "scope stayed inside src/app.sh, the approved delete-only file, and workflow internals" >/dev/null
+  bash scripts/review-quality.sh land-committed-delete --summary "quick review: published delete-only diff should not be restaged during landing" >/dev/null
+  bash scripts/complete-task.sh land-committed-delete \
+    "updated the approved app output and removed the obsolete tracked file before landing" \
+    "run bash scripts/land-task.sh land-committed-delete after the PR is ready" >/dev/null
+
+  git switch -c task/land-committed-delete >/dev/null
+  git add src/app.sh docs/legacy/obsolete.md docs/tasks/land-committed-delete.md
+  git commit -qm "task(land-committed-delete): initial publish"
+  bash scripts/open-task-pr.sh land-committed-delete >/dev/null
+  pr_number="$(gh pr view task/land-committed-delete --json number --jq '.number')"
+  [[ -n "$pr_number" ]] || fail "expected a PR before landing the committed delete scenario"
+
+  land_log="$TMP_DIR/land-task-committed-delete.log"
+  LAND_TASK_CHECK_POLL_SECONDS=1 LAND_TASK_CHECK_TIMEOUT_SECONDS=30 \
+    bash scripts/land-task.sh land-committed-delete >"$land_log" 2>&1 &
+  land_pid=$!
+
+  head_sha="$(gh pr view "$pr_number" --json headRefOid | jq -r '.headRefOid')"
+  [[ -n "$head_sha" && "$head_sha" != "null" ]] || fail "expected a PR head sha before landing the committed delete scenario"
+  mark_check_success "$head_sha" "AI Gate"
+
+  wait "$land_pid" || {
+    cat "$land_log" >&2 || true
+    fail "land-task should succeed when the published branch already contains a tracked-file delete"
+  }
+
+  [[ "$(git branch --show-current)" == "main" ]] || fail "expected committed delete landing to return to main"
+  [[ "$(git rev-parse main)" == "$(git rev-parse origin/main)" ]] || fail "expected committed delete landing to sync local main"
+  assert_branch_absent "$CURRENT_SMOKE_REPO" "task/land-committed-delete"
+  test ! -f docs/legacy/obsolete.md || fail "expected the deleted tracked file to stay removed after landing"
+  grep -Fq "pr-merge:$pr_number" "$FAKE_GH_STATE_DIR/gh.log" || fail "expected committed delete landing to merge the PR"
+}
+
 scenario_intake_validation() {
   setup_repo "intake-validation"
   cd "$CURRENT_SMOKE_REPO"
@@ -2995,6 +3139,7 @@ scenario_publish_late_commit_rejection
 scenario_publish_and_merge
 scenario_land_task_shortcut
 scenario_land_task_without_pr_cache
+scenario_land_task_skips_committed_deleted_files
 scenario_intake_validation
 scenario_delete_only_scope
 scenario_task_supersession
