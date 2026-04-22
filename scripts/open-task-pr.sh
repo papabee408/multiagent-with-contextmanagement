@@ -24,6 +24,7 @@ TASK_FILE="$(task_file "$TASK_ID")"
 BASE_BRANCH="$(base_branch_from_task "$TASK_ID")"
 CURRENT_BRANCH="$(current_branch_name)"
 EXPECTED_BRANCH="$(task_branch_name "$TASK_ID")"
+TASK_STATE="$(task_state "$TASK_ID")"
 
 strip_task_metadata_block() {
   awk '
@@ -70,7 +71,7 @@ ensure_clean_worktree || {
   exit 1
 }
 
-case "$(task_state "$TASK_ID")" in
+case "$TASK_STATE" in
   review|done)
     ;;
   in_progress)
@@ -86,6 +87,14 @@ case "$(task_state "$TASK_ID")" in
     exit 1
     ;;
 esac
+
+if [[ "$TASK_STATE" == "review" ]]; then
+  ensure_review_task_fresh_for_publish "$TASK_ID"
+fi
+
+if [[ "$TASK_STATE" == "done" ]]; then
+  ensure_done_task_fresh_for_publish "$TASK_ID"
+fi
 
 if [[ "$CURRENT_BRANCH" == "$BASE_BRANCH" ]]; then
   echo "[FAIL] open-task-pr"
@@ -150,8 +159,6 @@ ensure_runtime_dirs "$TASK_ID"
   echo "head_sha=$(printf '%s' "$PR_JSON" | jq -r '.headRefOid')"
   echo "published_branch=$CURRENT_BRANCH"
 } > "$(pr_state_file "$TASK_ID")"
-
-bash "$ROOT_DIR/scripts/refresh-current.sh" "$TASK_ID" >/dev/null
 
 echo "[PASS] open-task-pr"
 echo " - task=$TASK_ID"

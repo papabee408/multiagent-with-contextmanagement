@@ -14,6 +14,10 @@ on:
         required: false
         default: false
         type: boolean
+      task_id:
+        description: Explicit task id override for manual runs when PR metadata is unavailable; invalid values fail closed
+        required: false
+        type: string
 
 concurrency:
   group: ai-gate-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -34,6 +38,11 @@ jobs:
       - name: Run AI Gate
         run: bash scripts/ci/run-ai-gate.sh
         env:
+          # Resolver order:
+          # 1. CI_TASK_ID
+          # 2. pull request body Task-ID
+          # 3. branch-derived task id
+          # 4. exactly one changed live task file
           CI_EVENT_NAME: ${{ github.event_name }}
           CI_REF_NAME: ${{ github.ref_name }}
           CI_HEAD_BRANCH: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.ref || github.ref_name }}
@@ -41,3 +50,4 @@ jobs:
           CI_DIFF_HEAD: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           CI_RUN_FULL_PROJECT_CHECKS: ${{ github.event_name == 'workflow_dispatch' && inputs.full_project_checks }}
           CI_PR_BODY: ${{ github.event_name == 'pull_request' && github.event.pull_request.body || '' }}
+          CI_TASK_ID: ${{ github.event_name == 'workflow_dispatch' && inputs.task_id || '' }}

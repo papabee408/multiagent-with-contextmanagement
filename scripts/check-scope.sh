@@ -5,11 +5,36 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_lib.sh"
 
 TASK_ID="$(resolve_task_id_or_exit "${1:-}")"
 TASK_FILE="$(task_file "$TASK_ID")"
+CHECK_SCOPE_MODE="${CHECK_SCOPE_MODE:-local}"
 
 if [[ ! -f "$TASK_FILE" ]]; then
   echo "[FAIL] scope: missing task file docs/tasks/$TASK_ID.md"
   exit 1
 fi
+
+case "$CHECK_SCOPE_MODE" in
+  ""|local)
+    CHANGED_FILE_SOURCE="effective"
+    ;;
+  ci)
+    CHANGED_FILE_SOURCE="committed"
+    ;;
+  *)
+    echo "[FAIL] scope: unsupported CHECK_SCOPE_MODE '$CHECK_SCOPE_MODE'" >&2
+    exit 1
+    ;;
+esac
+
+scope_changed_files() {
+  case "$CHANGED_FILE_SOURCE" in
+    effective)
+      effective_changed_files "$TASK_ID"
+      ;;
+    committed)
+      task_committed_changed_files "$TASK_ID"
+      ;;
+  esac
+}
 
 allowed_tmp="$(mktemp)"
 trap 'rm -f "$allowed_tmp"' EXIT
@@ -18,7 +43,6 @@ trap 'rm -f "$allowed_tmp"' EXIT
   target_files_from_task "$TASK_ID"
   printf '%s\n' "docs/tasks/$TASK_ID.md"
   printf '%s\n' "docs/context/DECISIONS.md"
-  printf '%s\n' ".context/current.md"
   printf '%s\n' ".context/active_task"
 } | sort -u > "$allowed_tmp"
 
@@ -37,7 +61,7 @@ while IFS= read -r relative_path; do
     continue
   fi
   violations+=("$relative_path")
-done < <(effective_changed_files "$TASK_ID")
+done < <(scope_changed_files)
 
 if [[ "$changed_count" == "0" ]]; then
   echo "[PASS] scope (no task-owned changes)"

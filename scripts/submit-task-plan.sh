@@ -18,10 +18,6 @@ ensure_task_state_in "$TASK_ID" planning
 
 replace_key_value_or_exit "$TASK_FILE" "## Status" "state" "awaiting_approval"
 touch_task_updated_at "$TASK_ID"
-replace_key_value_or_exit "$TASK_FILE" "## Session Resume" "current focus" "waiting for user approval on the task plan"
-replace_key_value_or_exit "$TASK_FILE" "## Session Resume" "next action" "wait for approval or revise docs/tasks/$TASK_ID.md"
-
-bash "$ROOT_DIR/scripts/refresh-current.sh" "$TASK_ID" >/dev/null
 
 echo "[PASS] submit-task-plan"
 echo " - task=$TASK_ID"

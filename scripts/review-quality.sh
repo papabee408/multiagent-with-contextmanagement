@@ -69,7 +69,7 @@ fi
 bash "$ROOT_DIR/scripts/check-task.sh" "$TASK_ID" >/dev/null
 ensure_task_state_in "$TASK_ID" in_progress review
 ensure_publish_late_base_branch_safe "$TASK_ID" "warn"
-ensure_runtime_receipt_pass_and_fresh "$TASK_ID" "$(verification_receipt_file "$TASK_ID")" "verification"
+ensure_task_phase_pass_and_fresh "$TASK_ID" "verification"
 bash "$ROOT_DIR/scripts/check-scope.sh" "$TASK_ID" >/dev/null
 
 for value in "$REUSE" "$HARDCODING" "$TESTS" "$REQUEST_SCOPE" "$ARCHITECTURE" "$RISK_CONTROLS"; do
@@ -130,6 +130,7 @@ review_time="$(receipt_value "$RECEIPT_FILE" "executed_at_utc")"
 replace_key_value_or_exit "$TASK_FILE" "## Review Status" "quality-review-status" "$(lower "$result")"
 replace_key_value_or_exit "$TASK_FILE" "## Review Status" "quality-review-note" "$SUMMARY"
 replace_key_value_or_exit "$TASK_FILE" "## Review Status" "quality-review-at-utc" "$review_time"
+upsert_key_value_or_exit "$TASK_FILE" "## Review Status" "quality-review-fingerprint" "$fingerprint"
 replace_key_value_or_exit "$TASK_FILE" "## Review Status" "reuse-review" "$(lower "$reuse_record")"
 replace_key_value_or_exit "$TASK_FILE" "## Review Status" "hardcoding-review" "$(lower "$hardcoding_record")"
 replace_key_value_or_exit "$TASK_FILE" "## Review Status" "tests-review" "$(lower "$tests_record")"
@@ -140,21 +141,11 @@ replace_key_value_or_exit "$TASK_FILE" "## Status" "state" "review"
 touch_task_updated_at "$TASK_ID"
 
 if [[ "$result" != "PASS" ]]; then
-  replace_key_value_or_exit "$TASK_FILE" "## Session Resume" "current focus" "quality review failed; address the recorded findings"
-  replace_key_value_or_exit "$TASK_FILE" "## Session Resume" "next action" "fix the review findings, rerun verification, then rerun quality review"
-
-  bash "$ROOT_DIR/scripts/refresh-current.sh" "$TASK_ID" >/dev/null
-
   echo "[FAIL] quality-review"
   printf ' - %s\n' "${failures[@]}"
   echo " - receipt=.context/tasks/$TASK_ID/quality-review.receipt"
   exit 1
 fi
-
-replace_key_value_or_exit "$TASK_FILE" "## Session Resume" "current focus" "quality review recorded; task is ready for completion when receipts stay fresh"
-replace_key_value_or_exit "$TASK_FILE" "## Session Resume" "next action" "run bash scripts/complete-task.sh $TASK_ID \"<summary>\" \"<next-step>\""
-
-bash "$ROOT_DIR/scripts/refresh-current.sh" "$TASK_ID" >/dev/null
 
 echo "[PASS] quality-review"
 echo " - task=$TASK_ID"

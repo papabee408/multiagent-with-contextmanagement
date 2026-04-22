@@ -4,12 +4,28 @@
 
 Keep one live user request mapped to one task file and one PR flow while minimizing manual git and PR work.
 
+## Ownership Matrix
+
+- `AGENTS.md` owns live workflow behavior and routing rules.
+- `docs/tasks/<task-id>.md` owns the request-local contract, task state, scope, verification commands, and review summaries.
+- `docs/context/CI_PROFILE.md` owns repo CI defaults and check inventory.
+- `.context/tasks/<task-id>/*` owns runtime evidence and optional cache output only; it is not required for correctness.
+- `docs/context/RESUME_GUIDE.md` owns resume procedure and helper interpretation.
+- `docs/tasks/README.md` owns task-directory guidance.
+- `README.md` owns onboarding, export, and bootstrap overview.
+
+## Validator Ownership
+
+- `bash scripts/check-task.sh <task-id>` owns task-contract validation.
+- `bash scripts/check-scope.sh <task-id>` owns scope validation against target files.
+- `scripts/ci/run-ai-gate.sh` reuses those validators in CI and only adds CI-only task resolution plus project-check orchestration.
+
 ## Read Order
 
-1. `.context/current.md` if present
-2. `.context/active_task` if present
-3. `docs/tasks/<task-id>.md`
-4. `docs/context/CURRENT.md`
+1. explicit task id, or the current task branch when it maps cleanly to a live task
+2. `docs/tasks/<task-id>.md`
+3. `bash scripts/status-task.sh [task-id]` when you want a local status summary
+4. `docs/context/RESUME_GUIDE.md`
 5. `docs/context/PROJECT.md`
 6. `docs/context/ARCHITECTURE.md`
 7. `docs/context/CONVENTIONS.md`
@@ -18,7 +34,7 @@ Keep one live user request mapped to one task file and one PR flow while minimiz
 
 ## Fresh Repo Bootstrap Rule
 
-- If this repository was freshly copied from `stable-ai-dev-template/` and still carries template-source identity or copied template task history, read `docs/context/FRESH_REPO_BOOTSTRAP.md` before feature planning or implementation.
+- If this repository was freshly copied from an exported template bundle and still carries template-source identity or copied template task history, read `docs/context/FRESH_REPO_BOOTSTRAP.md` before feature planning or implementation.
 - Use that file only for first-run bootstrap handling. After the repo has been customized, do not treat it as part of the normal session read path.
 
 ## Architecture-First Rule
@@ -85,58 +101,51 @@ Use short guidance like:
 ## Branch Strategy
 
 - Default strategy: `publish-late`
-- `publish-late` allows uncommitted work on the base branch.
+- Start each new task from a clean worktree.
+- `publish-late` allows uncommitted work on the base branch after bootstrap.
 - `publish-late` forbids local commits on the base branch.
 - Before the first commit in `publish-late`, explicitly create or switch to the task branch.
-- Normal `publish-late` flow:
-  1. work on the base branch with uncommitted task-owned changes
-  2. create or switch to the task branch
-  3. stage approved files explicitly
-  4. create the commit explicitly
-  5. run `open-task-pr`
-- Use `early-branch` for long-running, mixed, checkpoint-heavy, or parallelizable work.
-- `open-task-pr` is publish-only. It does not create branches, stage files, or create commits.
+- `open-task-pr` is the manual publish path only. It does not create branches, stage files, or create commits.
+
+## Local Task Selection Rule
+
+- Local commands select the task in this order: explicit task id, then current task branch.
+- If neither is available, pass the task id explicitly.
+- Do not rely on `.context/active_task`; older copies of that file are ignored.
 
 ## Scope Rule
 
 Only edit target files plus workflow internal files:
 
 - `docs/tasks/<task-id>.md`
-- `.context/current.md`
-- `.context/active_task`
 - `.context/tasks/<task-id>/*`
 - `docs/context/DECISIONS.md` only when the task truly records a reusable decision
 
 ## Verification And Review Rule
 
-- Runtime receipts live only under `.context/tasks/<task-id>/*`.
-- Runtime receipts are not tracked in git.
-- The task file stores human-readable verification and review summary fields.
+- Runtime evidence lives only under `.context/tasks/<task-id>/*`.
+- Runtime evidence is not tracked in git.
+- The task file stores human-readable verification/review summaries plus tracked freshness fingerprints.
 - Quality review notes must explicitly confirm architecture boundary placement for changed code.
-- `complete-task` requires fresh PASS runtime receipts for verification, scope review, and quality review.
-- If the task contract or scoped diff changes, old runtime receipts are stale.
+- `complete-task` requires fresh PASS verification, scope review, and quality review state.
+- If the task contract or scoped diff changes, old tracked fingerprints and runtime evidence are stale.
 
 ## PR And Merge Rule
 
-- `open-task-pr` publishes an already committed task branch.
-- `merge-task-pr` is the default merge path.
+- Default landing path: `bash scripts/land-task.sh <task-id>`
+- `open-task-pr` is for manual, step-by-step publish control.
 - PR body must include explicit `Task-ID` metadata.
-- CI resolves the task by PR body `Task-ID` first and by changed task file only as fallback.
-- `merge-task-pr` must verify:
-  - the PR is open
-  - the base branch matches the task
-  - the PR body `Task-ID` matches the task
-  - the latest PR head SHA has all required checks green
-- After merge, sync local base branch and clean local and remote task branches.
+- CI resolves the task in this order: explicit `CI_TASK_ID`, PR body `Task-ID`, branch-derived task id, exactly one changed live task file, then fail closed.
 
 ## Git Finish Shortcut Rule
 
-- If the user says `git 마무리해`, `git finish this`, or `land current task`, treat that as authorization to run `bash scripts/land-task.sh` for the active task or explicit task id.
+- If the user says `git 마무리해`, `git finish this`, or `land current task`, treat that as authorization to run `bash scripts/land-task.sh` for the explicit task id or the current task branch.
 - Use that shortcut only when the task is already publish-ready, or after you finish verification, review, and `complete-task` in the same turn.
-- Keep the shortcut scoped to commit, PR publish, required-check waiting, merge, local sync, branch cleanup, and runtime pointer cleanup.
+- Keep the shortcut scoped to commit, PR publish, required-check waiting, merge, local sync, and branch cleanup.
 
 ## Session Reset Rule
 
 - Do not scan the whole repo on a new session.
-- Read `.context/current.md -> active_task -> task file -> CURRENT -> PROJECT -> ARCHITECTURE -> CONVENTIONS`.
-- Use `.context/current.md` as the default runtime resume surface.
+- Read `explicit task id or current task branch -> task file -> bash scripts/status-task.sh [task-id] -> RESUME_GUIDE -> PROJECT -> ARCHITECTURE -> CONVENTIONS`.
+- Prefer `bash scripts/status-task.sh [task-id]` when you want a local status summary.
+- Treat the task file as the canonical tracked task-local record.

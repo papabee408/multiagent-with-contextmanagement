@@ -46,10 +46,6 @@ replace_key_value_or_exit "$TASK_FILE" "## Approval" "approved-by" "$APPROVED_BY
 replace_key_value_or_exit "$TASK_FILE" "## Approval" "approved-at-utc" "$(utc_now)"
 replace_key_value_or_exit "$TASK_FILE" "## Approval" "approval-note" "$APPROVAL_NOTE"
 touch_task_updated_at "$TASK_ID"
-replace_key_value_or_exit "$TASK_FILE" "## Session Resume" "current focus" "task approved; implementation has not started"
-replace_key_value_or_exit "$TASK_FILE" "## Session Resume" "next action" "run bash scripts/start-task.sh $TASK_ID before editing target files"
-
-bash "$ROOT_DIR/scripts/refresh-current.sh" "$TASK_ID" >/dev/null
 
 echo "[PASS] approve-task"
 echo " - task=$TASK_ID"

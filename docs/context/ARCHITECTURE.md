@@ -7,10 +7,23 @@
 - shared: `scripts/_lib.sh`, `test-guide.md`, and `tests/smoke.sh`
 
 ## Module Boundaries
-- Root task scripts own state transitions, verification receipts, and PR automation.
+- Root task scripts own state transitions, verification evidence, freshness tracking, and PR automation.
 - Task contracts under `docs/tasks/` own request scope, verification commands, and review summaries.
 - Context docs under `docs/context/` own reusable repo policy, not request-local state.
-- `stable-ai-dev-template/` mirrors the live template for copy/bootstrap workflows and must not be imported as a runtime dependency.
+- Exported template bundles are build artifacts for copy/bootstrap workflows and must not be imported as runtime dependencies.
+
+## Validator Boundaries
+- `scripts/check-task.sh` owns task-contract validation.
+- `scripts/check-scope.sh` owns scope validation for the current diff.
+- `scripts/ci/run-ai-gate.sh` orchestrates those shared validators in CI and should not carry second copies of task-schema rules.
+
+## Documentation Boundaries
+- `AGENTS.md` owns live workflow behavior.
+- `README.md` owns onboarding, export, and bootstrap overview.
+- `docs/context/CI_PROFILE.md` owns repo CI defaults and check inventory.
+- `docs/context/RESUME_GUIDE.md` owns resume procedure.
+- `docs/tasks/README.md` owns task-directory guidance.
+- `docs/tasks/<task-id>.md` owns request-local tracked truth.
 
 ## Product Code Guardrails
 - Keep one primary responsibility per file/module and avoid stacking unrelated behavior in one file.
@@ -21,7 +34,7 @@
 
 ## Dependency Rules
 - allowed: workflow entrypoints call shared shell helpers, read task/context docs, and read local `.context/` runtime state
-- forbidden: live root scripts depending on archived multi-agent packet files or treating the archive as active state
+- forbidden: live root scripts depending on archived multi-agent packet files, treating the archive as active state, or editing exported bundles as if they were source
 
 ## Placement Rules
 - new business logic: place it in root task lifecycle scripts or task/context docs, depending on whether it is executable workflow logic or durable policy

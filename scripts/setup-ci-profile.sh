@@ -6,7 +6,7 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_lib.sh"
 usage() {
   cat <<'EOF'
 Usage:
-  bash scripts/setup-ci-profile.sh [--platform <type>] [--stack <framework>] [--force] [--non-interactive]
+  bash scripts/setup-ci-profile.sh [--platform <type>] [--stack <framework>] [--base-branch <name>] [--force] [--non-interactive]
 
 Examples:
   bash scripts/setup-ci-profile.sh --platform web --stack nextjs
@@ -389,6 +389,7 @@ write_notes_section() {
 
 PLATFORM=""
 STACK=""
+BASE_BRANCH="main"
 FORCE=0
 NON_INTERACTIVE=0
 
@@ -400,6 +401,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --stack)
       STACK="$(lower "$(trim "${2:-}")")"
+      shift 2
+      ;;
+    --base-branch)
+      BASE_BRANCH="$(trim "${2:-}")"
       shift 2
       ;;
     --force)
@@ -451,6 +456,8 @@ fi
 
 PLATFORM="$(lower "$PLATFORM")"
 STACK="$(lower "$STACK")"
+BASE_BRANCH="$(trim "$BASE_BRANCH")"
+[[ -n "$BASE_BRANCH" ]] || BASE_BRANCH="main"
 
 pr_fast_commands=()
 high_risk_commands=()
@@ -471,7 +478,7 @@ cat > "$PROFILE_PATH" <<EOF
 
 ## Git / PR Policy
 - git-host: github
-- default-base-branch: main
+- default-base-branch: $BASE_BRANCH
 - default-branch-strategy: publish-late
 - task-branch-pattern: task/<task-id>
 - required-check-resolution: branch-protection-first

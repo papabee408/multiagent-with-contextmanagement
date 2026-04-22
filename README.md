@@ -9,156 +9,80 @@ This template is for long-running AI-assisted product development where sessions
 - Explicit approval before implementation starts
 - Narrow file scope and narrow request intent
 - Architecture-safe incremental changes through explicit boundary checks
-- Runtime-only receipts with fresh verification and review gating
-- Minimal operator git work through explicit publish and explicit manual merge
+- Tracked freshness plus runtime-only evidence for verification and review gating
+- One default landing path instead of split publish/merge choreography
 
-## Core Model
+## Ownership At A Glance
 
-- one live request = one `docs/tasks/<task-id>.md`
-- one task = one PR flow
-- one active task pointer = `.context/active_task`
-- one runtime resume surface = `.context/current.md`
-- one tracked context guide = `docs/context/CURRENT.md`
+- `AGENTS.md`: canonical workflow behavior and live process rules
+- `docs/tasks/<task-id>.md`: canonical request-scoped contract, task state, scope, and verification/review summaries
+- `docs/context/CI_PROFILE.md`: repo-specific CI defaults and check inventory
+- `.context/tasks/<task-id>/*`: runtime evidence and optional local cache, not tracked truth and not required for correctness
+- `docs/context/RESUME_GUIDE.md`: resume procedure and helper interpretation
+- `docs/tasks/README.md`: task-directory guidance and template usage
+- `README.md`: onboarding, export, and bootstrap overview
 
-## Read Order
+For live workflow rules, follow `AGENTS.md` instead of treating this file as the process authority.
 
-1. `.context/current.md` if present
-2. `.context/active_task` if present
-3. `docs/tasks/<task-id>.md`
-4. `docs/context/CURRENT.md`
-5. `docs/context/PROJECT.md`
-6. `docs/context/ARCHITECTURE.md`
-7. `docs/context/CONVENTIONS.md`
-8. `docs/context/CI_PROFILE.md` only when needed
-9. `docs/context/DECISIONS.md` only when needed
+## Standalone Bundle
 
-## Branch Strategy
+The repository root is the source tree for the template.
 
-Default strategy: `publish-late`
+If you want a copyable standalone bundle for a brand new repository, export it with:
 
-- uncommitted task work on the base branch is allowed
-- local commits on the base branch are not allowed
-- before the first commit, explicitly create or switch to the task branch
-- `open-task-pr` is publish-only; it does not create branches, stage files, or create commits
+```bash
+bash scripts/export-stable-template.sh
+```
 
-Use `early-branch` when the task is long-running, checkpoint-heavy, mixed, or likely to need parallel work.
-
-## Runtime State
-
-- runtime receipts and task-local state live only under `.context/tasks/<task-id>/*`
-- `.context/` is ignored by git
-- `.context/current.md` keeps the mutable human-readable runtime snapshot
-- `docs/context/CURRENT.md` stays tracked as stable resume guidance
-- the task file keeps the tracked request contract, verification, and review summaries
+By default, the bundle is written to `.build/stable-ai-dev-template/`.
 
 ## New Repo Bootstrap
 
-If you copied `stable-ai-dev-template/` into a brand new repository, run this once before feature planning:
+If you copied an exported bundle into a brand new repository, run this once before feature planning:
 
 ```bash
 bash scripts/init-project.sh
 ```
 
-`init-project.sh` rewrites the repo identity docs, regenerates `docs/context/CI_PROFILE.md`, removes copied template task history, creates a `project-bootstrap` task, and initializes local git on the chosen base branch when needed. When you do not pass options, it infers the initial project name and repo slug from the repository directory name.
+`init-project.sh` rewrites the repo identity docs, regenerates `docs/context/CI_PROFILE.md`, creates a `project-bootstrap` task, and initializes local git on the chosen base branch when needed. When you do not pass options, it infers the initial project name and repo slug from the repository directory name.
 
 If you are driving the repo through Codex CLI, you do not need to memorize the command. In a fresh copied repo you can simply say:
 
 - "프로젝트 셋팅부터 하자."
-- "이 템플릿 막 복사한 새 repo야. 셋업부터 해줘."
+- "이 템플릿 막 export한 새 repo야. 셋업부터 해줘."
 
-The intended agent behavior is to run the bootstrap flow first and then continue inside `project-bootstrap`.
+After bootstrap, keep the first conversation bootstrap-only: git/base branch/context docs/CI profile/project-bootstrap. Do not mix product features into that first task.
 
-After that, keep the first conversation bootstrap-only: git/base branch/context docs/CI profile/project-bootstrap. Do not mix product features into that first task.
+## High-Level Flow
 
-## Workflow
+Use this file as an overview, not the detailed rulebook:
 
-Default interpretation: when a new requirement arrives, write the task plan first, get explicit user approval, and only then implement.
+1. bootstrap a task with `bash scripts/bootstrap-task.sh <task-id>`
+2. fill the task contract in `docs/tasks/<task-id>.md`
+3. submit and approve the plan
+4. start implementation with `bash scripts/start-task.sh <task-id>`
+5. run verification and reviews
+6. land with `bash scripts/land-task.sh <task-id>`
 
-1. Bootstrap the task
+Detailed branch strategy, scope policy, follow-up routing, and improvement-trigger rules live in `AGENTS.md`.
 
-```bash
-bash scripts/bootstrap-task.sh <task-id>
-bash scripts/bootstrap-task.sh <new-task-id> --supersedes <old-task-id> --reason "<why>"
-```
+## Publish Overview
 
-2. Fill the task contract
-3. Submit and approve the plan
+- Default landing path: `bash scripts/land-task.sh <task-id>`
+- Manual publish path: create or switch to the task branch, create the commit explicitly, then run `bash scripts/open-task-pr.sh <task-id>`
+- Task files may override `base-branch` and `branch-strategy` in `## Git / PR` when a specific task truly needs different Git/PR behavior than `docs/context/CI_PROFILE.md`
 
-```bash
-bash scripts/submit-task-plan.sh <task-id>
-bash scripts/approve-task.sh <task-id> --by "<approver>" --note "<approval note>"
-bash scripts/start-task.sh <task-id>
-```
+## Validator Surfaces
 
-4. Implement only inside `## Target Files`
-5. Verify and review
+- `bash scripts/check-task.sh <task-id>` validates the tracked task contract and merge-readiness fields.
+- `bash scripts/check-scope.sh <task-id>` validates the current scoped diff against `## Target Files`.
+- `scripts/ci/run-ai-gate.sh` reuses those validators in CI instead of redefining task rules.
 
-```bash
-bash scripts/run-task-checks.sh <task-id>
-bash scripts/review-scope.sh <task-id> --summary "<scope note>"
-bash scripts/review-quality.sh <task-id> --summary "<quality note>" --architecture pass ...
-bash scripts/complete-task.sh <task-id> "<summary>" "<next-step>"
-```
+## Operator Surfaces
 
-6. Publish
-
-```bash
-git switch -c task/<task-id>
-git add <approved-files>
-git commit -m "task(<task-id>): <summary>"
-bash scripts/open-task-pr.sh <task-id>
-```
-
-7. Merge manually
-
-```bash
-gh pr merge <pr-number> --squash --delete-branch
-git switch main
-git fetch origin main
-git merge --ff-only origin/main
-git branch -d task/<task-id> 2>/dev/null || true
-rm -f .context/active_task
-bash scripts/refresh-current.sh
-```
-
-## Git Finish Shortcut
-
-When the current task is already `done`, you can land it end to end with:
-
-```bash
-bash scripts/land-task.sh <task-id>
-```
-
-`land-task.sh` stages approved task-owned changes, creates the task commit on the task branch, opens or updates the PR, waits for required checks, squash merges, syncs local `main`, prunes deleted remote refs, deletes the local task branch, clears `.context/active_task`, and refreshes `.context/current.md`.
-
-In Codex CLI, a short request like "git 마무리해" should trigger that flow for the active task.
-
-## Intake Policy
-
-Default policy: one user-visible change cluster per task.
-
-If a request mixes multiple independent features, recommend splitting first. Use short guidance like:
-
-- "이 요청은 기능이 여러 개 섞여 있어서 한 번에 묶는 것보다 나눠서 처리하는 편이 더 빠릅니다."
-- "이유는 검증, PR 리뷰, merge, 후속 수정까지 전체 리드타임이 줄기 때문입니다."
-- "원하면 제가 작업 단위를 1. 2. 3.으로 나눠서 첫 번째부터 바로 진행하겠습니다."
-
-## Follow-up Routing
-
-When a small extra request appears during a task, make the routing decision before coding:
-
-- If the task is still `planning`, `awaiting_approval`, `approved`, or `in_progress`, update that task only when the follow-up keeps the same goal and PR flow.
-- If the task is already `review` and the feedback only fixes review findings while keeping the same goal and PR flow, stay in the current task and rerun verification and review.
-- Before absorbing the follow-up, revisit `Goal`, `Target Files`, `Verification Commands`, and `risk-level`.
-- If the task is already `review` or `done`, and the follow-up materially changes verification, risk, or review path, bootstrap a new task.
-- When a new task replaces the current one, use `bash scripts/bootstrap-task.sh <new-task-id> --supersedes <old-task-id> --reason "<why>"` so the replaced task is explicitly marked `superseded`.
-- When unsure, open a new task. That is usually faster than fixing the wrong task and PR later.
-
-## Improvement Trigger Reporting
-
-If a workflow or template improvement trigger shows up during delivery:
-
-- finish the current approved task first
-- report the trigger briefly in the final update with `trigger`, `impact`, and `proposal`
-- wait for the user to choose discussion, defer, or a dedicated improvement task
-- do not start the improvement work until the user explicitly chooses to proceed
+- Treat `docs/tasks/<task-id>.md` as the canonical tracked record for task-local state and merge-readiness summaries.
+- Treat `.context/tasks/<task-id>/*` as runtime evidence and optional cache output.
+- Local task selection is `explicit task id` first, then `current task branch` when it maps to a live task.
+- Prefer `bash scripts/status-task.sh [task-id]` when you want a local status summary.
+- Treat `bash scripts/refresh-current.sh [task-id]` as a compatibility alias for `status-task.sh`, not as a persisted dashboard generator.
+- If helper surfaces disagree, trust the task file for tracked state and `AGENTS.md` plus `docs/context/CI_PROFILE.md` for workflow behavior.
