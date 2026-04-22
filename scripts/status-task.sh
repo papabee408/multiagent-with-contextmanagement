@@ -227,13 +227,7 @@ task_has_local_changes() {
       printf '%s' "yes"
       return 0
     fi
-  done < <(
-    {
-      git -C "$ROOT_DIR" diff --name-only --cached 2>/dev/null || true
-      git -C "$ROOT_DIR" diff --name-only 2>/dev/null || true
-      git -C "$ROOT_DIR" ls-files --others --exclude-standard 2>/dev/null || true
-    } | sed '/^$/d' | sort -u
-  )
+  done < <(local_changed_files)
 
   printf '%s' "no"
 }

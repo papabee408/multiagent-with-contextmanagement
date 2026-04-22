@@ -445,15 +445,21 @@ path_is_deleted() {
   [[ ! -e "$ROOT_DIR/$1" ]]
 }
 
+local_changed_files() {
+  {
+    git -C "$ROOT_DIR" diff --name-only --cached 2>/dev/null || true
+    git -C "$ROOT_DIR" diff --name-only 2>/dev/null || true
+    git -C "$ROOT_DIR" ls-files --others --exclude-standard 2>/dev/null || true
+  } | sed '/^$/d' | sort -u
+}
+
 effective_changed_files() {
   local task_id="$1"
   local relative_path
 
   {
     task_committed_changed_files "$task_id"
-    git -C "$ROOT_DIR" diff --name-only --cached 2>/dev/null || true
-    git -C "$ROOT_DIR" diff --name-only 2>/dev/null || true
-    git -C "$ROOT_DIR" ls-files --others --exclude-standard 2>/dev/null || true
+    local_changed_files
   } | sed '/^$/d' | sort -u | while IFS= read -r relative_path; do
     [[ -n "$relative_path" ]] || continue
     printf '%s\n' "$relative_path"

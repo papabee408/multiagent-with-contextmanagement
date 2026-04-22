@@ -104,7 +104,7 @@ stageable_changed_files() {
         ;;
     esac
     printf '%s\n' "$relative_path"
-  done < <(effective_changed_files "$TASK_ID")
+  done < <(local_changed_files)
 }
 
 stage_task_changes() {
