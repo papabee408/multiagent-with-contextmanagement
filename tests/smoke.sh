@@ -14,8 +14,6 @@ fail() {
   exit 1
 }
 
-bash "$TEMPLATE_DIR/scripts/check-template-sync.sh" >/dev/null
-
 assert_file_contains() {
   local file="$1"
   local needle="$2"
@@ -69,13 +67,14 @@ current_sha_for_ref() {
 
 emit_pr_json() {
   local file="$1"
-  local number base head draft open body url head_sha
+  local number base head draft open merged body url head_sha
 
   number="$(jq -r '.number' "$file")"
   base="$(jq -r '.base' "$file")"
   head="$(jq -r '.head' "$file")"
   draft="$(jq -r '.draft' "$file")"
   open="$(jq -r '.open' "$file")"
+  merged="$(jq -r '.merged // false' "$file")"
   body="$(jq -r '.body' "$file")"
   url="$(jq -r '.url' "$file")"
   head_sha="$(current_sha_for_ref "$head")"
@@ -87,7 +86,7 @@ emit_pr_json() {
     --argjson number "$number" \
     --argjson isOpen "$open" \
     --argjson isDraft "$draft" \
-    --arg state "$(if [[ "$open" == "true" ]]; then printf '%s' "OPEN"; else printf '%s' "CLOSED"; fi)" \
+    --arg state "$(if [[ "$merged" == "true" ]]; then printf '%s' "MERGED"; elif [[ "$open" == "true" ]]; then printf '%s' "OPEN"; else printf '%s' "CLOSED"; fi)" \
     --arg baseRefName "$base" \
     --arg headRefName "$head" \
     --arg headRefOid "$head_sha" \
@@ -229,7 +228,8 @@ case "${1:-}" in
             url: $url,
             head_sha: $head_sha,
             draft: $draft,
-            open: true
+            open: true,
+            merged: false
           }' > "$file"
 
         log_event "pr-create:$head"
@@ -304,7 +304,7 @@ case "${1:-}" in
         tmp="$(mktemp)"
         jq \
           --arg head_sha "$head_sha" \
-          '.open = false | .draft = false | .head_sha = $head_sha' \
+          '.open = false | .draft = false | .merged = true | .head_sha = $head_sha' \
           "$file" > "$tmp"
         mv "$tmp" "$file"
 
@@ -463,6 +463,15 @@ EOF
 ## Notes
 - The smoke repo uses a fake gh binary and local bare git remotes only.
 EOF
+
+  cat > docs/context/RESUME_GUIDE.md <<'EOF'
+# Resume Guide
+
+## File Roles
+- explicit task id or current task branch: local task selection rule
+- `bash scripts/status-task.sh [task-id]`: local status surface
+- `docs/tasks/<task-id>.md`: canonical tracked task contract and state
+EOF
 }
 
 write_project_files() {
@@ -495,7 +504,7 @@ EOF
   cat > tests/project-fast-check.sh <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
-test -f docs/context/CURRENT.md
+test -f docs/context/RESUME_GUIDE.md
 EOF
 
   cat > tests/project-high-risk-check.sh <<'EOF'
@@ -518,20 +527,7 @@ setup_repo() {
   local gh_state="$TMP_DIR/gh-state/$name"
 
   mkdir -p "$TMP_DIR/repos" "$TMP_DIR/remotes" "$gh_state"
-  mkdir -p "$repo"
-  (
-    cd "$TEMPLATE_DIR"
-    tar \
-      --exclude=".git" \
-      --exclude=".context" \
-      --exclude="migration-archive" \
-      --exclude="stable-ai-dev-template" \
-      --exclude="codex-template-multi-agent-process" \
-      -cf - .
-  ) | (
-    cd "$repo"
-    tar -xf -
-  )
+  bash "$TEMPLATE_DIR/scripts/export-stable-template.sh" "$repo" >/dev/null
 
   (
     cd "$repo"
@@ -560,22 +556,12 @@ setup_repo() {
   export CURRENT_SMOKE_REPO="$repo"
 }
 
-setup_stable_bundle_repo() {
+setup_exported_bundle_repo() {
   local name="$1"
   local repo="$TMP_DIR/repos/$name"
 
   mkdir -p "$TMP_DIR/repos"
-  mkdir -p "$repo"
-  (
-    cd "$TEMPLATE_DIR/stable-ai-dev-template"
-    tar \
-      --exclude=".git" \
-      --exclude=".context" \
-      -cf - .
-  ) | (
-    cd "$repo"
-    tar -xf -
-  )
+  bash "$TEMPLATE_DIR/scripts/export-stable-template.sh" "$repo" >/dev/null
 
   export CURRENT_SMOKE_REPO="$repo"
 }
@@ -596,16 +582,11 @@ assert_branch_absent() {
 
 assert_split_guidance_present() {
   assert_file_contains "$TEMPLATE_DIR/AGENTS.md" "이 요청은 기능이 여러 개 섞여 있어서 한 번에 묶는 것보다 나눠서 처리하는 편이 더 빠릅니다."
-  assert_file_contains "$TEMPLATE_DIR/README.md" "이유는 검증, PR 리뷰, merge, 후속 수정까지 전체 리드타임이 줄기 때문입니다."
   assert_file_contains "$TEMPLATE_DIR/AGENTS.md" 'If the task is already `review` and the feedback only addresses review findings'
   assert_file_contains "$TEMPLATE_DIR/AGENTS.md" "Never append a materially new follow-up request to a task already in"
   assert_file_contains "$TEMPLATE_DIR/AGENTS.md" "open a new task instead."
-  assert_file_contains "$TEMPLATE_DIR/README.md" '--supersedes <old-task-id> --reason "<why>"'
-  assert_file_contains "$TEMPLATE_DIR/README.md" "When unsure, open a new task. That is usually faster than fixing the wrong task and PR later."
   assert_file_contains "$TEMPLATE_DIR/AGENTS.md" "Report the trigger briefly in the final task update"
-  assert_file_contains "$TEMPLATE_DIR/README.md" "wait for the user to choose discussion, defer, or a dedicated improvement task"
   assert_file_contains "$TEMPLATE_DIR/AGENTS.md" "When a user gives a new requirement, draft or update the task plan first."
-  assert_file_contains "$TEMPLATE_DIR/README.md" "write the task plan first, get explicit user approval, and only then implement."
   assert_file_contains "$TEMPLATE_DIR/AGENTS.md" 'read `docs/context/FRESH_REPO_BOOTSTRAP.md` before feature planning or implementation.'
   assert_file_contains "$TEMPLATE_DIR/AGENTS.md" "Use that file only for first-run bootstrap handling."
   assert_file_contains "$TEMPLATE_DIR/AGENTS.md" '`git 마무리해`'
@@ -615,29 +596,55 @@ assert_split_guidance_present() {
   assert_file_contains "$TEMPLATE_DIR/README.md" 'bash scripts/init-project.sh'
   assert_file_contains "$TEMPLATE_DIR/README.md" 'bash scripts/land-task.sh <task-id>'
   test -f "$TEMPLATE_DIR/scripts/land-task.sh" || fail "missing scripts/land-task.sh"
-  assert_file_contains "$TEMPLATE_DIR/README.md" '"이 템플릿 막 복사한 새 repo야. 셋업부터 해줘."'
-  assert_file_contains "$TEMPLATE_DIR/README.md" 'one runtime resume surface = `.context/current.md`'
-  assert_file_contains "$TEMPLATE_DIR/AGENTS.md" 'Use `.context/current.md` as the default runtime resume surface.'
-  assert_file_contains "$TEMPLATE_DIR/docs/context/CURRENT.md" ".context/current.md"
+  assert_file_contains "$TEMPLATE_DIR/README.md" '"이 템플릿 막 export한 새 repo야. 셋업부터 해줘."'
+  assert_file_contains "$TEMPLATE_DIR/README.md" '`AGENTS.md`: canonical workflow behavior and live process rules'
+  test -f "$TEMPLATE_DIR/scripts/status-task.sh" || fail "missing scripts/status-task.sh"
+  assert_file_contains "$TEMPLATE_DIR/README.md" 'Prefer `bash scripts/status-task.sh [task-id]` when you want a local status summary.'
+  assert_file_contains "$TEMPLATE_DIR/README.md" 'Local task selection is `explicit task id` first, then `current task branch` when it maps to a live task.'
+  assert_file_contains "$TEMPLATE_DIR/README.md" 'compatibility alias for `status-task.sh`, not as a persisted dashboard generator'
+  assert_file_contains "$TEMPLATE_DIR/AGENTS.md" 'Prefer `bash scripts/status-task.sh [task-id]` when you want a local status summary.'
+  assert_file_contains "$TEMPLATE_DIR/docs/context/RESUME_GUIDE.md" 'Run `bash scripts/status-task.sh [task-id]` when you want a local status summary'
+  assert_file_contains "$TEMPLATE_DIR/AGENTS.md" '`docs/tasks/<task-id>.md` owns the request-local contract'
+  assert_file_contains "$TEMPLATE_DIR/AGENTS.md" 'Local commands select the task in this order: explicit task id, then current task branch.'
+  assert_file_contains "$TEMPLATE_DIR/docs/context/ARCHITECTURE.md" '`docs/context/CI_PROFILE.md` owns repo CI defaults and check inventory.'
+  assert_file_contains "$TEMPLATE_DIR/docs/tasks/README.md" '# Task Directory Guidance'
+  assert_file_contains "$TEMPLATE_DIR/docs/tasks/README.md" 'For the detailed behavioral rules behind those commands, use `AGENTS.md` instead of this file.'
+  assert_file_contains "$TEMPLATE_DIR/docs/context/RESUME_GUIDE.md" 'canonical tracked task contract, task state, scope, and verification/review summaries'
+  assert_file_contains "$TEMPLATE_DIR/.github/workflows/ai-gate.yml" "task_id:"
+  assert_file_contains "$TEMPLATE_DIR/.github/workflows/ai-gate.yml" "CI_TASK_ID:"
+  assert_file_contains "$TEMPLATE_DIR/.github/workflows/ai-gate.yml" "inputs.task_id || ''"
+  assert_file_contains "$TEMPLATE_DIR/.github/workflows/ai-gate.yml" 'CI_HEAD_BRANCH: ${{ github.event_name == '\''pull_request'\'' && github.event.pull_request.head.ref || github.ref_name }}'
+  assert_file_contains "$TEMPLATE_DIR/.github/workflows/ai-gate.yml" 'CI_DIFF_BASE: ${{ github.event_name == '\''pull_request'\'' && github.event.pull_request.base.sha || github.event.before }}'
+  assert_file_contains "$TEMPLATE_DIR/.github/workflows/ai-gate.yml" 'CI_DIFF_HEAD: ${{ github.event_name == '\''pull_request'\'' && github.event.pull_request.head.sha || github.sha }}'
+  assert_file_contains "$TEMPLATE_DIR/.github/workflows/ai-gate.yml" 'CI_PR_BODY: ${{ github.event_name == '\''pull_request'\'' && github.event.pull_request.body || '\'''\'' }}'
+  assert_file_contains "$TEMPLATE_DIR/.github/workflows/ai-gate.yml" 'CI_TASK_ID: ${{ github.event_name == '\''workflow_dispatch'\'' && inputs.task_id || '\'''\'' }}'
+  test -f "$TEMPLATE_DIR/scripts/export-stable-template.sh" || fail "missing scripts/export-stable-template.sh"
 }
 
-scenario_init_project_from_stable_bundle() {
+scenario_init_project_from_exported_bundle() {
   local task_file_count
 
-  setup_stable_bundle_repo "init-project-from-stable-bundle"
+  setup_exported_bundle_repo "init-project-from-exported-bundle"
   cd "$CURRENT_SMOKE_REPO"
 
-  bash scripts/init-project.sh >/dev/null
+  test ! -f .template-source-root || fail "exported bundle should not include the source marker"
+  test ! -f scripts/export-stable-template.sh || fail "exported bundle should not include the export helper"
+  test ! -f docs/tasks/migrate-stable-ai-template.md || fail "exported bundle should not include template task history"
+  task_file_count="$(find docs/tasks -maxdepth 1 -type f | wc -l | tr -d ' ')"
+  [[ "$task_file_count" == "2" ]] || fail "expected only README.md and _template.md before init"
+
+  bash scripts/init-project.sh --base-branch develop >/dev/null
 
   git rev-parse --is-inside-work-tree >/dev/null 2>&1 || fail "init-project should create a git repo"
-  [[ "$(git branch --show-current)" == "main" ]] || fail "init-project should use main as the bootstrap branch"
+  [[ "$(git branch --show-current)" == "develop" ]] || fail "init-project should use the requested bootstrap branch"
 
-  assert_file_contains docs/context/PROJECT.md "project-name: Init Project From Stable Bundle"
-  assert_file_contains docs/context/PROJECT.md "repo-slug: init-project-from-stable-bundle"
+  assert_file_contains docs/context/PROJECT.md "project-name: Init Project From Exported Bundle"
+  assert_file_contains docs/context/PROJECT.md "repo-slug: init-project-from-exported-bundle"
   assert_file_contains docs/context/PROJECT.md "platform=web, stack=custom"
   assert_file_contains docs/context/ARCHITECTURE.md "product entrypoints for the web app"
   assert_file_contains docs/context/CI_PROFILE.md "- platform: web"
   assert_file_contains docs/context/CI_PROFILE.md "- stack: custom"
+  assert_file_contains docs/context/CI_PROFILE.md "- default-base-branch: develop"
   assert_file_contains docs/context/CI_PROFILE.md '`bash scripts/check-context.sh`'
 
   test ! -f docs/tasks/migrate-stable-ai-template.md || fail "template task history should be removed"
@@ -647,12 +654,14 @@ scenario_init_project_from_stable_bundle() {
   [[ "$task_file_count" == "3" ]] || fail "expected only README.md, _template.md, and project-bootstrap.md after init"
 
   assert_file_contains docs/tasks/project-bootstrap.md "# Task: project-bootstrap"
-  assert_file_contains docs/tasks/project-bootstrap.md "repo-specific bootstrap context for Init Project From Stable Bundle"
+  assert_file_contains docs/tasks/project-bootstrap.md "repo-specific bootstrap context for Init Project From Exported Bundle"
   assert_file_contains docs/tasks/project-bootstrap.md '`bash scripts/check-task.sh project-bootstrap`'
 
-  test -f .context/current.md || fail "init-project should refresh .context/current.md"
-  assert_file_contains .context/current.md "active-task: project-bootstrap"
-  assert_file_contains .context/current.md 'task-state: planning'
+  test ! -f .context/current.md || fail "init-project should not create .context/current.md"
+  status_output="$(bash scripts/status-task.sh project-bootstrap)"
+  printf '%s' "$status_output" | grep -Fq -- "- active-task: project-bootstrap" || fail "status-task should report the bootstrap task"
+  printf '%s' "$status_output" | grep -Fq -- "- task-state: planning" || fail "status-task should report the bootstrap task state"
+  printf '%s' "$status_output" | grep -Fq -- "- base-branch: develop" || fail "status-task should report the configured base branch"
 
   bash scripts/check-context.sh >/dev/null
   bash scripts/check-task.sh project-bootstrap >/dev/null
@@ -663,7 +672,10 @@ scenario_scope_and_approval() {
   cd "$CURRENT_SMOKE_REPO"
 
   printf 'preexisting dirty\n' > notes.txt
+  expect_failure "bootstrap-task should reject a dirty new task start" bash scripts/bootstrap-task.sh scope-safety
+  rm -f notes.txt
   bash scripts/bootstrap-task.sh scope-safety >/dev/null
+  test ! -f .context/active_task || fail "bootstrap-task should not create .context/active_task"
 
   cat > docs/tasks/scope-safety.md <<'EOF'
 # Task: scope-safety
@@ -744,16 +756,6 @@ scenario_scope_and_approval() {
 - architecture-review: pending
 - risk-controls-review: pending
 
-## Git / PR
-- base-branch: main
-- branch-strategy: publish-late
-- pr-metadata-policy: auto-recover
-
-## Session Resume
-- current focus: finish the plan and get approval.
-- next action: submit the task plan for approval.
-- known risks: starting implementation before approval or touching unrelated files.
-
 ## Completion
 - summary: pending
 - follow-up: pending
@@ -773,7 +775,7 @@ EOF
 
   bash scripts/check-scope.sh scope-safety >/dev/null
   printf 'new unrelated file\n' > stray.txt
-  expect_failure "check-scope should fail for new unrelated files after baseline" bash scripts/check-scope.sh scope-safety
+  expect_failure "check-scope should fail for new unrelated files inside the active task" bash scripts/check-scope.sh scope-safety
   rm -f stray.txt
 
   bash scripts/run-task-checks.sh scope-safety >/dev/null
@@ -786,8 +788,13 @@ EOF
   bash scripts/review-quality.sh scope-safety --summary "review-stage fix stayed in the same task and kept deterministic checks" >/dev/null
   bash scripts/complete-task.sh scope-safety "updated the approved app output" "create a task branch before publish if this task needs a PR" >/dev/null
 
-  assert_file_contains .context/current.md "task-state: done"
-  assert_file_contains .context/current.md "verification-status: pass"
+  test ! -f .context/current.md || fail "complete-task should not create .context/current.md"
+  grep -Eq 'verification-fingerprint: [0-9a-f]{64}$' docs/tasks/scope-safety.md || fail "verification should dual-write a tracked fingerprint"
+  grep -Eq 'scope-review-fingerprint: [0-9a-f]{64}$' docs/tasks/scope-safety.md || fail "scope review should dual-write a tracked fingerprint"
+  grep -Eq 'quality-review-fingerprint: [0-9a-f]{64}$' docs/tasks/scope-safety.md || fail "quality review should dual-write a tracked fingerprint"
+  status_output="$(bash scripts/status-task.sh scope-safety)"
+  printf '%s' "$status_output" | grep -Fq -- "- task-state: done" || fail "status-task should report done tasks"
+  printf '%s' "$status_output" | grep -Fq -- "- verification-status: pass" || fail "status-task should report verification status"
   test -f .context/tasks/scope-safety/verification.receipt || fail "missing runtime verification receipt"
 }
 
@@ -875,16 +882,6 @@ scenario_publish_late_commit_rejection() {
 - request-scope-review: pending
 - architecture-review: pending
 - risk-controls-review: pending
-
-## Git / PR
-- base-branch: main
-- branch-strategy: publish-late
-- pr-metadata-policy: auto-recover
-
-## Session Resume
-- current focus: get approval for the narrow app change.
-- next action: submit the task plan for approval.
-- known risks: committing on main before creating the task branch.
 
 ## Completion
 - summary: pending
@@ -988,16 +985,6 @@ scenario_publish_and_merge() {
 - architecture-review: pending
 - risk-controls-review: pending
 
-## Git / PR
-- base-branch: main
-- branch-strategy: publish-late
-- pr-metadata-policy: auto-recover
-
-## Session Resume
-- current focus: finish the plan and get approval.
-- next action: submit the task plan for approval.
-- known risks: publishing before the branch and commit boundary are explicit.
-
 ## Completion
 - summary: pending
 - follow-up: pending
@@ -1058,9 +1045,9 @@ EOF
 
   perl -0pi -e 's/- follow-up: .*/- follow-up: publish update documented after initial PR creation/' docs/tasks/publish-late-flow.md
   bash scripts/check-task.sh publish-late-flow >/dev/null
-  bash scripts/refresh-current.sh publish-late-flow >/dev/null
   git add docs/tasks/publish-late-flow.md
   git commit -qm "task(publish-late-flow): update mutable summary"
+  rm -f .context/tasks/publish-late-flow/pr.env
 
   bash scripts/open-task-pr.sh publish-late-flow >/dev/null
   grep -Eq '^pr-edit:[0-9]+$' "$FAKE_GH_STATE_DIR/gh.log" || fail "expected PR updates to target a numeric PR id"
@@ -1076,13 +1063,13 @@ EOF
   git fetch origin main >/dev/null
   git merge --ff-only origin/main >/dev/null
   git branch -d task/publish-late-flow >/dev/null 2>&1 || true
-  rm -f .context/active_task
-  bash scripts/refresh-current.sh >/dev/null
 
   [[ "$(git branch --show-current)" == "main" ]] || fail "expected manual merge flow to return to main"
   [[ "$(git rev-parse main)" == "$(git rev-parse origin/main)" ]] || fail "expected local main to sync with origin/main"
   assert_branch_absent "$CURRENT_SMOKE_REPO" "task/publish-late-flow"
-  assert_file_contains .context/current.md "active-task: none"
+  test ! -f .context/current.md || fail "manual merge flow should not recreate .context/current.md"
+  status_output="$(bash scripts/status-task.sh)"
+  printf '%s' "$status_output" | grep -Fq -- "- active-task: none" || fail "status-task should show no active task after merge cleanup"
 }
 
 scenario_land_task_shortcut() {
@@ -1154,7 +1141,7 @@ scenario_land_task_shortcut() {
 - extra checks before merge: rerun the required AI Gate check on the latest PR head SHA.
 
 ## Acceptance
-- The landing shortcut commits the approved diff, waits for AI Gate, merges the PR, syncs main, deletes the task branch, and clears the active task pointer.
+- The landing shortcut commits the approved diff, waits for AI Gate, merges the PR, syncs main, and deletes the task branch.
 
 ## Verification Commands
 - `bash tests/server-check.sh`
@@ -1177,16 +1164,6 @@ scenario_land_task_shortcut() {
 - request-scope-review: pending
 - architecture-review: pending
 - risk-controls-review: pending
-
-## Git / PR
-- base-branch: main
-- branch-strategy: publish-late
-- pr-metadata-policy: auto-recover
-
-## Session Resume
-- current focus: finish the plan and get approval.
-- next action: submit the task plan for approval.
-- known risks: publishing before verification and review are recorded.
 
 ## Completion
 - summary: pending
@@ -1242,8 +1219,150 @@ EOF
   [[ "$(git rev-parse main)" == "$(git rev-parse origin/main)" ]] || fail "expected land-task shortcut to sync local main"
   assert_branch_absent "$CURRENT_SMOKE_REPO" "task/git-finish-flow"
   git -C "$CURRENT_SMOKE_REPO" show-ref --verify --quiet "refs/remotes/origin/task/git-finish-flow" && fail "expected remote task branch ref to be pruned"
-  assert_file_contains .context/current.md "active-task: none"
+  test ! -f .context/current.md || fail "land-task should not create .context/current.md"
+  status_output="$(bash scripts/status-task.sh)"
+  printf '%s' "$status_output" | grep -Fq -- "- active-task: none" || fail "status-task should show no active task after land-task"
   grep -Fq "pr-merge:$pr_number" "$FAKE_GH_STATE_DIR/gh.log" || fail "expected land-task shortcut to merge the PR"
+}
+
+scenario_land_task_without_pr_cache() {
+  local land_log
+  local land_pid
+  local pr_number=""
+  local head_sha=""
+
+  setup_repo "land-task-without-pr-cache"
+  cd "$CURRENT_SMOKE_REPO"
+
+  bash scripts/bootstrap-task.sh land-without-pr-cache >/dev/null
+
+  cat > docs/tasks/land-without-pr-cache.md <<'EOF'
+# Task: land-without-pr-cache
+
+> Normal PR rule: one PR should map to one live task file.
+
+## Status
+- state: planning
+- owner: ai
+- risk-level: trivial
+- updated-at-utc: 2026-04-07 00:00:00Z
+
+## Approval
+- approved-by: pending
+- approved-at-utc: pending
+- approval-note: pending
+
+## Intake
+- user-visible-change-clusters: 1
+- split-decision: single-task
+- split-rationale: prove landing can recover an existing PR without local PR cache
+- bundle-override-approved: no
+
+## Goal
+- Update the app output and land the already-published task even when `.context/tasks/<task-id>/pr.env` is absent.
+
+## Non-goals
+- Do not change server behavior or CI resolver logic.
+
+## Requirements
+- RQ-001: `src/app.sh` must emit `button-size=8`.
+- RQ-002: `land-task` must merge an already-open PR without requiring `pr.env`.
+
+## Implementation Plan
+- Step 1: update `src/app.sh`, verify, review, and mark the task done.
+- Step 2: publish the task branch once.
+- Step 3: delete `pr.env` and prove `land-task` still resolves and merges the PR.
+
+## Target Files
+- `src/app.sh`
+
+## Out of Scope
+- `src/server.sh`, merge policy changes, and unrelated workflow files.
+
+## Scope Guardrails
+- unrelated changes allowed: no
+- incidental refactors allowed: no
+
+## Reuse And Constraints
+- existing abstractions to reuse: reuse the existing app shell script, smoke check, and landing flow.
+- config/constants to centralize: keep landing waits in the landing script environment variables.
+- side effects to avoid: treating the local PR cache as required state.
+
+## Risk Controls
+- sensitive areas touched: PR recovery during landing only.
+- extra checks before merge: rerun the required AI Gate check on the latest PR head SHA.
+
+## Acceptance
+- `land-task` succeeds after `pr.env` is deleted and still merges the existing PR cleanly.
+
+## Verification Commands
+- `bash tests/app-check.sh`
+
+## Verification Status
+- verification-status: pending
+- verification-note: pending
+- verification-at-utc: pending
+
+## Review Status
+- scope-review-status: pending
+- scope-review-note: pending
+- scope-review-at-utc: pending
+- quality-review-status: pending
+- quality-review-note: pending
+- quality-review-at-utc: pending
+- reuse-review: pending
+- hardcoding-review: pending
+- tests-review: pending
+- request-scope-review: pending
+- architecture-review: pending
+- risk-controls-review: pending
+
+## Completion
+- summary: pending
+- follow-up: pending
+EOF
+
+  bash scripts/submit-task-plan.sh land-without-pr-cache >/dev/null
+  bash scripts/approve-task.sh land-without-pr-cache --by "user" --note "approved" >/dev/null
+  bash scripts/start-task.sh land-without-pr-cache >/dev/null
+  perl -0pi -e 's/button-size=4/button-size=8/' src/app.sh
+  bash scripts/run-task-checks.sh land-without-pr-cache >/dev/null
+  bash scripts/review-scope.sh land-without-pr-cache --summary "scope stayed inside src/app.sh and workflow internals" >/dev/null
+  bash scripts/review-quality.sh land-without-pr-cache --summary "quick review: narrow change and deterministic check" >/dev/null
+  bash scripts/complete-task.sh land-without-pr-cache \
+    "updated the approved app output and prepared the published task for landing" \
+    "run bash scripts/land-task.sh land-without-pr-cache after the PR is ready" >/dev/null
+
+  git switch -c task/land-without-pr-cache >/dev/null
+  git add src/app.sh docs/tasks/land-without-pr-cache.md
+  git commit -qm "task(land-without-pr-cache): initial publish"
+  bash scripts/open-task-pr.sh land-without-pr-cache >/dev/null
+  pr_number="$(gh pr view task/land-without-pr-cache --json number --jq '.number')"
+  [[ -n "$pr_number" ]] || fail "expected a PR before landing without pr cache"
+
+  rm -f .context/tasks/land-without-pr-cache/pr.env
+  land_log="$TMP_DIR/land-task-without-pr-cache.log"
+  LAND_TASK_CHECK_POLL_SECONDS=1 LAND_TASK_CHECK_TIMEOUT_SECONDS=30 \
+    bash scripts/land-task.sh land-without-pr-cache >"$land_log" 2>&1 &
+  land_pid=$!
+
+  head_sha="$(gh pr view "$pr_number" --json headRefOid | jq -r '.headRefOid')"
+  [[ -n "$head_sha" && "$head_sha" != "null" ]] || fail "expected a PR head sha before landing without pr cache"
+  mark_check_success "$head_sha" "AI Gate"
+
+  wait "$land_pid" || {
+    cat "$land_log" >&2 || true
+    fail "land-task should succeed without a local pr.env cache"
+  }
+
+  [[ "$(git branch --show-current)" == "main" ]] || fail "expected land-task without pr cache to return to main"
+  [[ "$(git rev-parse main)" == "$(git rev-parse origin/main)" ]] || fail "expected land-task without pr cache to sync local main"
+  assert_branch_absent "$CURRENT_SMOKE_REPO" "task/land-without-pr-cache"
+  grep -Fq "pr-merge:$pr_number" "$FAKE_GH_STATE_DIR/gh.log" || fail "expected land-task without pr cache to merge the PR"
+  rm -f .context/tasks/land-without-pr-cache/pr.env
+  status_output="$(bash scripts/status-task.sh land-without-pr-cache)"
+  printf '%s' "$status_output" | grep -Fq -- "- pr-status: none" || fail "status-task should surface missing PR cache after landing without pretending an open PR still exists"
+  printf '%s' "$status_output" | grep -Fq -- "inspect remote PR history if needed, otherwise continue with the next task" || fail "status-task should stop recommending land-task when the publish branch is gone and PR status is unavailable"
 }
 
 scenario_intake_validation() {
@@ -1329,16 +1448,6 @@ scenario_intake_validation() {
 - request-scope-review: pending
 - architecture-review: pending
 - risk-controls-review: pending
-
-## Git / PR
-- base-branch: main
-- branch-strategy: publish-late
-- pr-metadata-policy: auto-recover
-
-## Session Resume
-- current focus: validate intake.
-- next action: run check-task.
-- known risks: the intake metadata is intentionally invalid.
 
 ## Completion
 - summary: pending
@@ -1445,16 +1554,6 @@ scenario_delete_only_scope() {
 - architecture-review: pending
 - risk-controls-review: pending
 
-## Git / PR
-- base-branch: main
-- branch-strategy: publish-late
-- pr-metadata-policy: auto-recover
-
-## Session Resume
-- current focus: validate delete-only and prefix scope handling.
-- next action: run check-task and check-scope.
-- known risks: delete-only should not accidentally permit edits under the same archive prefix.
-
 ## Completion
 - summary: pending
 - follow-up: pending
@@ -1559,16 +1658,6 @@ scenario_task_supersession() {
 - architecture-review: pass
 - risk-controls-review: n/a
 
-## Git / PR
-- base-branch: main
-- branch-strategy: publish-late
-- pr-metadata-policy: auto-recover
-
-## Session Resume
-- current focus: quality review recorded; task is ready for completion when receipts stay fresh
-- next action: run bash scripts/complete-task.sh fetch-boundary "<summary>" "<next-step>"
-- known risks: do not change the goal without opening a replacement task.
-
 ## Completion
 - summary: pending
 - follow-up: pending
@@ -1578,19 +1667,23 @@ EOF
   bash scripts/bootstrap-task.sh semantic-extraction --supersedes fetch-boundary --reason "the approved direction changed from fetch-boundary completion to semantic extraction" >/dev/null
 
   assert_file_contains docs/tasks/fetch-boundary.md "- state: superseded"
-  assert_file_contains docs/tasks/fetch-boundary.md "continue delivery in docs/tasks/semantic-extraction.md"
+  assert_file_contains docs/tasks/fetch-boundary.md "Continue in docs/tasks/semantic-extraction.md."
   assert_file_contains docs/tasks/fetch-boundary.md "Task superseded before completion because the approved direction changed from fetch-boundary completion to semantic extraction"
   bash scripts/check-task.sh fetch-boundary >/dev/null
   bash scripts/check-scope.sh semantic-extraction >/dev/null
-  [[ "$(cat .context/active_task)" == "semantic-extraction" ]] || fail "replacement task should become active"
-  assert_file_contains .context/current.md "- active-task: semantic-extraction"
+  test ! -f .context/active_task || fail "replacement bootstrap should not recreate .context/active_task"
+  status_output="$(bash scripts/status-task.sh semantic-extraction)"
+  printf '%s' "$status_output" | grep -Fq -- "- active-task: semantic-extraction" || fail "status-task should reflect the replacement task when addressed explicitly"
 }
 
 scenario_ai_gate_command_dedupe() {
   local ai_gate_log
+  local ai_gate_output
 
   setup_repo "ai-gate-command-dedupe"
   cd "$CURRENT_SMOKE_REPO"
+
+  bash scripts/bootstrap-task.sh ai-gate-command-dedupe >/dev/null
 
   cat > tests/record-check.sh <<'EOF'
 #!/usr/bin/env bash
@@ -1633,8 +1726,6 @@ EOF
 ## Notes
 - The smoke repo uses a fake gh binary and local bare git remotes only.
 EOF
-
-  bash scripts/bootstrap-task.sh ai-gate-command-dedupe >/dev/null
 
   cat > docs/tasks/ai-gate-command-dedupe.md <<'EOF'
 # Task: ai-gate-command-dedupe
@@ -1725,16 +1816,6 @@ EOF
 - architecture-review: pending
 - risk-controls-review: pending
 
-## Git / PR
-- base-branch: main
-- branch-strategy: publish-late
-- pr-metadata-policy: auto-recover
-
-## Session Resume
-- current focus: prove AI Gate dedupes repeated top-level commands cleanly.
-- next action: submit the task plan for approval.
-- known risks: AI Gate must skip only exact repeated top-level commands.
-
 ## Completion
 - summary: pending
 - follow-up: pending
@@ -1762,6 +1843,10 @@ EOF
   git switch -c task/ai-gate-command-dedupe >/dev/null
   git add src/app.sh docs/context/CI_PROFILE.md tests/record-check.sh docs/tasks/ai-gate-command-dedupe.md
   git commit -qm "task(ai-gate-command-dedupe): prove shared command dedupe"
+  CHECK_SCOPE_MODE=ci bash scripts/check-scope.sh ai-gate-command-dedupe >/dev/null
+  rm -f .context/tasks/ai-gate-command-dedupe/verification.receipt
+  rm -f .context/tasks/ai-gate-command-dedupe/scope-review.receipt
+  rm -f .context/tasks/ai-gate-command-dedupe/quality-review.receipt
 
   rm -f .context/ci-command-runs.log
   ai_gate_log="$(mktemp)"
@@ -1780,9 +1865,21 @@ EOF
   assert_file_contains "$ai_gate_log" "[SKIP][high-risk] bash tests/record-check.sh shared (already ran in verification)"
   assert_file_contains "$ai_gate_log" "[SKIP][full-project] bash tests/record-check.sh shared (already ran in verification)"
   assert_file_contains "$ai_gate_log" "[PASS] ai-gate"
+
+  printf 'out of scope\n' > stray.txt
+  git add stray.txt
+  git commit -qm "chore: out-of-scope committed change"
+
+  expect_failure "check-scope should reject out-of-scope committed files in ci mode" env CHECK_SCOPE_MODE=ci bash scripts/check-scope.sh ai-gate-command-dedupe
+  if ai_gate_output="$(CI_EVENT_NAME="pull_request" CI_REF_NAME="9/merge" CI_HEAD_BRANCH="task/ai-gate-command-dedupe" CI_PR_BODY="" CI_DIFF_BASE="origin/main" CI_DIFF_HEAD="HEAD" bash scripts/ci/run-ai-gate.sh 2>&1)"; then
+    fail "ai-gate should reject committed diffs that invalidate freshness or scope"
+  fi
+  printf '%s' "$ai_gate_output" | grep -Eq '\[FAIL\] task|\[FAIL\] scope' || fail "ai-gate should fail through the shared freshness or scope validators"
 }
 
 scenario_ci_active_task_fallback() {
+  local ai_gate_output
+
   setup_repo "ci-metadata-mismatch"
   cd "$CURRENT_SMOKE_REPO"
 
@@ -1811,10 +1908,10 @@ scenario_ci_active_task_fallback() {
 - bundle-override-approved: no
 
 ## Goal
-- Update the app output and prove CI can fall back to the active task when metadata sources are absent.
+- Update the app output and prove CI no longer falls back to the active task when metadata sources are absent.
 
 ## Non-goals
-- Do not depend on PR body metadata or branch metadata for the follow-up CI rerun.
+- Do not depend on the local active task file for the follow-up CI rerun.
 
 ## Requirements
 - RQ-001: `src/app.sh` must emit `button-size=8`.
@@ -1822,7 +1919,7 @@ scenario_ci_active_task_fallback() {
 ## Implementation Plan
 - Step 1: update `src/app.sh` and complete the approved task.
 - Step 2: make one in-scope follow-up commit without changing the task file.
-- Step 3: prove CI resolves the task from the active task fallback.
+- Step 3: prove CI fails closed without CI metadata and still passes with explicit `CI_TASK_ID`.
 
 ## Target Files
 - `src/app.sh`
@@ -1837,14 +1934,14 @@ scenario_ci_active_task_fallback() {
 ## Reuse And Constraints
 - existing abstractions to reuse: reuse the existing app shell script and check.
 - config/constants to centralize: none
-- side effects to avoid: relying on stale tracked fingerprints or manual PR metadata bookkeeping.
+- side effects to avoid: relying on stale local runtime task pointers during CI.
 
 ## Risk Controls
 - sensitive areas touched: none
 - extra checks before merge: none
 
 ## Acceptance
-- CI should still pass when the PR body and branch metadata are absent, the latest diff stays in scope, and the active task is valid.
+- CI should fail when only `.context/active_task` could identify the task and should pass again when `CI_TASK_ID` is provided explicitly.
 
 ## Verification Commands
 - `bash tests/app-check.sh`
@@ -1868,16 +1965,6 @@ scenario_ci_active_task_fallback() {
 - architecture-review: pending
 - risk-controls-review: pending
 
-## Git / PR
-- base-branch: main
-- branch-strategy: publish-late
-- pr-metadata-policy: auto-recover
-
-## Session Resume
-- current focus: complete the app task cleanly.
-- next action: submit the task plan for approval.
-- known risks: the follow-up commit must stay inside task scope even though the task file itself is unchanged.
-
 ## Completion
 - summary: pending
 - follow-up: pending
@@ -1897,25 +1984,1029 @@ EOF
   git commit -qm "task(ci-active-fallback): initial publish"
 
   printf 'ci-active-fallback\n' > .context/active_task
-  perl -0pi -e 's|#!/usr/bin/env bash|#!/usr/bin/env bash\n# active fallback smoke|' src/app.sh
-  git add src/app.sh
-  git commit -qm "chore: keep the latest diff inside task scope"
+  printf '\n- active fallback smoke note\n' >> docs/context/DECISIONS.md
+  git add docs/context/DECISIONS.md
+  git commit -qm "docs: keep the latest diff inside workflow internals"
 
-  CI_PR_BODY=$'Task-ID: does-not-exist' CI_REF_NAME="" CI_HEAD_BRANCH="" CI_DIFF_BASE="HEAD~1" CI_DIFF_HEAD="HEAD" bash scripts/ci/run-ai-gate.sh >/dev/null
+  if ai_gate_output="$(env CI_PR_BODY="" CI_REF_NAME="" CI_HEAD_BRANCH="" CI_DIFF_BASE="HEAD~1" CI_DIFF_HEAD="HEAD" bash scripts/ci/run-ai-gate.sh 2>&1)"; then
+    fail "ai-gate should not use .context/active_task in CI"
+  fi
+  printf '%s' "$ai_gate_output" | grep -Fq "could not resolve a task id from explicit Task-ID, PR body, branch name, or one changed task file" || fail "ai-gate should fail during task resolution when only .context/active_task is available"
+
+  printf 'stale-active-task\n' > .context/active_task
+  CI_TASK_ID="ci-active-fallback" CI_PR_BODY="" CI_REF_NAME="" CI_HEAD_BRANCH="" CI_DIFF_BASE="HEAD~1" CI_DIFF_HEAD="HEAD" bash scripts/ci/run-ai-gate.sh >/dev/null
+  [[ "$(cat .context/active_task)" == "stale-active-task" ]] || fail "ai-gate should not rewrite .context/active_task"
+
+  if ai_gate_output="$(env CI_TASK_ID="does-not-exist" CI_PR_BODY="" CI_REF_NAME="9/merge" CI_HEAD_BRANCH="task/ci-active-fallback" CI_DIFF_BASE="HEAD~1" CI_DIFF_HEAD="HEAD" bash scripts/ci/run-ai-gate.sh 2>&1)"; then
+    fail "ai-gate should fail closed when an explicit CI_TASK_ID is invalid"
+  fi
+  printf '%s' "$ai_gate_output" | grep -Fq "explicit Task-ID does not match a live task file" || fail "ai-gate should report invalid explicit Task-ID overrides"
+}
+
+scenario_ci_pr_metadata_and_changed_task_file_resolvers() {
+  setup_repo "ci-resolver-matrix"
+  cd "$CURRENT_SMOKE_REPO"
+
+  bash scripts/bootstrap-task.sh ci-resolver-matrix >/dev/null
+
+  cat > docs/tasks/ci-resolver-matrix.md <<'EOF'
+# Task: ci-resolver-matrix
+
+> Normal PR rule: one PR should map to one live task file.
+
+## Status
+- state: planning
+- owner: ai
+- risk-level: trivial
+- updated-at-utc: 2026-04-07 00:00:00Z
+
+## Approval
+- approved-by: pending
+- approved-at-utc: pending
+- approval-note: pending
+
+## Intake
+- user-visible-change-clusters: 1
+- split-decision: single-task
+- split-rationale: prove CI resolver compatibility paths stay valid
+- bundle-override-approved: no
+
+## Goal
+- Prove AI Gate still resolves the task from PR metadata and from one changed live task file when branch metadata is unavailable.
+
+## Non-goals
+- Do not rely on `.context/active_task`.
+
+## Requirements
+- RQ-001: `src/app.sh` must emit `button-size=8`.
+- RQ-002: AI Gate must pass with PR body metadata only.
+- RQ-003: AI Gate must pass with exactly one changed live task file and no metadata.
+
+## Implementation Plan
+- Step 1: complete a narrow app change and publish-ready task state.
+- Step 2: prove PR body resolution with branch metadata removed.
+- Step 3: prove changed-task-file resolution with PR and branch metadata removed.
+
+## Target Files
+- `src/app.sh`
+
+## Out of Scope
+- Server behavior and local runtime dashboards.
+
+## Scope Guardrails
+- unrelated changes allowed: no
+- incidental refactors allowed: no
+
+## Reuse And Constraints
+- existing abstractions to reuse: reuse the app script and existing gate checks.
+- config/constants to centralize: none
+- side effects to avoid: hidden dependence on branch metadata during CI reruns.
+
+## Risk Controls
+- sensitive areas touched: CI task identity resolution only.
+- extra checks before merge: none
+
+## Acceptance
+- AI Gate should pass when only PR body `Task-ID` is available and should pass when exactly one changed live task file identifies the task.
+
+## Verification Commands
+- `bash tests/app-check.sh`
+
+## Verification Status
+- verification-status: pending
+- verification-note: pending
+- verification-at-utc: pending
+
+## Review Status
+- scope-review-status: pending
+- scope-review-note: pending
+- scope-review-at-utc: pending
+- quality-review-status: pending
+- quality-review-note: pending
+- quality-review-at-utc: pending
+- reuse-review: pending
+- hardcoding-review: pending
+- tests-review: pending
+- request-scope-review: pending
+- architecture-review: pending
+- risk-controls-review: pending
+
+## Completion
+- summary: pending
+- follow-up: pending
+EOF
+
+  bash scripts/submit-task-plan.sh ci-resolver-matrix >/dev/null
+  bash scripts/approve-task.sh ci-resolver-matrix --by "user" --note "approved" >/dev/null
+  bash scripts/start-task.sh ci-resolver-matrix >/dev/null
+  perl -0pi -e 's/button-size=4/button-size=8/' src/app.sh
+  bash scripts/run-task-checks.sh ci-resolver-matrix >/dev/null
+  bash scripts/review-scope.sh ci-resolver-matrix --summary "scope stayed inside src/app.sh and workflow internals" >/dev/null
+  bash scripts/review-quality.sh ci-resolver-matrix --summary "quick review: narrow change and deterministic check" >/dev/null
+  bash scripts/complete-task.sh ci-resolver-matrix "proved the documented AI Gate resolver compatibility paths" "publish from the task branch" >/dev/null
+
+  git switch -c task/ci-resolver-matrix >/dev/null
+  git add src/app.sh docs/tasks/ci-resolver-matrix.md
+  git commit -qm "task(ci-resolver-matrix): initial publish"
+
+  printf '\n- pr metadata resolver smoke\n' >> docs/context/DECISIONS.md
+  git add docs/context/DECISIONS.md
+  git commit -qm "docs: keep a workflow-internal follow-up diff"
+
+  CI_PR_BODY=$'Task-ID: ci-resolver-matrix' CI_REF_NAME="" CI_HEAD_BRANCH="" CI_DIFF_BASE="HEAD~1" CI_DIFF_HEAD="HEAD" bash scripts/ci/run-ai-gate.sh >/dev/null
+
+  perl -0pi -e 's/publish from the task branch/publish remains blocked on explicit checks/' docs/tasks/ci-resolver-matrix.md
+  git add docs/tasks/ci-resolver-matrix.md
+  git commit -qm "docs(ci-resolver-matrix): task-file-only follow-up"
+
+  CI_PR_BODY="" CI_REF_NAME="" CI_HEAD_BRANCH="" CI_DIFF_BASE="HEAD~1" CI_DIFF_HEAD="HEAD" bash scripts/ci/run-ai-gate.sh >/dev/null
+}
+
+scenario_ci_resolver_precedence_and_ambiguity() {
+  local resolved_task
+  local resolver_output
+
+  setup_repo "ci-resolver-precedence"
+  cd "$CURRENT_SMOKE_REPO"
+
+  for task_id in resolver-explicit resolver-priority resolver-branch resolver-file resolver-file-a resolver-file-b; do
+    printf '# Task: %s\n' "$task_id" > "docs/tasks/$task_id.md"
+  done
+  git add docs/tasks/resolver-explicit.md docs/tasks/resolver-priority.md docs/tasks/resolver-branch.md docs/tasks/resolver-file.md docs/tasks/resolver-file-a.md docs/tasks/resolver-file-b.md
+  git commit -qm "docs: add resolver fixture tasks"
+
+  resolved_task="$(CI_TASK_ID="resolver-explicit" CI_PR_BODY=$'Task-ID: resolver-priority' CI_REF_NAME="13/merge" CI_HEAD_BRANCH="task/resolver-branch" bash -c 'source scripts/ci/run-ai-gate.sh; detect_task_id_or_exit')"
+  [[ "$resolved_task" == "resolver-explicit" ]] || fail "explicit CI_TASK_ID should win over PR metadata and branch metadata"
+
+  if resolver_output="$(CI_TASK_ID="../context/PROJECT" CI_PR_BODY="" CI_REF_NAME="13/merge" CI_HEAD_BRANCH="task/resolver-branch" bash -c 'source scripts/ci/run-ai-gate.sh; detect_task_id_or_exit' 2>&1)"; then
+    fail "path-style explicit CI_TASK_ID values should fail closed"
+  fi
+  printf '%s' "$resolver_output" | grep -Fq "explicit Task-ID does not match a live task file" || fail "invalid explicit CI_TASK_ID values should report a closed failure"
+
+  resolved_task="$(CI_TASK_ID="" CI_PR_BODY=$'Task-ID: resolver-priority' CI_REF_NAME="13/merge" CI_HEAD_BRANCH="task/resolver-branch" bash -c 'source scripts/ci/run-ai-gate.sh; detect_task_id_or_exit')"
+  [[ "$resolved_task" == "resolver-priority" ]] || fail "PR body Task-ID should win over branch metadata"
+
+  resolved_task="$(CI_TASK_ID="" CI_PR_BODY='This PR has no metadata block' CI_REF_NAME="13/merge" CI_HEAD_BRANCH="task/resolver-branch" bash -c 'source scripts/ci/run-ai-gate.sh; detect_task_id_or_exit')"
+  [[ "$resolved_task" == "resolver-branch" ]] || fail "branch metadata should be used when the PR body has no Task-ID metadata"
+
+  if resolver_output="$(CI_TASK_ID="" CI_PR_BODY=$'Task-ID: does-not-exist' CI_REF_NAME="13/merge" CI_HEAD_BRANCH="task/resolver-branch" bash -c 'source scripts/ci/run-ai-gate.sh; detect_task_id_or_exit' 2>&1)"; then
+    fail "invalid PR body Task-ID metadata should fail closed"
+  fi
+  printf '%s' "$resolver_output" | grep -Fq "PR body Task-ID does not match a live task file" || fail "invalid PR body Task-ID should report a closed failure"
+
+  if resolver_output="$(CI_TASK_ID="" CI_PR_BODY=$'Task-ID: ../context/PROJECT' CI_REF_NAME="13/merge" CI_HEAD_BRANCH="task/resolver-branch" bash -c 'source scripts/ci/run-ai-gate.sh; detect_task_id_or_exit' 2>&1)"; then
+    fail "path-style PR body Task-ID values should fail closed"
+  fi
+  printf '%s' "$resolver_output" | grep -Fq "PR body Task-ID does not match a live task file" || fail "invalid PR body Task-ID paths should report a closed failure"
+
+  if resolver_output="$(CI_TASK_ID="" CI_PR_BODY=$'Task-ID: resolver-priority\nTask-ID: resolver-branch' CI_REF_NAME="" CI_HEAD_BRANCH="" bash -c 'source scripts/ci/run-ai-gate.sh; detect_task_id_or_exit' 2>&1)"; then
+    fail "duplicated PR body Task-ID metadata should fail closed"
+  fi
+  printf '%s' "$resolver_output" | grep -Fq "PR body Task-ID metadata is malformed or ambiguous" || fail "duplicated PR body Task-ID metadata should report ambiguity"
+
+  if resolver_output="$(CI_TASK_ID="" CI_PR_BODY=$'Task-ID: \n' CI_REF_NAME="13/merge" CI_HEAD_BRANCH="task/resolver-branch" bash -c 'source scripts/ci/run-ai-gate.sh; detect_task_id_or_exit' 2>&1)"; then
+    fail "blank PR body Task-ID metadata should fail closed"
+  fi
+  printf '%s' "$resolver_output" | grep -Fq "PR body Task-ID metadata is malformed or ambiguous" || fail "blank PR body Task-ID metadata should report malformed metadata"
+
+  perl -0pi -e 's/# Task: resolver-file/# Task: resolver-file\n# single changed task file/' docs/tasks/resolver-file.md
+  git add docs/tasks/resolver-file.md
+  git commit -qm "docs: create single changed task file resolver diff"
+
+  resolved_task="$(CI_TASK_ID="" CI_PR_BODY="" CI_REF_NAME="13/merge" CI_HEAD_BRANCH="task/resolver-branch" CI_DIFF_BASE="HEAD~1" CI_DIFF_HEAD="HEAD" bash -c 'source scripts/ci/run-ai-gate.sh; detect_task_id_or_exit')"
+  [[ "$resolved_task" == "resolver-branch" ]] || fail "branch metadata should win over changed-task-file fallback"
+
+  if resolver_output="$(CI_TASK_ID="" CI_PR_BODY="" CI_REF_NAME="13/merge" CI_HEAD_BRANCH="task/does-not-exist" CI_DIFF_BASE="HEAD~1" CI_DIFF_HEAD="HEAD" bash -c 'source scripts/ci/run-ai-gate.sh; detect_task_id_or_exit' 2>&1)"; then
+    fail "invalid branch-derived task ids should fail closed"
+  fi
+  printf '%s' "$resolver_output" | grep -Fq "branch-derived task id does not match a live task file" || fail "invalid branch-derived task ids should report a closed failure"
+
+  if resolver_output="$(CI_TASK_ID="" CI_PR_BODY="" CI_REF_NAME="13/merge" CI_HEAD_BRANCH="task/bad_id" CI_DIFF_BASE="HEAD~1" CI_DIFF_HEAD="HEAD" bash -c 'source scripts/ci/run-ai-gate.sh; detect_task_id_or_exit' 2>&1)"; then
+    fail "malformed branch-derived task ids should fail closed"
+  fi
+  printf '%s' "$resolver_output" | grep -Fq "branch-derived task id is malformed" || fail "malformed branch-derived task ids should report malformed metadata"
+
+  resolved_task="$(CI_TASK_ID="" CI_PR_BODY="" CI_REF_NAME="" CI_HEAD_BRANCH="" CI_DIFF_BASE="HEAD~1" CI_DIFF_HEAD="HEAD" bash -c 'source scripts/ci/run-ai-gate.sh; detect_task_id_or_exit')"
+  [[ "$resolved_task" == "resolver-file" ]] || fail "one changed live task file should resolve the task when metadata is absent"
+
+  perl -0pi -e 's/# Task: resolver-file-a/# Task: resolver-file-a\n# ambiguous changed task file a/' docs/tasks/resolver-file-a.md
+  perl -0pi -e 's/# Task: resolver-file-b/# Task: resolver-file-b\n# ambiguous changed task file b/' docs/tasks/resolver-file-b.md
+  git add docs/tasks/resolver-file-a.md docs/tasks/resolver-file-b.md
+  git commit -qm "docs: create ambiguous changed task file diff"
+
+  if resolver_output="$(CI_TASK_ID="" CI_PR_BODY="" CI_REF_NAME="" CI_HEAD_BRANCH="" CI_DIFF_BASE="HEAD~1" CI_DIFF_HEAD="HEAD" bash -c 'source scripts/ci/run-ai-gate.sh; detect_task_id_or_exit' 2>&1)"; then
+    fail "ambiguous task identity should fail closed"
+  fi
+  printf '%s' "$resolver_output" | grep -Fq "could not resolve a task id from explicit Task-ID, PR body, branch name, or one changed task file" || fail "ambiguous resolver failures should report task-resolution failure"
+}
+
+scenario_status_task_surface() {
+  local status_output
+
+  setup_repo "status-task-surface"
+  cd "$CURRENT_SMOKE_REPO"
+
+  bash scripts/bootstrap-task.sh status-task-surface >/dev/null
+
+  cat > docs/tasks/status-task-surface.md <<'EOF'
+# Task: status-task-surface
+
+> Normal PR rule: one PR should map to one live task file.
+
+## Status
+- state: planning
+- owner: ai
+- risk-level: trivial
+- updated-at-utc: 2026-04-07 00:00:00Z
+
+## Approval
+- approved-by: pending
+- approved-at-utc: pending
+- approval-note: pending
+
+## Intake
+- user-visible-change-clusters: 1
+- split-decision: single-task
+- split-rationale: prove the status command covers the operator summary surface
+- bundle-override-approved: no
+
+## Goal
+- Prove `scripts/status-task.sh` exposes enough local task status to replace persisted dashboard inspection.
+
+## Non-goals
+- Do not add a second persisted status file for this flow.
+
+## Requirements
+- RQ-001: `scripts/status-task.sh` must report active task, task state, next action, changed files, risk, verification log hint, and PR status.
+
+## Implementation Plan
+- Step 1: create an in-progress task with a failing verification run.
+- Step 2: inspect the local status command output.
+
+## Target Files
+- `src/app.sh`
+
+## Out of Scope
+- Server behavior and CI resolver logic.
+
+## Scope Guardrails
+- unrelated changes allowed: no
+- incidental refactors allowed: no
+
+## Reuse And Constraints
+- existing abstractions to reuse: reuse the app script and existing task checks.
+- config/constants to centralize: none
+- side effects to avoid: relying on any persisted dashboard file as the only status surface.
+
+## Risk Controls
+- sensitive areas touched: none
+- extra checks before merge: none
+
+## Acceptance
+- The status command should show the failing verification path and available PR metadata from local state.
+
+## Verification Commands
+- `bash tests/app-check.sh`
+
+## Verification Status
+- verification-status: pending
+- verification-note: pending
+- verification-at-utc: pending
+
+## Review Status
+- scope-review-status: pending
+- scope-review-note: pending
+- scope-review-at-utc: pending
+- quality-review-status: pending
+- quality-review-note: pending
+- quality-review-at-utc: pending
+- reuse-review: pending
+- hardcoding-review: pending
+- tests-review: pending
+- request-scope-review: pending
+- architecture-review: pending
+- risk-controls-review: pending
+
+## Completion
+- summary: pending
+- follow-up: pending
+EOF
+
+  bash scripts/submit-task-plan.sh status-task-surface >/dev/null
+  bash scripts/approve-task.sh status-task-surface --by "user" --note "approved" >/dev/null
+  bash scripts/start-task.sh status-task-surface >/dev/null
+  perl -0pi -e 's/button-size=4/button-size=7/' src/app.sh
+  expect_failure "run-task-checks should fail while app output is still wrong" bash scripts/run-task-checks.sh status-task-surface
+
+  git switch -c task/status-task-surface >/dev/null
+  git add src/app.sh docs/tasks/status-task-surface.md
+  git commit -qm "task(status-task-surface): status command repro"
+
+  PR_BODY_FILE="$(mktemp)"
+  printf 'Task-ID: status-task-surface\n' > "$PR_BODY_FILE"
+  gh pr create --base main --head task/status-task-surface --body-file "$PR_BODY_FILE" >/dev/null
+  rm -f "$PR_BODY_FILE"
+  status_output="$(bash scripts/status-task.sh)"
+  printf '%s' "$status_output" | grep -Fq -- "- active-task: status-task-surface" || fail "status-task should derive the task from the current task branch"
+
+  git switch -c scratch-status-view >/dev/null
+  printf '\n- unrelated status branch note\n' >> docs/context/DECISIONS.md
+  git add docs/context/DECISIONS.md
+  git commit -qm "docs: unrelated status branch PR"
+
+  PR_BODY_FILE="$(mktemp)"
+  printf 'Task-ID: unrelated-status-branch\n' > "$PR_BODY_FILE"
+  gh pr create --base main --head scratch-status-view --body-file "$PR_BODY_FILE" >/dev/null
+  rm -f "$PR_BODY_FILE"
+
+  rm -f .context/tasks/status-task-surface/pr.env
+
+  status_output="$(bash scripts/status-task.sh status-task-surface)"
+  printf '%s' "$status_output" | grep -Fq -- "- active-task: status-task-surface" || fail "status-task should report the active task"
+  printf '%s' "$status_output" | grep -Fq -- "- task-state: in_progress" || fail "status-task should report the task state"
+  printf '%s' "$status_output" | grep -Fq -- "- risk-level: trivial" || fail "status-task should report the risk level"
+  printf '%s' "$status_output" | grep -Fq -- ".context/tasks/status-task-surface/verification.log" || fail "status-task should report the verification log hint"
+  printf '%s' "$status_output" | grep -Fq -- "- pr-status: open" || fail "status-task should report PR status"
+  printf '%s' "$status_output" | grep -Fq -- "- pr-number: 1" || fail "status-task should report PR number"
+  printf '%s' "$status_output" | grep -Fq -- "- pr-url: https://example.test/pr/1" || fail "status-task should report PR url"
+  printf '%s' "$status_output" | grep -Fq -- '- `src/app.sh`' || fail "status-task should report changed files"
+  printf '%s' "$status_output" | grep -Fq -- "bash scripts/run-task-checks.sh status-task-surface" || fail "status-task should report the next action"
+
+  bash scripts/bootstrap-task.sh unpublished-status-task >/dev/null
+  unpublished_status_output="$(bash scripts/status-task.sh unpublished-status-task)"
+  printf '%s' "$unpublished_status_output" | grep -Fq -- "- pr-status: none" || fail "status-task should not borrow an unrelated current-branch PR for unpublished tasks"
+
+  cat > docs/tasks/unpublished-status-task.md <<'EOF'
+# Task: unpublished-status-task
+
+> Normal PR rule: one PR should map to one live task file.
+
+## Status
+- state: planning
+- owner: ai
+- risk-level: standard
+- updated-at-utc: 2026-04-07 00:00:00Z
+
+## Approval
+- approved-by: pending
+- approved-at-utc: pending
+- approval-note: pending
+
+## Intake
+- user-visible-change-clusters: 1
+- split-decision: single-task
+- split-rationale: prove status-task distinguishes unpublished local done work from already-published branch cleanup
+- bundle-override-approved: no
+
+## Goal
+- Surface the correct next action for a done task whose local changes are ready to publish but have not been committed on a task branch yet.
+
+## Non-goals
+- Do not publish the PR or merge the task.
+
+## Requirements
+- RQ-001: `src/app.sh` must emit `button-size=8`.
+- RQ-002: `status-task` must not tell the operator to inspect remote PR history when the task is only locally completed and still unpublished.
+
+## Implementation Plan
+- Step 1: update `src/app.sh`.
+- Step 2: complete the task locally without creating the task branch.
+- Step 3: prove `status-task` points to branch creation and publish as the next action.
+
+## Target Files
+- `src/app.sh`
+
+## Out of Scope
+- PR publication, merge automation, and unrelated workflow files.
+
+## Scope Guardrails
+- unrelated changes allowed: no
+- incidental refactors allowed: no
+
+## Reuse And Constraints
+- existing abstractions to reuse: reuse the existing app shell script and smoke check.
+- config/constants to centralize: none
+- side effects to avoid: confusing unpublished local completion with a deleted publish branch.
+
+## Risk Controls
+- sensitive areas touched: done-state local publish guidance only.
+- extra checks before merge: none
+
+## Acceptance
+- `status-task` reports that publish has not started yet and points to task branch creation plus PR publish when the task is done locally but still unpublished.
+
+## Verification Commands
+- `bash tests/app-check.sh`
+
+## Verification Status
+- verification-status: pending
+- verification-note: pending
+- verification-at-utc: pending
+
+## Review Status
+- scope-review-status: pending
+- scope-review-note: pending
+- scope-review-at-utc: pending
+- quality-review-status: pending
+- quality-review-note: pending
+- quality-review-at-utc: pending
+- reuse-review: pending
+- hardcoding-review: pending
+- tests-review: pending
+- request-scope-review: pending
+- architecture-review: pending
+- risk-controls-review: pending
+
+## Completion
+- summary: pending
+- follow-up: pending
+EOF
+
+  bash scripts/submit-task-plan.sh unpublished-status-task >/dev/null
+  bash scripts/approve-task.sh unpublished-status-task --by "user" --note "approved" >/dev/null
+  bash scripts/start-task.sh unpublished-status-task >/dev/null
+  perl -0pi -e 's/button-size=7/button-size=8/' src/app.sh
+  bash scripts/run-task-checks.sh unpublished-status-task >/dev/null
+  bash scripts/review-scope.sh unpublished-status-task --summary "scope stayed inside src/app.sh and workflow internals" >/dev/null
+  bash scripts/review-quality.sh unpublished-status-task --summary "quality review passed for the unpublished local done-state status surface" --reuse pass --hardcoding pass --tests pass --request-scope pass --architecture pass >/dev/null
+  bash scripts/complete-task.sh unpublished-status-task \
+    "updated the app output and prepared the task for first publish" \
+    "create task/unpublished-status-task, commit the approved files, and run bash scripts/open-task-pr.sh unpublished-status-task" >/dev/null
+
+  done_unpublished_status_output="$(bash scripts/status-task.sh unpublished-status-task)"
+  printf '%s' "$done_unpublished_status_output" | grep -Fq -- "- next-action: create task/unpublished-status-task, commit the approved files, and run bash scripts/open-task-pr.sh unpublished-status-task" || fail "status-task should point unpublished local done work to branch creation and publish"
+  printf '%s' "$done_unpublished_status_output" | grep -Fq -- "- pr-status: none" || fail "status-task should still report no PR for unpublished local done work"
+}
+
+scenario_source_repo_init_guard() {
+  expect_failure "init-project should reject the template source repo" bash "$TEMPLATE_DIR/scripts/init-project.sh"
+}
+
+scenario_refresh_current_wrapper_alias() {
+  setup_repo "active-task-only-source-of-truth"
+  cd "$CURRENT_SMOKE_REPO"
+
+  bash scripts/bootstrap-task.sh active-task-only >/dev/null
+  wrapper_output="$(bash scripts/refresh-current.sh active-task-only)"
+  status_output="$(bash scripts/status-task.sh active-task-only)"
+  [[ "$wrapper_output" == "$status_output" ]] || fail "refresh-current should be a compatibility alias for status-task"
+  test ! -f .context/current.md || fail "refresh-current should not create .context/current.md"
+}
+
+scenario_review_publish_requires_fresh_review_state() {
+  local publish_output
+
+  setup_repo "review-publish-requires-fresh-review-state"
+  cd "$CURRENT_SMOKE_REPO"
+
+  bash scripts/bootstrap-task.sh review-publish-freshness >/dev/null
+
+  cat > docs/tasks/review-publish-freshness.md <<'EOF'
+# Task: review-publish-freshness
+
+> Normal PR rule: one PR should map to one live task file.
+
+## Status
+- state: planning
+- owner: ai
+- risk-level: standard
+- updated-at-utc: 2026-04-07 00:00:00Z
+
+## Approval
+- approved-by: pending
+- approved-at-utc: pending
+- approval-note: pending
+
+## Intake
+- user-visible-change-clusters: 1
+- split-decision: single-task
+- split-rationale: prove review-stage publish still rejects stale freshness
+- bundle-override-approved: no
+
+## Goal
+- Publish a review-stage task only when verification is fresh and no recorded review has already failed.
+
+## Non-goals
+- Do not complete the task or test merge flows.
+
+## Requirements
+- RQ-001: `src/app.sh` must emit `button-size=8`.
+- RQ-002: `open-task-pr` must reject review-stage tasks whose quality review is recorded as `fail`.
+- RQ-003: `open-task-pr` must reject invalid review-stage quality status values.
+- RQ-004: `open-task-pr` must reject review-stage drift after verification and reviews have passed.
+
+## Implementation Plan
+- Step 1: update `src/app.sh`.
+- Step 2: record a failing quality review and prove publish is blocked.
+- Step 3: record a passing quality review, prove malformed status values are blocked, then prove a later drift still blocks publish.
+
+## Target Files
+- `src/app.sh`
+
+## Out of Scope
+- `src/server.sh`, done-state publish rules, and merge automation.
+
+## Scope Guardrails
+- unrelated changes allowed: no
+- incidental refactors allowed: no
+
+## Reuse And Constraints
+- existing abstractions to reuse: reuse the existing app shell script and smoke check.
+- config/constants to centralize: none
+- side effects to avoid: publishing stale review state from the task branch.
+
+## Risk Controls
+- sensitive areas touched: review-stage publish enforcement only.
+- extra checks before merge: none
+
+## Acceptance
+- `open-task-pr` fails when quality review is recorded as failed, fails again when review status values are missing or malformed, and fails again when the diff changes after review-stage verification and review passes.
+
+## Verification Commands
+- `bash tests/app-check.sh`
+
+## Verification Status
+- verification-status: pending
+- verification-note: pending
+- verification-at-utc: pending
+
+## Review Status
+- scope-review-status: pending
+- scope-review-note: pending
+- scope-review-at-utc: pending
+- quality-review-status: pending
+- quality-review-note: pending
+- quality-review-at-utc: pending
+- reuse-review: pending
+- hardcoding-review: pending
+- tests-review: pending
+- request-scope-review: pending
+- architecture-review: pending
+- risk-controls-review: pending
+
+## Completion
+- summary: pending
+- follow-up: pending
+EOF
+
+  bash scripts/submit-task-plan.sh review-publish-freshness >/dev/null
+  bash scripts/approve-task.sh review-publish-freshness --by "user" --note "approved" >/dev/null
+  bash scripts/start-task.sh review-publish-freshness >/dev/null
+  perl -0pi -e 's/button-size=4/button-size=8/' src/app.sh
+  bash scripts/run-task-checks.sh review-publish-freshness >/dev/null
+  bash scripts/review-scope.sh review-publish-freshness --summary "scope stayed inside src/app.sh and workflow internals" >/dev/null
+
+  git switch -c task/review-publish-freshness >/dev/null
+  git add src/app.sh docs/tasks/review-publish-freshness.md
+  git commit -qm "task(review-publish-freshness): verification and scope review passed"
+
+  if bash scripts/review-quality.sh \
+    review-publish-freshness \
+    --summary "quality review found unresolved issues" \
+    --reuse fail \
+    --hardcoding fail \
+    --tests fail \
+    --request-scope fail \
+    --architecture fail >/dev/null 2>&1; then
+    fail "review-quality should fail when review dimensions fail for a standard-risk task"
+  fi
+
+  git add docs/tasks/review-publish-freshness.md
+  git commit -qm "task(review-publish-freshness): record failed quality review"
+
+  if publish_output="$(bash scripts/open-task-pr.sh review-publish-freshness 2>&1)"; then
+    fail "open-task-pr should reject failed review-stage quality review"
+  fi
+  printf '%s' "$publish_output" | grep -Fq "[FAIL] quality-review" || fail "failed quality review should block review-stage publish"
+
+  bash scripts/review-quality.sh \
+    review-publish-freshness \
+    --summary "quality review passed after resolving the review findings" \
+    --reuse pass \
+    --hardcoding pass \
+    --tests pass \
+    --request-scope pass \
+    --architecture pass >/dev/null
+
+  git add docs/tasks/review-publish-freshness.md
+  git commit -qm "task(review-publish-freshness): record passing quality review"
+
+  perl -0pi -e 's/\n- quality-review-status: pass//' docs/tasks/review-publish-freshness.md
+  git add docs/tasks/review-publish-freshness.md
+  git commit -qm "task(review-publish-freshness): remove quality review status"
+
+  if publish_output="$(bash scripts/open-task-pr.sh review-publish-freshness 2>&1)"; then
+    fail "open-task-pr should reject missing review-stage quality review status"
+  fi
+  printf '%s' "$publish_output" | grep -Fq "[FAIL] quality-review" || fail "missing quality review status should block review-stage publish"
+  printf '%s' "$publish_output" | grep -Fq "requires quality-review-status to be present" || fail "missing review status should be reported explicitly"
+
+  perl -0pi -e 's/\n- quality-review-note:/\n- quality-review-status: pass\n- quality-review-note:/' docs/tasks/review-publish-freshness.md
+  git add docs/tasks/review-publish-freshness.md
+  git commit -qm "task(review-publish-freshness): restore missing quality review status"
+
+  perl -0pi -e 's/quality-review-status: pass/quality-review-status: blocked/' docs/tasks/review-publish-freshness.md
+  git add docs/tasks/review-publish-freshness.md
+  git commit -qm "task(review-publish-freshness): record invalid quality review status"
+
+  if publish_output="$(bash scripts/open-task-pr.sh review-publish-freshness 2>&1)"; then
+    fail "open-task-pr should reject invalid review-stage quality review status values"
+  fi
+  printf '%s' "$publish_output" | grep -Fq "[FAIL] quality-review" || fail "invalid quality review status should block review-stage publish"
+  printf '%s' "$publish_output" | grep -Fq "invalid quality-review-status=blocked" || fail "invalid review status should be reported explicitly"
+
+  perl -0pi -e 's/quality-review-status: blocked/quality-review-status: pass/' docs/tasks/review-publish-freshness.md
+  git add docs/tasks/review-publish-freshness.md
+  git commit -qm "task(review-publish-freshness): restore valid quality review status"
+
+  perl -0pi -e 's/button-size=8/button-size=9/' src/app.sh
+  git add src/app.sh
+  git commit -qm "task(review-publish-freshness): drift after review"
+
+  if publish_output="$(bash scripts/open-task-pr.sh review-publish-freshness 2>&1)"; then
+    fail "open-task-pr should reject stale review-stage freshness"
+  fi
+  printf '%s' "$publish_output" | grep -Fq "[FAIL] verification" || fail "review-stage drift should fail through verification freshness first"
+  printf '%s' "$publish_output" | grep -Fq "tracked freshness is stale" || fail "review-stage drift should report stale tracked freshness"
+}
+
+scenario_done_publish_requires_tracked_freshness() {
+  local verification_fingerprint
+  local scope_fingerprint
+  local quality_fingerprint
+
+  setup_repo "done-publish-requires-tracked-freshness"
+  cd "$CURRENT_SMOKE_REPO"
+
+  bash scripts/bootstrap-task.sh stale-publish >/dev/null
+
+  cat > docs/tasks/stale-publish.md <<'EOF'
+# Task: stale-publish
+
+> Normal PR rule: one PR should map to one live task file.
+
+## Status
+- state: planning
+- owner: ai
+- risk-level: trivial
+- updated-at-utc: 2026-04-07 00:00:00Z
+
+## Approval
+- approved-by: pending
+- approved-at-utc: pending
+- approval-note: pending
+
+## Intake
+- user-visible-change-clusters: 1
+- split-decision: single-task
+- split-rationale: one narrow app output change
+- bundle-override-approved: no
+
+## Goal
+- Update the app output to `button-size=8`.
+
+## Non-goals
+- Do not change server behavior or publish policy.
+
+## Requirements
+- RQ-001: `src/app.sh` must emit `button-size=8`.
+
+## Implementation Plan
+- Step 1: update `src/app.sh`.
+- Step 2: verify, review, and mark the task done.
+
+## Target Files
+- `src/app.sh`
+
+## Out of Scope
+- `src/server.sh` and unrelated workflow files.
+
+## Scope Guardrails
+- unrelated changes allowed: no
+- incidental refactors allowed: no
+
+## Reuse And Constraints
+- existing abstractions to reuse: reuse the existing app shell script and smoke check.
+- config/constants to centralize: none
+- side effects to avoid: publishing stale task state after done.
+
+## Risk Controls
+- sensitive areas touched: none
+- extra checks before merge: none
+
+## Acceptance
+- Fresh tracked review state should publish without receipt files, legacy receipt-only task docs should still publish, and drift after done must still block publish.
+
+## Verification Commands
+- `bash tests/app-check.sh`
+
+## Verification Status
+- verification-status: pending
+- verification-note: pending
+- verification-at-utc: pending
+
+## Review Status
+- scope-review-status: pending
+- scope-review-note: pending
+- scope-review-at-utc: pending
+- quality-review-status: pending
+- quality-review-note: pending
+- quality-review-at-utc: pending
+- reuse-review: pending
+- hardcoding-review: pending
+- tests-review: pending
+- request-scope-review: pending
+- architecture-review: pending
+- risk-controls-review: pending
+
+## Completion
+- summary: pending
+- follow-up: pending
+EOF
+
+  bash scripts/submit-task-plan.sh stale-publish >/dev/null
+  bash scripts/approve-task.sh stale-publish --by "user" --note "approved" >/dev/null
+  bash scripts/start-task.sh stale-publish >/dev/null
+  perl -0pi -e 's/button-size=4/button-size=8/' src/app.sh
+  bash scripts/run-task-checks.sh stale-publish >/dev/null
+  bash scripts/review-scope.sh stale-publish --summary "scope stayed inside src/app.sh and workflow internals" >/dev/null
+  bash scripts/review-quality.sh stale-publish --summary "quick review: narrow change and deterministic check" >/dev/null
+  bash scripts/complete-task.sh stale-publish "updated the approved app output" "land the task" >/dev/null
+  test ! -f .context/current.md || fail "complete-task should not create .context/current.md in done-task flows"
+  verification_fingerprint="$(grep -E '^- verification-fingerprint: ' docs/tasks/stale-publish.md | sed 's/^- verification-fingerprint: //')"
+  scope_fingerprint="$(grep -E '^- scope-review-fingerprint: ' docs/tasks/stale-publish.md | sed 's/^- scope-review-fingerprint: //')"
+  quality_fingerprint="$(grep -E '^- quality-review-fingerprint: ' docs/tasks/stale-publish.md | sed 's/^- quality-review-fingerprint: //')"
+  [[ "$verification_fingerprint" =~ ^[0-9a-f]{64}$ ]] || fail "verification fingerprint should be recorded on done tasks"
+  [[ "$scope_fingerprint" =~ ^[0-9a-f]{64}$ ]] || fail "scope review fingerprint should be recorded on done tasks"
+  [[ "$quality_fingerprint" =~ ^[0-9a-f]{64}$ ]] || fail "quality review fingerprint should be recorded on done tasks"
+
+  perl -0pi -e 's/\n- verification-fingerprint: [^\n]*//; s/\n- scope-review-fingerprint: [^\n]*//; s/\n- quality-review-fingerprint: [^\n]*//' docs/tasks/stale-publish.md
+
+  git switch -c task/stale-publish >/dev/null
+  git add src/app.sh docs/tasks/stale-publish.md
+  git commit -qm "task(stale-publish): legacy receipt-only publish-ready state"
+  bash scripts/open-task-pr.sh stale-publish >/dev/null
+
+  perl -0pi -e 's/(verification-at-utc: [^\n]*)/$1\n- verification-fingerprint: '"$verification_fingerprint"'/' docs/tasks/stale-publish.md
+  perl -0pi -e 's/(scope-review-at-utc: [^\n]*)/$1\n- scope-review-fingerprint: '"$scope_fingerprint"'/' docs/tasks/stale-publish.md
+  perl -0pi -e 's/(quality-review-at-utc: [^\n]*)/$1\n- quality-review-fingerprint: '"$quality_fingerprint"'/' docs/tasks/stale-publish.md
+  git add docs/tasks/stale-publish.md
+  git commit -qm "docs(stale-publish): restore tracked freshness fields"
+  rm -f .context/tasks/stale-publish/verification.receipt
+  rm -f .context/tasks/stale-publish/scope-review.receipt
+  rm -f .context/tasks/stale-publish/quality-review.receipt
+  bash scripts/open-task-pr.sh stale-publish >/dev/null
+
+  perl -0pi -e 's/button-size=8/button-size=9/' src/app.sh
+  git add src/app.sh
+  git commit -qm "task(stale-publish): drift after done"
+
+  expect_failure "open-task-pr should reject stale tracked freshness after done" bash scripts/open-task-pr.sh stale-publish
+  expect_failure "land-task should reject stale tracked freshness after done" bash scripts/land-task.sh stale-publish
+}
+
+scenario_publish_late_without_origin_guard() {
+  setup_repo "publish-late-without-origin-guard"
+  cd "$CURRENT_SMOKE_REPO"
+
+  git remote remove origin
+  bash scripts/bootstrap-task.sh local-main-guard >/dev/null
+
+  cat > docs/tasks/local-main-guard.md <<'EOF'
+# Task: local-main-guard
+
+> Normal PR rule: one PR should map to one live task file.
+
+## Status
+- state: planning
+- owner: ai
+- risk-level: trivial
+- updated-at-utc: 2026-04-07 00:00:00Z
+
+## Approval
+- approved-by: pending
+- approved-at-utc: pending
+- approval-note: pending
+
+## Intake
+- user-visible-change-clusters: 1
+- split-decision: single-task
+- split-rationale: one narrow app output change
+- bundle-override-approved: no
+
+## Goal
+- Update the app output to `button-size=8`.
+
+## Non-goals
+- Do not change server behavior or publish flow.
+
+## Requirements
+- RQ-001: `src/app.sh` must emit `button-size=8`.
+
+## Implementation Plan
+- Step 1: update `src/app.sh`.
+- Step 2: prove publish-late still blocks main-branch commits without origin.
+
+## Target Files
+- `src/app.sh`
+
+## Out of Scope
+- `src/server.sh` and remote-only publish flows.
+
+## Scope Guardrails
+- unrelated changes allowed: no
+- incidental refactors allowed: no
+
+## Reuse And Constraints
+- existing abstractions to reuse: reuse the existing app shell script and smoke check.
+- config/constants to centralize: none
+- side effects to avoid: allowing committed task work on the base branch when no remote exists.
+
+## Risk Controls
+- sensitive areas touched: local publish-late protection without origin.
+- extra checks before merge: none
+
+## Acceptance
+- Verification must fail when the task commit is made directly on the base branch without origin.
+
+## Verification Commands
+- `bash tests/app-check.sh`
+
+## Verification Status
+- verification-status: pending
+- verification-note: pending
+- verification-at-utc: pending
+
+## Review Status
+- scope-review-status: pending
+- scope-review-note: pending
+- scope-review-at-utc: pending
+- quality-review-status: pending
+- quality-review-note: pending
+- quality-review-at-utc: pending
+- reuse-review: pending
+- hardcoding-review: pending
+- tests-review: pending
+- request-scope-review: pending
+- architecture-review: pending
+- risk-controls-review: pending
+
+## Completion
+- summary: pending
+- follow-up: pending
+EOF
+
+  bash scripts/submit-task-plan.sh local-main-guard >/dev/null
+  bash scripts/approve-task.sh local-main-guard --by "user" --note "approved" >/dev/null
+  bash scripts/start-task.sh local-main-guard >/dev/null
+  perl -0pi -e 's/button-size=4/button-size=8/' src/app.sh
+  git add src/app.sh docs/tasks/local-main-guard.md
+  git commit -qm "task(local-main-guard): incorrect base branch commit"
+
+  expect_failure "run-task-checks should reject base-branch commits without origin" bash scripts/run-task-checks.sh local-main-guard
+}
+
+scenario_git_pr_defaults_and_overrides() {
+  setup_repo "git-pr-defaults-and-overrides"
+  cd "$CURRENT_SMOKE_REPO"
+
+  git branch develop >/dev/null
+  git push origin develop >/dev/null
+  git branch release >/dev/null
+  git push origin release >/dev/null
+
+  bash scripts/bootstrap-task.sh git-pr-defaults >/dev/null
+  perl -0pi -e 's/default-base-branch: main/default-base-branch: develop/' docs/context/CI_PROFILE.md
+  perl -0pi -e 's/default-branch-strategy: publish-late/default-branch-strategy: early-branch/' docs/context/CI_PROFILE.md
+
+  cat > docs/tasks/git-pr-defaults.md <<'EOF'
+# Task: git-pr-defaults
+
+> Normal PR rule: one PR should map to one live task file.
+
+## Status
+- state: planning
+- owner: ai
+- risk-level: trivial
+- updated-at-utc: 2026-04-07 00:00:00Z
+
+## Approval
+- approved-by: pending
+- approved-at-utc: pending
+- approval-note: pending
+
+## Intake
+- user-visible-change-clusters: 1
+- split-decision: single-task
+- split-rationale: verify CI profile Git/PR defaults and task overrides
+- bundle-override-approved: no
+
+## Goal
+- Prove task Git/PR fields inherit from CI profile by default and can still override when needed.
+
+## Non-goals
+- Do not publish a PR or change product behavior.
+
+## Requirements
+- RQ-001: `check-task` must pass when the task leaves Git/PR fields at fallback values.
+- RQ-002: `status-task` must show CI profile defaults until a task override is set.
+
+## Implementation Plan
+- Step 1: validate CI profile fallback behavior.
+- Step 2: set a task override and validate that it wins.
+
+## Target Files
+- `docs/context/CI_PROFILE.md`
+
+## Out of Scope
+- Product source changes and PR publication.
+
+## Scope Guardrails
+- unrelated changes allowed: no
+- incidental refactors allowed: no
+
+## Reuse And Constraints
+- existing abstractions to reuse: reuse CI profile defaults and status-task output.
+- config/constants to centralize: keep Git/PR defaults in CI profile unless a task override is truly needed.
+- side effects to avoid: hiding the override surface from the task contract.
+
+## Risk Controls
+- sensitive areas touched: task Git/PR resolution rules only.
+- extra checks before merge: none
+
+## Acceptance
+- The status output first shows `develop` plus `early-branch`, then shows `release` plus `publish-late` after the task override.
+
+## Verification Commands
+- `bash scripts/check-task.sh git-pr-defaults`
+
+## Verification Status
+- verification-status: pending
+- verification-note: pending
+- verification-at-utc: pending
+
+## Review Status
+- scope-review-status: pending
+- scope-review-note: pending
+- scope-review-at-utc: pending
+- quality-review-status: pending
+- quality-review-note: pending
+- quality-review-at-utc: pending
+- reuse-review: pending
+- hardcoding-review: pending
+- tests-review: pending
+- request-scope-review: pending
+- architecture-review: pending
+- risk-controls-review: pending
+
+## Git / PR
+- base-branch: pending
+- branch-strategy: pending
+
+## Completion
+- summary: pending
+- follow-up: pending
+EOF
+
+  bash scripts/check-task.sh git-pr-defaults >/dev/null
+  status_output="$(bash scripts/status-task.sh git-pr-defaults)"
+  printf '%s' "$status_output" | grep -Fq -- "- base-branch: develop" || fail "status-task should use CI profile defaults for base branch"
+  printf '%s' "$status_output" | grep -Fq -- "- branch-strategy: early-branch" || fail "status-task should use CI profile defaults for branch strategy"
+
+  perl -0pi -e 's/base-branch: pending/base-branch: release/' docs/tasks/git-pr-defaults.md
+  perl -0pi -e 's/branch-strategy: pending/branch-strategy: publish-late/' docs/tasks/git-pr-defaults.md
+
+  bash scripts/check-task.sh git-pr-defaults >/dev/null
+  status_output="$(bash scripts/status-task.sh git-pr-defaults)"
+  printf '%s' "$status_output" | grep -Fq -- "- base-branch: release" || fail "status-task should prefer task-level base-branch overrides"
+  printf '%s' "$status_output" | grep -Fq -- "- branch-strategy: publish-late" || fail "status-task should prefer task-level branch-strategy overrides"
+
+  perl -0pi -e 's/branch-strategy: publish-late/branch-strategy: pbulish-late/' docs/tasks/git-pr-defaults.md
+  expect_failure "check-task should reject malformed branch-strategy values instead of silently falling back" bash scripts/check-task.sh git-pr-defaults
 }
 
 setup_fake_gh
 assert_split_guidance_present
 
-scenario_init_project_from_stable_bundle
+scenario_source_repo_init_guard
+scenario_init_project_from_exported_bundle
 scenario_scope_and_approval
 scenario_publish_late_commit_rejection
 scenario_publish_and_merge
 scenario_land_task_shortcut
+scenario_land_task_without_pr_cache
 scenario_intake_validation
 scenario_delete_only_scope
 scenario_task_supersession
 scenario_ai_gate_command_dedupe
+scenario_refresh_current_wrapper_alias
+scenario_review_publish_requires_fresh_review_state
+scenario_done_publish_requires_tracked_freshness
+scenario_publish_late_without_origin_guard
+scenario_git_pr_defaults_and_overrides
 scenario_ci_active_task_fallback
+scenario_ci_pr_metadata_and_changed_task_file_resolvers
+scenario_ci_resolver_precedence_and_ambiguity
+scenario_status_task_surface
 
 echo "[PASS] smoke"

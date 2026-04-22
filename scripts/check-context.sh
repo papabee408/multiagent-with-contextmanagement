@@ -4,6 +4,7 @@ set -euo pipefail
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_lib.sh"
 
 failures=()
+CHECK_CONTEXT_MODE="${CHECK_CONTEXT_MODE:-local}"
 
 require_file() {
   local relative_path="$1"
@@ -53,7 +54,7 @@ require_file "docs/context/PROJECT.md"
 require_file "docs/context/ARCHITECTURE.md"
 require_file "docs/context/CONVENTIONS.md"
 require_file "docs/context/CI_PROFILE.md"
-require_file "docs/context/CURRENT.md"
+require_file "docs/context/RESUME_GUIDE.md"
 require_file "docs/context/DECISIONS.md"
 
 if [[ ${#failures[@]} -gt 0 ]]; then
@@ -102,16 +103,6 @@ require_key "$CI_PROFILE_FILE" "## Git / PR Policy" "required-check-resolution" 
 require_key "$CI_PROFILE_FILE" "## Git / PR Policy" "merge-method" "CI_PROFILE.md"
 require_section_first_backtick_value "$CI_PROFILE_FILE" "## Required Check Fallback" "CI_PROFILE.md"
 require_section_first_backtick_value "$CI_PROFILE_FILE" "## PR Fast Checks" "CI_PROFILE.md"
-
-ACTIVE_TASK="$(active_task_value)"
-if [[ -n "$ACTIVE_TASK" && ! -f "$(task_file "$ACTIVE_TASK")" ]]; then
-  failures+=("active-task-missing-task-file($ACTIVE_TASK)")
-fi
-
-CURRENT_TASK="$(current_snapshot_active_task_value)"
-if [[ -n "$CURRENT_TASK" && ! -f "$(task_file "$CURRENT_TASK")" ]]; then
-  failures+=("current-snapshot-missing-task-file($CURRENT_TASK)")
-fi
 
 if [[ ${#failures[@]} -gt 0 ]]; then
   echo "[FAIL] context"

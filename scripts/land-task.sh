@@ -15,8 +15,7 @@ Environment:
 This command is for publish-ready tasks. It stages approved task-owned changes,
 creates the task commit on the task branch if needed, opens or updates the PR,
 waits for required checks, merges the PR, syncs the local base branch, deletes
-the local task branch, clears .context/active_task, and refreshes
-.context/current.md.
+the local task branch, and syncs the local base branch.
 EOF
 }
 
@@ -243,9 +242,10 @@ bash "$ROOT_DIR/scripts/check-context.sh" >/dev/null
 bash "$ROOT_DIR/scripts/check-task.sh" "$TASK_ID" >/dev/null
 ensure_task_state_in "$TASK_ID" done
 ensure_publish_late_base_branch_safe "$TASK_ID" "fail-on-behind"
-bash "$ROOT_DIR/scripts/check-scope.sh" "$TASK_ID" >/dev/null
 
 switch_to_task_branch
+ensure_done_task_fresh_for_publish "$TASK_ID"
+bash "$ROOT_DIR/scripts/check-scope.sh" "$TASK_ID" >/dev/null
 stage_task_changes
 
 if ! git -C "$ROOT_DIR" diff --cached --quiet --ignore-submodules -- .; then
@@ -258,10 +258,7 @@ fi
 ensure_clean_worktree || fail_land "publish requires a clean worktree after staging task-owned changes"
 
 bash "$ROOT_DIR/scripts/open-task-pr.sh" "$TASK_ID" >/dev/null
-PR_NUMBER="$(pr_state_value "$TASK_ID" "pr_number")"
-if [[ -z "$PR_NUMBER" ]]; then
-  PR_NUMBER="$(resolve_pr_number_for_head_branch "$EXPECTED_BRANCH")"
-fi
+PR_NUMBER="$(printf '%s\n' "$(resolve_pr_snapshot_for_task "$TASK_ID" "$EXPECTED_BRANCH")" | sed -n '2p')"
 if [[ -z "$PR_NUMBER" ]]; then
   fail_land "could not resolve a PR number after publish"
 fi
@@ -277,8 +274,6 @@ fi
 git -C "$ROOT_DIR" fetch --prune origin >/dev/null
 git -C "$ROOT_DIR" merge --ff-only "origin/$BASE_BRANCH" >/dev/null
 git -C "$ROOT_DIR" branch -d "$EXPECTED_BRANCH" >/dev/null 2>&1 || true
-rm -f "$ACTIVE_TASK_FILE"
-bash "$ROOT_DIR/scripts/refresh-current.sh" >/dev/null
 
 echo "[PASS] land-task"
 echo " - task=$TASK_ID"

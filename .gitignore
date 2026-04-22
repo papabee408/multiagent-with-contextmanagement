@@ -2,6 +2,7 @@
 
 # Local workflow state
 .context/
+.build/
 
 # Local environment overrides
 .env

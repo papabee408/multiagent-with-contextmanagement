@@ -25,9 +25,9 @@ Examples:
   bash scripts/init-project.sh --project-name "Acme App" --platform web --stack nextjs
 
 This script is meant to run once in a brand new repository created by copying
-stable-ai-dev-template/. It rewrites the repo identity docs, regenerates the
-CI profile, removes copied template task history, creates a bootstrap task,
-and initializes git on the chosen base branch when needed.
+an exported stable template bundle. It rewrites the repo identity docs,
+regenerates the CI profile, creates a bootstrap task, and initializes git on
+the chosen base branch when needed.
 When no explicit values are provided, it infers sensible defaults from the
 repository directory name so an AI agent can run it without stopping for input.
 EOF
@@ -71,32 +71,9 @@ prompt_with_default() {
   printf '%s' "$default_value"
 }
 
-is_template_seed_task_id() {
-  case "$1" in
-    add-fresh-repo-bootstrap-flow|\
-    add-git-finish-shortcut|\
-    add-improvement-trigger-reporting-rule|\
-    clarify-review-routing-and-supersession|\
-    dedupe-ai-gate-checks|\
-    document-plan-approval-before-implementation|\
-    enforce-architecture-review-gate|\
-    improve-followup-task-routing|\
-    separate-fresh-repo-bootstrap-context|\
-    migrate-stable-ai-template|\
-    separate-current-snapshot-runtime-state|\
-    simplify-pr-gate-flow|\
-    sync-stable-template-bundle|\
-    upgrade-ai-gate-checkout-v5)
-      return 0
-      ;;
-  esac
-
-  return 1
-}
-
 require_safe_repo() {
-  if [[ -d "$ROOT_DIR/stable-ai-dev-template" ]]; then
-    echo "[ERROR] init-project.sh must run inside a new repo copied from stable-ai-dev-template/, not in the template source repo." >&2
+  if [[ -f "$ROOT_DIR/.template-source-root" ]]; then
+    echo "[ERROR] init-project.sh must run inside a new repo copied from an exported template bundle, not in the template source repo." >&2
     exit 1
   fi
 }
@@ -124,8 +101,8 @@ ensure_rewrite_is_safe() {
           continue
           ;;
       esac
-      if ! is_template_seed_task_id "$task_id" && [[ "$FORCE" -ne 1 ]]; then
-        echo "[ERROR] found non-template task file docs/tasks/$task_id.md. Re-run with --force only if you intend to replace existing project task history." >&2
+      if [[ "$FORCE" -ne 1 ]]; then
+        echo "[ERROR] found existing task file docs/tasks/$task_id.md. Re-run with --force only if you intend to replace existing project task history." >&2
         exit 1
       fi
     done < <(find "$TASKS_DIR" -maxdepth 1 -type f -name '*.md' | sort)
@@ -198,8 +175,13 @@ write_architecture_context() {
 ## Module Boundaries
 - Keep product entrypoints thin and move business rules into feature or domain modules.
 - Keep infrastructure and external integration code separate from domain logic.
-- Workflow scripts own task state, verification receipts, and PR automation; they should not become product runtime dependencies.
+- Workflow scripts own task state, verification evidence, freshness tracking, and PR automation; they should not become product runtime dependencies.
 - Context docs own durable repo guidance, while task files own request-local scope and verification.
+
+## Validator Boundaries
+- \`scripts/check-task.sh\` owns task-contract validation.
+- \`scripts/check-scope.sh\` owns scope validation for the current diff.
+- \`scripts/ci/run-ai-gate.sh\` orchestrates those shared validators in CI and should not carry second copies of task-schema rules.
 
 ## Product Code Guardrails
 - Prefer small feature modules over broad mixed files.
@@ -322,14 +304,17 @@ write_bootstrap_task() {
 - verification-status: pending
 - verification-note: pending
 - verification-at-utc: pending
+- verification-fingerprint: pending
 
 ## Review Status
 - scope-review-status: pending
 - scope-review-note: pending
 - scope-review-at-utc: pending
+- scope-review-fingerprint: pending
 - quality-review-status: pending
 - quality-review-note: pending
 - quality-review-at-utc: pending
+- quality-review-fingerprint: pending
 - reuse-review: pending
 - hardcoding-review: pending
 - tests-review: pending
@@ -338,14 +323,8 @@ write_bootstrap_task() {
 - risk-controls-review: pending
 
 ## Git / PR
-- base-branch: $BASE_BRANCH
-- branch-strategy: publish-late
-- pr-metadata-policy: auto-recover
-
-## Session Resume
-- current focus: confirm or refine the bootstrap plan for this repository.
-- next action: review the bootstrap task, approve it if correct, then run \`bash scripts/start-task.sh $BOOTSTRAP_TASK_ID\`.
-- known risks: CI commands and architecture notes are still first-pass defaults and should be tightened before broad feature work begins.
+- base-branch: pending
+- branch-strategy: pending
 
 ## Completion
 - summary: pending
@@ -472,6 +451,7 @@ PRIMARY_USERS="$(trim "$PRIMARY_USERS")"
 
 ensure_rewrite_is_safe
 ensure_git_repo
+bash "$ROOT_DIR/scripts/bootstrap-task.sh" "$BOOTSTRAP_TASK_ID" >/dev/null
 
 setup_ci_args=(--force --non-interactive)
 if [[ -n "$PLATFORM" ]]; then
@@ -480,6 +460,7 @@ fi
 if [[ -n "$STACK" ]]; then
   setup_ci_args+=(--stack "$STACK")
 fi
+setup_ci_args+=(--base-branch "$BASE_BRANCH")
 
 bash "$ROOT_DIR/scripts/setup-ci-profile.sh" "${setup_ci_args[@]}" >/dev/null
 
@@ -489,10 +470,7 @@ PROJECT_STACK="$(section_key_value "$(ci_profile_file)" "## Project Profile" "st
 write_project_context
 write_architecture_context
 prune_template_task_history
-
-bash "$ROOT_DIR/scripts/bootstrap-task.sh" "$BOOTSTRAP_TASK_ID" >/dev/null
 write_bootstrap_task
-bash "$ROOT_DIR/scripts/refresh-current.sh" "$BOOTSTRAP_TASK_ID" >/dev/null
 
 bash "$ROOT_DIR/scripts/check-context.sh" >/dev/null
 bash "$ROOT_DIR/scripts/check-task.sh" "$BOOTSTRAP_TASK_ID" >/dev/null

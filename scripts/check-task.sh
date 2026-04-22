@@ -211,9 +211,8 @@ if [[ "$verification_count" == "0" ]]; then
   failures+=("missing-verification-commands")
 fi
 
-base_branch="$(section_key_value "$TASK_FILE" "## Git / PR" "base-branch")"
+base_branch="$(base_branch_from_task "$TASK_ID")"
 branch_strategy="$(branch_strategy_from_task "$TASK_ID")"
-pr_metadata_policy="$(section_key_value "$TASK_FILE" "## Git / PR" "pr-metadata-policy")"
 if placeholder_like "$base_branch"; then
   failures+=("missing-base-branch")
 fi
@@ -224,33 +223,23 @@ case "$branch_strategy" in
     failures+=("invalid-branch-strategy($branch_strategy)")
     ;;
 esac
-case "$pr_metadata_policy" in
-  required|auto-recover)
-    ;;
-  *)
-    failures+=("invalid-pr-metadata-policy($pr_metadata_policy)")
-    ;;
-esac
-
-for key in "current focus" "next action" "known risks"; do
-  value="$(section_key_value "$TASK_FILE" "## Session Resume" "$key")"
-  if placeholder_like "$value"; then
-    failures+=("missing-session-resume-$key")
-  fi
-done
 
 if [[ "$state" == "done" ]]; then
   verification_status="$(lower "$(section_key_value "$TASK_FILE" "## Verification Status" "verification-status")")"
   verification_note="$(section_key_value "$TASK_FILE" "## Verification Status" "verification-note")"
   verification_at="$(section_key_value "$TASK_FILE" "## Verification Status" "verification-at-utc")"
+  verification_fingerprint="$(section_key_value "$TASK_FILE" "## Verification Status" "verification-fingerprint")"
 
   scope_status="$(lower "$(section_key_value "$TASK_FILE" "## Review Status" "scope-review-status")")"
   scope_note="$(section_key_value "$TASK_FILE" "## Review Status" "scope-review-note")"
   scope_at="$(section_key_value "$TASK_FILE" "## Review Status" "scope-review-at-utc")"
+  scope_fingerprint="$(section_key_value "$TASK_FILE" "## Review Status" "scope-review-fingerprint")"
 
   quality_status="$(lower "$(section_key_value "$TASK_FILE" "## Review Status" "quality-review-status")")"
   quality_note="$(section_key_value "$TASK_FILE" "## Review Status" "quality-review-note")"
   quality_at="$(section_key_value "$TASK_FILE" "## Review Status" "quality-review-at-utc")"
+  quality_fingerprint="$(section_key_value "$TASK_FILE" "## Review Status" "quality-review-fingerprint")"
+  current_fingerprint="$(task_fingerprint "$TASK_ID")"
 
   if [[ "$verification_status" != "pass" ]]; then
     failures+=("done-task-requires-verification-pass")
@@ -261,6 +250,13 @@ if [[ "$state" == "done" ]]; then
   if placeholder_like "$verification_at"; then
     failures+=("missing-verification-at-utc")
   fi
+  if section_has_key "$TASK_FILE" "## Verification Status" "verification-fingerprint"; then
+    if placeholder_like "$verification_fingerprint"; then
+      failures+=("missing-verification-fingerprint")
+    elif [[ "$verification_fingerprint" != "$current_fingerprint" ]]; then
+      failures+=("stale-verification-fingerprint")
+    fi
+  fi
   if [[ "$scope_status" != "pass" ]]; then
     failures+=("done-task-requires-scope-review-pass")
   fi
@@ -270,6 +266,13 @@ if [[ "$state" == "done" ]]; then
   if placeholder_like "$scope_at"; then
     failures+=("missing-scope-review-at-utc")
   fi
+  if section_has_key "$TASK_FILE" "## Review Status" "scope-review-fingerprint"; then
+    if placeholder_like "$scope_fingerprint"; then
+      failures+=("missing-scope-review-fingerprint")
+    elif [[ "$scope_fingerprint" != "$current_fingerprint" ]]; then
+      failures+=("stale-scope-review-fingerprint")
+    fi
+  fi
   if [[ "$quality_status" != "pass" ]]; then
     failures+=("done-task-requires-quality-review-pass")
   fi
@@ -278,6 +281,13 @@ if [[ "$state" == "done" ]]; then
   fi
   if placeholder_like "$quality_at"; then
     failures+=("missing-quality-review-at-utc")
+  fi
+  if section_has_key "$TASK_FILE" "## Review Status" "quality-review-fingerprint"; then
+    if placeholder_like "$quality_fingerprint"; then
+      failures+=("missing-quality-review-fingerprint")
+    elif [[ "$quality_fingerprint" != "$current_fingerprint" ]]; then
+      failures+=("stale-quality-review-fingerprint")
+    fi
   fi
   case "$risk_level" in
     standard)

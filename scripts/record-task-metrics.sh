@@ -29,9 +29,18 @@ fi
 target_count="$(target_files_from_task "$TASK_ID" | line_count)"
 verification_count="$(verification_commands_from_task "$TASK_ID" | line_count)"
 changed_count="$(non_internal_changed_files "$TASK_ID" | line_count)"
-verification_status="$(lower "$(tsv_sanitize "$(receipt_value "$(verification_receipt_file "$TASK_ID")" "result")")")"
-scope_review_status="$(lower "$(tsv_sanitize "$(receipt_value "$(scope_review_receipt_file "$TASK_ID")" "result")")")"
-quality_review_status="$(lower "$(tsv_sanitize "$(receipt_value "$(quality_review_receipt_file "$TASK_ID")" "result")")")"
+verification_status="$(lower "$(tsv_sanitize "$(section_key_value "$TASK_FILE" "## Verification Status" "verification-status")")")"
+scope_review_status="$(lower "$(tsv_sanitize "$(section_key_value "$TASK_FILE" "## Review Status" "scope-review-status")")")"
+quality_review_status="$(lower "$(tsv_sanitize "$(section_key_value "$TASK_FILE" "## Review Status" "quality-review-status")")")"
+if placeholder_like "$verification_status"; then
+  verification_status="$(lower "$(tsv_sanitize "$(receipt_value "$(verification_receipt_file "$TASK_ID")" "result")")")"
+fi
+if placeholder_like "$scope_review_status"; then
+  scope_review_status="$(lower "$(tsv_sanitize "$(receipt_value "$(scope_review_receipt_file "$TASK_ID")" "result")")")"
+fi
+if placeholder_like "$quality_review_status"; then
+  quality_review_status="$(lower "$(tsv_sanitize "$(receipt_value "$(quality_review_receipt_file "$TASK_ID")" "result")")")"
+fi
 approved_at="$(tsv_sanitize "$(section_key_value "$TASK_FILE" "## Approval" "approved-at-utc")")"
 completed_at="$(tsv_sanitize "$(section_key_value "$TASK_FILE" "## Status" "updated-at-utc")")"
 if [[ -z "$completed_at" ]]; then

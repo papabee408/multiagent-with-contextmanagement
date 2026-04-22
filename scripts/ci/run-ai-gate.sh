@@ -54,34 +54,82 @@ task_id_from_branch_input() {
 detect_task_id_or_exit() {
   local explicit_task_id
   local metadata_task_id
+  local metadata_task_id_status=0
   local branch_task_id
-  local active_task_id
+  local branch_task_id_status=0
   local task_files=()
   local task_file
   local task_id=""
 
   explicit_task_id="$(trim "$CI_TASK_ID")"
-  metadata_task_id="$(task_id_from_pr_metadata || true)"
-  branch_task_id="$(task_id_from_branch_input || true)"
-  active_task_id="$(active_task_value)"
+  metadata_task_id=""
+  branch_task_id=""
+  if branch_task_id="$(task_id_from_branch_input)"; then
+    branch_task_id="$(trim "$branch_task_id")"
+  else
+    branch_task_id_status=$?
+    if [[ "$branch_task_id_status" -eq 1 ]]; then
+      branch_task_id=""
+    else
+      echo "[FAIL] ai-gate" >&2
+      echo " - branch-derived task id is malformed" >&2
+      exit 1
+    fi
+  fi
   while IFS= read -r task_file; do
     [[ -n "$task_file" ]] || continue
     task_files+=("$task_file")
   done < <(changed_live_task_files)
 
-  if [[ -n "$explicit_task_id" ]] && task_exists "$explicit_task_id"; then
-    printf '%s' "$explicit_task_id"
-    return 0
+  if [[ -n "$explicit_task_id" ]]; then
+    if task_exists "$explicit_task_id"; then
+      printf '%s' "$explicit_task_id"
+      return 0
+    fi
+
+    echo "[FAIL] ai-gate" >&2
+    echo " - explicit Task-ID does not match a live task file" >&2
+    echo " - explicit-task-id=$explicit_task_id" >&2
+    exit 1
   fi
 
-  if [[ -n "$metadata_task_id" ]] && task_exists "$metadata_task_id"; then
-    printf '%s' "$metadata_task_id"
-    return 0
+  if [[ -n "$CI_PR_BODY" ]]; then
+    if metadata_task_id="$(task_id_from_pr_metadata)"; then
+      metadata_task_id="$(trim "$metadata_task_id")"
+    else
+      metadata_task_id_status=$?
+      if [[ "$metadata_task_id_status" -eq 1 ]]; then
+        metadata_task_id=""
+      else
+        echo "[FAIL] ai-gate" >&2
+        echo " - PR body Task-ID metadata is malformed or ambiguous" >&2
+        exit 1
+      fi
+    fi
+
+    if [[ -n "$metadata_task_id" ]]; then
+      if task_exists "$metadata_task_id"; then
+        printf '%s' "$metadata_task_id"
+        return 0
+      fi
+
+      echo "[FAIL] ai-gate" >&2
+      echo " - PR body Task-ID does not match a live task file" >&2
+      echo " - pr-body-task-id=$metadata_task_id" >&2
+      exit 1
+    fi
   fi
 
-  if [[ -n "$branch_task_id" ]] && task_exists "$branch_task_id"; then
-    printf '%s' "$branch_task_id"
-    return 0
+  if [[ -n "$branch_task_id" ]]; then
+    if task_exists "$branch_task_id"; then
+      printf '%s' "$branch_task_id"
+      return 0
+    fi
+
+    echo "[FAIL] ai-gate" >&2
+    echo " - branch-derived task id does not match a live task file" >&2
+    echo " - branch-task-id=$branch_task_id" >&2
+    exit 1
   fi
 
   if [[ ${#task_files[@]} == 1 ]]; then
@@ -93,19 +141,13 @@ detect_task_id_or_exit() {
     fi
   fi
 
-  if [[ -n "$active_task_id" ]] && task_exists "$active_task_id"; then
-    printf '%s' "$active_task_id"
-    return 0
-  fi
-
-  echo "[FAIL] ai-gate"
-  echo " - could not resolve a task id from explicit Task-ID, PR body, branch name, changed task file, or active task"
-  [[ -n "$explicit_task_id" ]] && echo " - explicit-task-id=$explicit_task_id"
-  [[ -n "$metadata_task_id" ]] && echo " - pr-body-task-id=$metadata_task_id"
-  [[ -n "$branch_task_id" ]] && echo " - branch-task-id=$branch_task_id"
-  [[ -n "$active_task_id" ]] && echo " - active-task-id=$active_task_id"
+  echo "[FAIL] ai-gate" >&2
+  echo " - could not resolve a task id from explicit Task-ID, PR body, branch name, or one changed task file" >&2
+  [[ -n "$explicit_task_id" ]] && echo " - explicit-task-id=$explicit_task_id" >&2
+  [[ -n "$metadata_task_id" ]] && echo " - pr-body-task-id=$metadata_task_id" >&2
+  [[ -n "$branch_task_id" ]] && echo " - branch-task-id=$branch_task_id" >&2
   if [[ ${#task_files[@]} -gt 0 ]]; then
-    printf ' - changed-task-file=%s\n' "${task_files[@]}"
+    printf ' - changed-task-file=%s\n' "${task_files[@]}" >&2
   fi
   exit 1
 }
@@ -120,43 +162,6 @@ ensure_merge_ready_state() {
     echo " - task must be in state 'done' before CI passes"
     echo " - task=$task_id"
     echo " - current-state=$current_state"
-    exit 1
-  fi
-}
-
-check_ci_scope() {
-  local task_id="$1"
-  local allowed_tmp
-  local violations=()
-  local relative_path
-
-  allowed_tmp="$(mktemp)"
-  {
-    target_files_from_task "$task_id"
-    printf '%s\n' "docs/tasks/$task_id.md"
-    printf '%s\n' "docs/context/DECISIONS.md"
-  } | sort -u > "$allowed_tmp"
-
-  while IFS= read -r relative_path; do
-    [[ -n "$relative_path" ]] || continue
-    if is_workflow_internal_file "$task_id" "$relative_path"; then
-      continue
-    fi
-    if grep -Fxq "$relative_path" "$allowed_tmp"; then
-      continue
-    fi
-    if path_allowed_by_task "$task_id" "$relative_path"; then
-      continue
-    fi
-    violations+=("$relative_path")
-  done < <(task_committed_changed_files "$task_id")
-
-  rm -f "$allowed_tmp"
-
-  if [[ ${#violations[@]} -gt 0 ]]; then
-    echo "[FAIL] ai-gate"
-    echo " - CI scope check failed for task: $task_id"
-    printf ' - %s\n' "${violations[@]}"
     exit 1
   fi
 }
@@ -182,98 +187,19 @@ run_task_verification_commands_ci() {
   done
 }
 
-check_summary_statuses_ci() {
-  local task_id="$1"
-  local risk_level
-  local scope_status
-  local scope_note
-  local scope_at
-  local quality_status
-  local quality_note
-  local quality_at
-  local required_keys=()
-  local key
-  local value
-
-  risk_level="$(task_risk_level "$task_id")"
-
-  scope_status="$(lower "$(section_key_value "$(task_file "$task_id")" "## Review Status" "scope-review-status")")"
-  scope_note="$(section_key_value "$(task_file "$task_id")" "## Review Status" "scope-review-note")"
-  scope_at="$(section_key_value "$(task_file "$task_id")" "## Review Status" "scope-review-at-utc")"
-
-  quality_status="$(lower "$(section_key_value "$(task_file "$task_id")" "## Review Status" "quality-review-status")")"
-  quality_note="$(section_key_value "$(task_file "$task_id")" "## Review Status" "quality-review-note")"
-  quality_at="$(section_key_value "$(task_file "$task_id")" "## Review Status" "quality-review-at-utc")"
-  [[ "$scope_status" == "pass" ]] || {
-    echo "[FAIL] ai-gate"
-    echo " - scope-review-status must be pass"
-    exit 1
-  }
-  [[ "$quality_status" == "pass" ]] || {
-    echo "[FAIL] ai-gate"
-    echo " - quality-review-status must be pass"
-    exit 1
-  }
-
-  if placeholder_like "$scope_note" || placeholder_like "$scope_at"; then
-    echo "[FAIL] ai-gate"
-    echo " - scope review summary fields are incomplete"
-    exit 1
-  fi
-  if placeholder_like "$quality_note" || placeholder_like "$quality_at"; then
-    echo "[FAIL] ai-gate"
-    echo " - quality review summary fields are incomplete"
-    exit 1
-  fi
-
-  case "$risk_level" in
-    trivial)
-      required_keys=()
-      ;;
-    standard)
-      required_keys=("reuse-review" "hardcoding-review" "tests-review" "request-scope-review" "architecture-review")
-      ;;
-    high-risk)
-      required_keys=("reuse-review" "hardcoding-review" "tests-review" "request-scope-review" "architecture-review" "risk-controls-review")
-      ;;
-    *)
-      echo "[FAIL] ai-gate"
-      echo " - unsupported risk level: $risk_level"
-      exit 1
-      ;;
-  esac
-
-  if [[ ${#required_keys[@]} -eq 0 ]]; then
-    return 0
-  fi
-
-  for key in "${required_keys[@]}"; do
-    value="$(lower "$(section_key_value "$(task_file "$task_id")" "## Review Status" "$key")")"
-    if [[ "$value" != "pass" ]]; then
-      echo "[FAIL] ai-gate"
-      echo " - review field '$key' must be pass"
-      exit 1
-    fi
-  done
-}
-
 main() {
   local task_id
   local risk_level
 
   task_id="$(detect_task_id_or_exit)"
 
-  mkdir -p "$CONTEXT_DIR"
-  printf '%s\n' "$task_id" > "$ACTIVE_TASK_FILE"
-
   echo "[INFO] ai-gate task=$task_id event=$CI_EVENT_NAME ref=${CI_REF_NAME:-unknown}"
 
-  bash "$ROOT_DIR/scripts/check-context.sh"
+  CHECK_CONTEXT_MODE=ci bash "$ROOT_DIR/scripts/check-context.sh"
   bash "$ROOT_DIR/scripts/check-task.sh" "$task_id"
   reset_ci_command_history
   ensure_merge_ready_state "$task_id"
-  check_ci_scope "$task_id"
-  check_summary_statuses_ci "$task_id"
+  CHECK_SCOPE_MODE=ci bash "$ROOT_DIR/scripts/check-scope.sh" "$task_id"
   run_task_verification_commands_ci "$task_id"
 
   run_project_checks_for_pr_fast "$task_id"
@@ -290,4 +216,6 @@ main() {
   echo "[PASS] ai-gate"
 }
 
-main "$@"
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  main "$@"
+fi

@@ -1,7 +1,7 @@
 # Fresh Repo Bootstrap
 
-Read this file only when the repository still looks freshly copied from
-`stable-ai-dev-template/`, for example when repo identity docs still point to
+Read this file only when the repository still looks freshly copied from an
+exported template bundle, for example when repo identity docs still point to
 the template source or copied template task history is still present.
 
 ## Bootstrap Trigger
